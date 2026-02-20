@@ -1,7 +1,9 @@
 import { collection, onSnapshot, query } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { SETTINGS } from '../constants/Settings';
 import { db } from '../firebase/config';
+import mockCustomers from '../mocks/customers.json';
 
 export default function Index() {
 	const [stats, setStats] = useState({
@@ -13,6 +15,29 @@ export default function Index() {
 	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
+		if (SETTINGS.USE_MOCKS) {
+			let active = 0;
+			let due = 0;
+			let lunch = 0;
+			let dinner = 0;
+
+			mockCustomers.forEach((data) => {
+				if (data.daysLeft > 0) active++;
+				if (data.paymentDue) due++;
+				if (data.plan && data.plan.includes("Lunch")) lunch++;
+				if (data.plan && data.plan.includes("Dinner")) dinner++;
+			});
+
+			setStats({
+				activeCount: active,
+				paymentsDue: due,
+				lunchCount: lunch,
+				dinnerCount: dinner
+			});
+			setLoading(false);
+			return;
+		}
+
 		const q = query(collection(db, "customers"));
 
 		const unsubscribe = onSnapshot(q, (querySnapshot) => {

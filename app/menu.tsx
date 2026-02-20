@@ -2,7 +2,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SETTINGS } from '../constants/Settings';
 import { db } from '../firebase/config';
+import mockMenu from '../mocks/menu.json';
 
 export default function MenuScreen() {
 	const [isEditing, setIsEditing] = useState(false);
@@ -11,6 +13,13 @@ export default function MenuScreen() {
 	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
+		if (SETTINGS.USE_MOCKS) {
+			setLunch(mockMenu.lunch);
+			setDinner(mockMenu.dinner);
+			setLoading(false);
+			return;
+		}
+
 		// Listen to the 'today' document in the 'menu' collection
 		const unsub = onSnapshot(doc(db, "menu", "today"), (docSnap) => {
 			if (docSnap.exists()) {

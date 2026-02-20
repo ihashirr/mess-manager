@@ -1,7 +1,9 @@
 import { collection, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SETTINGS } from '../constants/Settings';
 import { db } from '../firebase/config';
+import mockCustomers from '../mocks/customers.json';
 
 type Payment = {
 	id: string;
@@ -15,6 +17,13 @@ export default function PaymentsScreen() {
 	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
+		if (SETTINGS.USE_MOCKS) {
+			const paymentsArray = (mockCustomers as Payment[]).filter(c => c.paymentDue);
+			setPayments(paymentsArray);
+			setLoading(false);
+			return;
+		}
+
 		// Rule: If paymentDue === true -> show in Payments list
 		const q = query(collection(db, "customers"), where("paymentDue", "==", true));
 

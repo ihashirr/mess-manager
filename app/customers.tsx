@@ -1,7 +1,9 @@
 import { addDoc, collection, onSnapshot, query, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SETTINGS } from '../constants/Settings';
 import { db } from '../firebase/config';
+import mockCustomers from '../mocks/customers.json';
 
 type Customer = {
 	id: string;
@@ -24,6 +26,12 @@ export default function CustomersScreen() {
 	const [newDays, setNewDays] = useState("30");
 
 	useEffect(() => {
+		if (SETTINGS.USE_MOCKS) {
+			setCustomers(mockCustomers as Customer[]);
+			setLoading(false);
+			return;
+		}
+
 		// Rule: If customer daysLeft > 0 -> show in Customers list
 		const q = query(collection(db, "customers"), where("daysLeft", ">", 0));
 
