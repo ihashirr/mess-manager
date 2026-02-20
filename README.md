@@ -1,50 +1,41 @@
-# Welcome to your Expo app 👋
+# Mess Manager 🍲
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Mess Manager is a simple, high-readability mobile application designed for home-based meal service operators. It replaces traditional paper notebooks with a direct, one-tap digital solution for tracking customers and payments.
 
-## Get started
+## ✨ Key Features
 
-1. Install dependencies
+- **Reassurance Dashboard**: Large, glanceable stats for active customers, pending payments, and daily meal counts.
+- **Customer Management**: Add new customers and track their subscription days remaining.
+- **Easy Payments**: A dedicated "Payments Due" list with a one-tap "Mark Paid" button.
+- **Daily Menu**: Quickly view and edit daily lunch and dinner offerings.
 
-   ```bash
-   npm install
-   ```
+## 🛠️ Technical Overview
 
-2. Start the app
+- **Core**: Built with [Expo](https://expo.dev) and React Native.
+- **Database**: Real-time persistence using **Firebase Firestore**.
+- **Architecture**: Simple, independent data fetching per screen (no complex global state).
+- **UX**: Designed for non-technical users with massive fonts and Urdu language cues on critical actions.
 
-   ```bash
-   npx expo start
-   ```
+## 🚀 Getting Started
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
+### 1. Install Dependencies
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 2. Configure Firebase
+Ensure your credentials are set up in `firebase/config.ts`.
 
-## Learn more
+### 3. Start Developing
+```bash
+npx expo start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+## 📂 Project Structure
+- `app/`: Contains the screen routes (index, customers, payments, menu).
+- `firebase/`: Firebase configuration and initialization.
+- `components/`: Reusable UI components.
+- `TECHNICAL_LOGIC.md`: Detailed breakdown of system logic and data flow.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+---
+*Built for simplicity and ease of use.*

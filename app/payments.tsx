@@ -1,16 +1,53 @@
+import { collection, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { useAppContent } from './_layout';
+import { db } from '../firebase/config';
+
+type Payment = {
+	id: string;
+	name: string;
+	amount: string;
+	paymentDue: boolean;
+};
 
 export default function PaymentsScreen() {
-	const { customers, markAsPaid } = useAppContent();
+	const [payments, setPayments] = useState<Payment[]>([]);
+	const [loading, setLoading] = useState(true);
 
-	// Rule: If paymentDue === true -> show in Payments list
-	const duePayments = customers.filter(c => c.paymentDue === true);
+	useEffect(() => {
+		// Rule: If paymentDue === true -> show in Payments list
+		const q = query(collection(db, "customers"), where("paymentDue", "==", true));
+
+		const unsubscribe = onSnapshot(q, (querySnapshot) => {
+			const paymentsArray: Payment[] = [];
+			querySnapshot.forEach((doc) => {
+				paymentsArray.push({ id: doc.id, ...doc.data() } as Payment);
+			});
+			setPayments(paymentsArray);
+			setLoading(false);
+		});
+
+		return () => unsubscribe();
+	}, []);
+
+	const markAsPaid = async (id: string) => {
+		try {
+			const customerRef = doc(db, "customers", id);
+			await updateDoc(customerRef, {
+				paymentDue: false
+			});
+			console.log("Payment marked as paid in DB");
+		} catch (error) {
+			console.error("Error updating payment status:", error);
+		}
+	};
+
+	if (loading) return <View style={styles.container}><Text>Loading...</Text></View>;
 
 	return (
 		<View style={styles.container}>
 			<FlatList
-				data={duePayments}
+				data={payments}
 				keyExtractor={(item) => item.id}
 				renderItem={({ item }) => (
 					<View style={styles.card}>

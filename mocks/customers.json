@@ -1,0 +1,26 @@
+[
+	{
+		"id": "mock-1",
+		"name": "Ali (MOCK)",
+		"plan": "Lunch",
+		"daysLeft": 25,
+		"paymentDue": true,
+		"amount": "2500"
+	},
+	{
+		"id": "mock-2",
+		"name": "Zahra (MOCK)",
+		"plan": "Dinner",
+		"daysLeft": 10,
+		"paymentDue": false,
+		"amount": "1200"
+	},
+	{
+		"id": "mock-3",
+		"name": "Umer (MOCK)",
+		"plan": "Lunch + Dinner",
+		"daysLeft": 5,
+		"paymentDue": true,
+		"amount": "4500"
+	}
+]

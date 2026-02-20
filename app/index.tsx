@@ -1,35 +1,69 @@
+import { collection, onSnapshot, query } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { useAppContent } from "./_layout";
+import { db } from '../firebase/config';
 
 export default function Index() {
-	const { customers } = useAppContent();
+	const [stats, setStats] = useState({
+		activeCount: 0,
+		paymentsDue: 0,
+		lunchCount: 0,
+		dinnerCount: 0
+	});
+	const [loading, setLoading] = useState(true);
 
-	const activeCount = customers.filter(c => c.daysLeft > 0).length;
-	const paymentsDue = customers.filter(c => c.paymentDue).length;
-	const lunchCount = customers.filter(c => c.plan.includes("Lunch")).length;
-	const dinnerCount = customers.filter(c => c.plan.includes("Dinner")).length;
+	useEffect(() => {
+		const q = query(collection(db, "customers"));
+
+		const unsubscribe = onSnapshot(q, (querySnapshot) => {
+			let active = 0;
+			let due = 0;
+			let lunch = 0;
+			let dinner = 0;
+
+			querySnapshot.forEach((doc) => {
+				const data = doc.data();
+				if (data.daysLeft > 0) active++;
+				if (data.paymentDue) due++;
+				if (data.plan && data.plan.includes("Lunch")) lunch++;
+				if (data.plan && data.plan.includes("Dinner")) dinner++;
+			});
+
+			setStats({
+				activeCount: active,
+				paymentsDue: due,
+				lunchCount: lunch,
+				dinnerCount: dinner
+			});
+			setLoading(false);
+		});
+
+		return () => unsubscribe();
+	}, []);
+
+	if (loading) return <View style={styles.container}><Text>Loading...</Text></View>;
 
 	return (
 		<ScrollView style={styles.container} contentContainerStyle={styles.content}>
 			<Text style={styles.dateLabel}>Today: 21 Feb 2026</Text>
 
 			<View style={styles.statCard}>
-				<Text style={styles.statValue}>{activeCount}</Text>
+				<Text style={styles.statValue}>{stats.activeCount}</Text>
 				<Text style={styles.statLabel}>Active Customers</Text>
 			</View>
 
 			<View style={[styles.statCard, { borderColor: '#d32f2f' }]}>
-				<Text style={[styles.statValue, { color: '#d32f2f' }]}>{paymentsDue}</Text>
+				<Text style={[styles.statValue, { color: '#d32f2f' }]}>{stats.paymentsDue}</Text>
 				<Text style={styles.statLabel}>Payments Due</Text>
 			</View>
 
 			<View style={styles.statCard}>
-				<Text style={styles.statValue}>{lunchCount}</Text>
+				<Text style={styles.statValue}>{stats.lunchCount}</Text>
 				<Text style={styles.statLabel}>Lunch Count</Text>
 			</View>
 
 			<View style={styles.statCard}>
-				<Text style={styles.statValue}>{dinnerCount}</Text>
+				<Text style={styles.statValue}>{stats.dinnerCount}</Text>
 				<Text style={styles.statLabel}>Dinner Count</Text>
 			</View>
 		</ScrollView>

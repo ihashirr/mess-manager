@@ -1,128 +1,179 @@
-import { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { db } from '../firebase/config';
 
 export default function MenuScreen() {
-	const [lunch, setLunch] = useState("Chicken Biryani");
-	const [dinner, setDinner] = useState("Daal + Roti");
 	const [isEditing, setIsEditing] = useState(false);
+	const [lunch, setLunch] = useState("");
+	const [dinner, setDinner] = useState("");
+	const [loading, setLoading] = useState(true);
+
+	useEffect(() => {
+		// Listen to the 'today' document in the 'menu' collection
+		const unsub = onSnapshot(doc(db, "menu", "today"), (docSnap) => {
+			if (docSnap.exists()) {
+				const data = docSnap.data();
+				setLunch(data.lunch || "");
+				setDinner(data.dinner || "");
+			} else {
+				// Fallback or initialization
+				setLunch("Not decided yet");
+				setDinner("Not decided yet");
+			}
+			setLoading(false);
+		});
+
+		return () => unsub();
+	}, []);
+
+	const handleSave = async () => {
+		try {
+			await setDoc(doc(db, "menu", "today"), {
+				lunch: lunch,
+				dinner: dinner,
+				updatedAt: new Date().toISOString()
+			});
+			setIsEditing(false);
+		} catch (error) {
+			console.error("Error saving menu:", error);
+		}
+	};
+
+	if (loading) {
+		return (
+			<View style={styles.centered}>
+				<ActivityIndicator size="large" color="#000" />
+			</View>
+		);
+	}
 
 	return (
-		<View style={styles.container}>
-			{/* Top Header Row */}
+		<ScrollView style={styles.container} contentContainerStyle={styles.content}>
 			<View style={styles.header}>
-				<Text style={styles.title}>Daily Menu</Text>
-				<TouchableOpacity
-					style={styles.settingsBtn}
-					onPress={() => setIsEditing(!isEditing)}
-				>
-					<Text style={styles.settingsText}>{isEditing ? "✕" : "⚙"}</Text>
+				<Text style={styles.title}>Menu Setup</Text>
+				<TouchableOpacity onPress={() => setIsEditing(!isEditing)}>
+					<MaterialCommunityIcons
+						name={isEditing ? "close-circle" : "cog"}
+						size={32}
+						color={isEditing ? "#d32f2f" : "#666"}
+					/>
 				</TouchableOpacity>
 			</View>
 
-			{isEditing ? (
-				<View style={styles.form}>
-					<Text style={styles.label}>Lunch Menu</Text>
+			<View style={styles.section}>
+				<Text style={styles.label}>LUNCH TODAY - دوپہر کا کھانا</Text>
+				{isEditing ? (
 					<TextInput
 						style={styles.input}
 						value={lunch}
 						onChangeText={setLunch}
-						placeholder="What's for lunch?"
+						multiline
+						placeholder="Type lunch menu..."
 					/>
+				) : (
+					<Text style={styles.menuValue}>{lunch || "None"}</Text>
+				)}
+			</View>
 
-					<Text style={styles.label}>Dinner Menu</Text>
+			<View style={styles.divider} />
+
+			<View style={styles.section}>
+				<Text style={styles.label}>DINNER TODAY - رات کا کھانا</Text>
+				{isEditing ? (
 					<TextInput
 						style={styles.input}
 						value={dinner}
 						onChangeText={setDinner}
-						placeholder="What's for dinner?"
+						multiline
+						placeholder="Type dinner menu..."
 					/>
+				) : (
+					<Text style={styles.menuValue}>{dinner || "None"}</Text>
+				)}
+			</View>
 
-					<TouchableOpacity
-						style={styles.saveBtn}
-						onPress={() => setIsEditing(false)}
-					>
-						<Text style={styles.saveBtnText}>SAVE - محفوظ کریں</Text>
-					</TouchableOpacity>
-				</View>
-			) : (
-				<View style={styles.display}>
-					<View style={styles.menuSection}>
-						<Text style={styles.label}>LUNCH TODAY</Text>
-						<Text style={styles.menuText}>{lunch}</Text>
-					</View>
-
-					<View style={styles.menuSection}>
-						<Text style={styles.label}>DINNER TODAY</Text>
-						<Text style={styles.menuText}>{dinner}</Text>
-					</View>
-				</View>
+			{isEditing && (
+				<TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+					<Text style={styles.saveBtnText}>SAVE - محفوظ کریں</Text>
+				</TouchableOpacity>
 			)}
-		</View>
+		</ScrollView>
 	);
 }
 
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
-		padding: 20,
 		backgroundColor: '#fff',
+	},
+	content: {
+		padding: 25,
+	},
+	centered: {
+		flex: 1,
+		justifyContent: 'center',
+		alignItems: 'center',
 	},
 	header: {
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		alignItems: 'center',
 		marginBottom: 40,
+		marginTop: 10,
 	},
 	title: {
 		fontSize: 28,
 		fontWeight: 'bold',
+		color: '#1a1a1a',
 	},
-	settingsBtn: {
-		padding: 10,
-	},
-	settingsText: {
-		fontSize: 28,
-	},
-	display: {
-		flex: 1,
-	},
-	menuSection: {
-		marginBottom: 40,
+	section: {
+		marginBottom: 30,
 	},
 	label: {
 		fontSize: 16,
-		color: '#666',
-		fontWeight: 'bold',
-		marginBottom: 10,
+		fontWeight: '800',
+		color: '#d32f2f',
+		marginBottom: 15,
 		letterSpacing: 1,
 	},
-	menuText: {
-		fontSize: 32,
-		fontWeight: '800',
-		color: '#1a1a1a',
-	},
-	form: {
-		flex: 1,
+	menuValue: {
+		fontSize: 48,
+		fontWeight: '900',
+		color: '#000',
+		lineHeight: 56,
 	},
 	input: {
+		fontSize: 24,
 		borderWidth: 2,
 		borderColor: '#eee',
 		borderRadius: 12,
-		padding: 20,
-		fontSize: 20,
+		padding: 15,
+		minHeight: 100,
+		backgroundColor: '#f8f9fa',
+		textAlignVertical: 'top',
+	},
+	divider: {
+		height: 2,
+		backgroundColor: '#f0f0f0',
 		marginBottom: 30,
-		backgroundColor: '#f9f9f9',
 	},
 	saveBtn: {
-		backgroundColor: '#1a1a1a',
+		backgroundColor: '#2e7d32',
 		padding: 20,
-		borderRadius: 12,
+		borderRadius: 15,
 		alignItems: 'center',
-		marginTop: 10,
+		marginTop: 20,
+		shadowColor: "#000",
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 0.1,
+		shadowRadius: 10,
+		elevation: 5,
 	},
 	saveBtnText: {
 		color: '#fff',
-		fontSize: 18,
-		fontWeight: 'bold',
+		fontSize: 22,
+		fontWeight: '900',
 	}
 });
