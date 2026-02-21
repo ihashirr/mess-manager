@@ -1,13 +1,20 @@
-# Technical Documentation - System Logic Overview
+# Technical Documentation — System Logic Overview
 
-This document outlines the technical architecture, data flow, and specific logic implemented for each screen of the Mess Manager application.
+This document covers the architecture, data model, and screen-by-screen logic for the Mess Manager application.
 
-## 📡 Data Persistence & Infrastructure
+---
 
-- **Firebase Firestore**: Used as the primary database.
-- **Real-time Sync**: Every screen uses `onSnapshot` for immediate UI updates when the database changes (no manual "pull to refresh" needed).
-- **Independent Fetching**: Screens fetch their own specific data subsets directly to avoid the complexity of a global state manager.
-- **Derived Logic (SSOT)**: We never store values that can be calculated. Fields like `daysLeft`, `status`, and `dueAmount` are computed in real-time. "Stored numbers rot. Derived numbers stay honest."
+## 📡 Infrastructure
+
+| Concern | Solution |
+| :--- | :--- |
+| **Database** | Firebase Firestore |
+| **Real-time updates** | `onSnapshot` listeners — no manual refresh needed |
+| **State** | Per-screen independent fetching, no global store |
+| **Derived logic** | All status fields computed at runtime (never stored) |
+| **Dev mode** | `SETTINGS.USE_MOCKS = true` uses `mockDb.ts` — no Firebase calls |
+
+> "Stored numbers rot. Derived numbers stay honest."
 
 ---
 
@@ -15,92 +22,93 @@ This document outlines the technical architecture, data flow, and specific logic
 
 ### 1. Home Screen (`index.tsx`)
 **Purpose**: Reassurance and daily overview.
-- **Fetch Logic**: Queries all documents in the `customers` collection.
-- **Derived Stats**: 
+- Queries all `customers` where `isActive == true`.
+- Derived stats:
   - `activeCount`: Customers where `endDate >= today`
   - `paymentsDue`: Customers where `totalPaid < pricePerMonth`
-  - `lunchCount`: Customers where `mealsPerDay.lunch` is true
-  - `dinnerCount`: Customers where `mealsPerDay.dinner` is true
-- **UI Focus**: Ultra-large typography for high readability from a distance.
+  - `lunchCount`: Customers where `mealsPerDay.lunch == true`
+  - `dinnerCount`: Customers where `mealsPerDay.dinner == true`
+- Legacy fallback: supports old `plan` string field for backward compatibility.
 
 ### 2. Customers Screen (`customers.tsx`)
-**Purpose**: User management and enrollment.
-- **Fetch Logic**: Queries Firestore for customers where `daysLeft > 0`.
-- **Add Customer Feature**:
-  - Uses a local `isAdding` toggle to show/hide a form.
-  - **Validation**: Requires a non-empty name to prevent ghost records.
-  - **`handleAddCustomer`**: Automatically sets price based on meals (350/650 DHS).
-- **Delete Customer**:
-  - Implemented `handleDeleteCustomer` using `deleteDoc`.
-  - UI includes a red "DELETE" button for data cleanup.
-- **List Logic**: Displays Name, Plan, and remaining days. Remaining days are highlighted in red for urgency.
+**Purpose**: Customer enrollment and management.
+- Queries Firestore for `isActive == true` customers in real-time.
+- **Add Customer**:
+  - Requires non-empty name (validated on submit).
+  - Auto-prices: 350 DHS (one meal), 650 DHS (both).
+  - Saves `mealsPerDay: { lunch, dinner }`, `startDate`, `endDate`, `totalPaid: 0`.
+- **Delete Customer**: `handleDeleteCustomer` calls `deleteDoc`. Removed from list immediately via `onSnapshot` reaction.
+- Status badges: EXPIRED (red), EXPIRING SOON (orange), days remaining label.
 
 ### 3. Payments Screen (`payments.tsx`)
-**Purpose**: Transaction tracking.
-- **Fetch Logic**: Queries Firestore for customers where `paymentDue === true`.
-- **Mark Paid Feature**:
-  - **`markAsPaid`**: Uses `updateDoc` to set the `paymentDue` field to `false` for a specific ID.
-  - Immediate Feedback: The real-time listener removes the item from the list as soon as the DB update is confirmed.
-- **UI Focus**: Large Green button with Urdu text ("PAID - وصول ہو گیا").
+**Purpose**: Recording monthly payments.
+- Lists active customers with a remaining balance (`totalPaid < pricePerMonth`).
+- **Mark Paid** (`recordPayment`):
+  - Updates `customers/{id}` with new `totalPaid` and extended `endDate`.
+  - Creates a new document in `payments` collection (ledger entry).
+  - Renewal logic: expired → `today + 30 days`; active → `endDate + 30 days`.
 
 ### 4. Menu Screen (`menu.tsx`)
 **Purpose**: Daily operations communication.
-- **Fetch Logic**: Queries the `menu` collection for the document corresponding to the current date (YYYY-MM-DD).
-- **Plan Filtering**: Automatically displays only what is relevant to the viewer (usually for the owner to set, but logic supports plan-based filtering).
-- **UI Focus**: Minimalist design using a settings icon (⚙) for configuration.
+- Queries `menu/{YYYY-MM-DD}` for today's doc. Creates it if missing.
+- One global menu per day with `lunch` and `dinner` string fields.
 
 ### 5. Finance Screen (`finance.tsx`)
-**Purpose**: Financial audit and health check.
-- **Fetch Logic**: 
-  - Queries all `customers` to calculate "Expected Income".
-  - Queries `payments` collection for the current month's transactions.
-- **Derived Metrics**: 
-  - **Expected**: Total potential monthly revenue.
-  - **Collected**: Total cash received in the current month (ledger sum).
-  - **Outstanding**: Sum of individual remaining balances for all active customers (preventing negative totals).
-- **UI Focus**: Clean dashboard with progress indicators and high-level totals.
+**Purpose**: Monthly financial health audit.
+- Listens to `customers` (for Expected) and `payments` filtered by `monthTag == "YYYY-MM"`.
+- **Derived Metrics**:
+  - **Expected**: Sum of `pricePerMonth` for all active customers.
+  - **Collected**: Sum of `amount` for payments in current month — **only from existing customers** (orphan-filtered by ID).
+  - **Outstanding**: Per-customer `getDueAmount` sum (not `Expected − Collected`).
+  - **Progress**: `min(100, collected/expected * 100)` — capped to prevent overflow.
+- **Transaction History**: Lists all this month's payments, with orphaned ones grayed out and labeled "(Deleted Customer)".
+- **Delete Transaction**: Calls `deleteDoc` on `payments/{id}` — dashboard updates instantly.
 
-### 6. Mock Database Utility (`mockDb.ts`)
-**Purpose**: High-fidelity demo and fast iteration.
-- **Logic**: Provides a centralized, session-based in-memory singleton.
-- **Subscription Model**: Screens can `subscribe` to mock data updates, ensuring that recording a payment in one tab immediately updates stats on the Home and Finance tabs even without Firebase.
+### 6. Mock Database (`utils/mockDb.ts`)
+**Purpose**: Offline/demo mode with cross-tab synchronization.
+- In-memory singleton seeded from `mocks/customers.json` and `mocks/payments.json`.
+- `subscribe(listener)` — components register for updates, mimicking `onSnapshot`.
+- Any action (add customer, record payment) calls `notify()` which fires all listeners.
 
 ---
 
 ## 🛠️ Data Model
+
 ### 👤 Customers Collection
 | Field | Type | Description |
 | :--- | :--- | :--- |
 | `name` | string | Customer's full name |
 | `phone` | string | Contact number |
-| `mealsPerDay` | object | `{ lunch: boolean, dinner: boolean }` |
-| `pricePerMonth`| number | Monthly subscription fee |
-| `startDate` | Timestamp | Subscription start date |
-| `endDate` | Timestamp | Subscription end date |
-| `totalPaid` | number | Total amount paid so far |
-| `notes` | string | Additional information |
-| `isActive` | boolean | Status flag |
+| `mealsPerDay` | `{lunch: bool, dinner: bool}` | Meal subscription type |
+| `pricePerMonth` | number | Monthly fee (DHS) |
+| `startDate` | Timestamp | Subscription start |
+| `endDate` | Timestamp | Subscription end |
+| `totalPaid` | number | Cumulative payments received |
+| `notes` | string | Optional notes |
+| `isActive` | boolean | Soft-delete flag |
 
 ### 🍴 Menu Collection
 | Field | Type | Description |
 | :--- | :--- | :--- |
-| `date` | string | ISO Date string (YYYY-MM-DD) |
+| `date` | string | ISO date string used as document ID (`YYYY-MM-DD`) |
 | `lunch` | string | Lunch menu items |
 | `dinner` | string | Dinner menu items |
 
 ### 💰 Payments Collection
 | Field | Type | Description |
 | :--- | :--- | :--- |
-| `customerId` | string | Reference to the customer |
-| `customerName`| string | Denormalized name for history |
-| `amount` | number | Transaction amount |
-| `date` | Timestamp | Precision timing |
-| `method` | string | "cash", "bank", or "other" |
-| `monthTag` | string | Format: "YYYY-MM" (e.g., "2026-02") |
+| `customerId` | string | Firestore ID of the customer (primary relationship key) |
+| `customerName` | string | Denormalized for readable history |
+| `amount` | number | Payment amount (DHS) |
+| `date` | Timestamp | Date/time of payment |
+| `method` | string | `"cash"`, `"bank"`, or `"other"` |
+| `monthTag` | string | `"YYYY-MM"` — used to filter current-month payments |
 
 ---
 
 ## 🎨 UI Philosophy
-- **Comfortable Spacing**: Large cards and ample padding for non-technical users.
-- **Visual Cues**: Usage of Red (`#d32f2f`) for warnings/days and Green (`#2e7d32`) for success/payments.
-- **Language**: Strategic use of Urdu text on primary buttons for better accessibility.
+
+- **Large fonts**: Cards and stats optimized for readability at arm's length.
+- **Color language**: Red `#d32f2f` = warning/due. Green `#2e7d32` = success/paid.
+- **Urdu labels**: Primary action buttons use Urdu text for native-language accessibility.
+- **One-tap actions**: Primary tasks (mark paid, add customer) require minimal inputs.

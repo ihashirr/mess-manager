@@ -1,41 +1,76 @@
 # Mess Manager 🍲
 
-Mess Manager is a simple, high-readability mobile application designed for home-based meal service operators. It replaces traditional paper notebooks with a direct, one-tap digital solution for tracking customers and payments.
+A focused, high-readability mobile app for home-based meal service operators. Replaces paper notebooks with a clean digital ledger for tracking customers, payments, and daily menus.
+
+---
 
 ## ✨ Key Features
 
-- **Reassurance Dashboard**: Large, glanceable stats for active customers, pending payments, and daily meal counts.
-- **Customer Management**: Add new customers and track their subscription days remaining.
-- **Easy Payments**: A dedicated "Payments Due" list with a one-tap "Mark Paid" button.
-- **Daily Menu**: Quickly view and edit daily lunch and dinner offerings.
+| Tab | Purpose |
+| :--- | :--- |
+| **Home** | Glanceable dashboard: active customers, payments due, meal counts |
+| **Customers** | Enroll customers, set subscription dates & meal plans, delete records |
+| **Payments** | One-tap "Mark Paid" flow with subscription renewal logic |
+| **Finance** | Monthly income ledger with expected vs. collected tracking |
+| **Menu** | Set and view today's lunch & dinner offerings |
 
-## 🛠️ Technical Overview
+---
 
-- **Core**: Built with [Expo](https://expo.dev) and React Native.
-- **Database**: Real-time persistence using **Firebase Firestore**.
-- **Architecture**: Simple, independent data fetching per screen (no complex global state).
-- **UX**: Designed for non-technical users with massive fonts and Urdu language cues on critical actions.
+## 🛠️ Technical Stack
+
+- **Framework**: React Native via [Expo](https://expo.dev)
+- **Database**: Firebase Firestore (real-time `onSnapshot` listeners)
+- **Architecture**: SSOT — derived logic only, no stored calculated fields
+- **Currency**: DHS (UAE dirham), pricing tiers: 350 / 650 per month
+- **Mock Mode**: Toggle `SETTINGS.USE_MOCKS` in `constants/Settings.ts` for offline dev
+
+---
 
 ## 🚀 Getting Started
 
-### 1. Install Dependencies
 ```bash
+# 1. Install dependencies
 npm install
+
+# 2. Configure Firebase
+# Add your credentials to firebase/config.ts
+
+# 3. Start development server
+npx expo start --clear
 ```
-
-### 2. Configure Firebase
-Ensure your credentials are set up in `firebase/config.ts`.
-
-### 3. Start Developing
-```bash
-npx expo start
-```
-
-## 📂 Project Structure
-- `app/`: Contains the screen routes (index, customers, payments, menu).
-- `firebase/`: Firebase configuration and initialization.
-- `components/`: Reusable UI components.
-- `TECHNICAL_LOGIC.md`: Detailed breakdown of system logic and data flow.
 
 ---
-*Built for simplicity and ease of use.*
+
+## 📂 Project Structure
+
+```
+app/
+  index.tsx       — Home / Dashboard
+  customers.tsx   — Customer management
+  payments.tsx    — Payment recording
+  finance.tsx     — Financial overview
+  menu.tsx        — Daily menu editor
+  _layout.tsx     — Tab navigation
+
+firebase/
+  config.ts       — Firestore initialization
+
+utils/
+  customerLogic.ts — Derived status, days left, due amount
+  mockDb.ts        — In-memory mock state manager
+
+mocks/
+  customers.json  — Sample customer data
+  payments.json   — Sample payment ledger
+
+constants/
+  Settings.ts     — USE_MOCKS toggle
+
+TECHNICAL_LOGIC.md   — System architecture & data model
+REDESIGN_LOG.md      — Development history & phase log
+PRODUCTION_CLEANUP.md — Steps to ship to production
+```
+
+---
+
+*Built for simplicity and ease of use. See `TECHNICAL_LOGIC.md` for architecture details.*

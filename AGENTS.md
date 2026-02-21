@@ -1,48 +1,35 @@
-📌 Application Purpose
+# 📌 Application Purpose — Agent Context
 
-Mess Manager is a simple single-user mobile app designed to help a home-based meal service operator track customers, payments, and weekly menu with minimal effort.
+## What Mess Manager Is
 
-The app replaces a physical notebook.
+Mess Manager is a single-user mobile app for a home-based meal service operator. It replaces a physical notebook with a digital ledger that's easy to read and use without technical knowledge.
 
-It focuses only on:
+## Core Scope
 
-Tracking active customers
+| In Scope | Out of Scope |
+| :--- | :--- |
+| Tracking active customers | Multi-user roles |
+| Monitoring subscription days | Authentication system |
+| Recording cash payments | Invoicing or reports |
+| Daily menu management | Analytics dashboards |
+| Monthly finance overview | Cloud functions / backend |
 
-Monitoring remaining days
+## Design Constraints
 
-Recording payments received
+- **Single user only** — No login, no shared accounts
+- **Minimal UI** — Large readable cards, one-tap actions, minimal typing
+- **Derived logic** — All status (active, expiring, due) is calculated at runtime, never stored
+- **Urdu-friendly** — Primary action buttons carry Urdu labels for the target user
 
-Editing weekly menu
+## Currency & Pricing
 
-Showing a simple daily overview
+- Currency: **DHS** (UAE Dirham)
+- Standard pricing: **350 DHS** (single meal), **650 DHS** (lunch + dinner)
 
-This app is intentionally minimal.
+## Developer Notes
 
-It is:
+- Toggle `SETTINGS.USE_MOCKS` in `constants/Settings.ts` to switch between Firebase live data and a local mock session
+- See `TECHNICAL_LOGIC.md` for data model and screen-by-screen logic
+- See `REDESIGN_LOG.md` for full development history
 
-Single user only
-
-No authentication system
-
-No multi-role access
-
-No analytics or reports
-
-No complex dashboards
-
-No scalability considerations
-
-The goal is clarity and ease of use for a non-technical operator.
-
-The application prioritizes:
-
-Large readable UI
-
-One-tap actions
-
-Minimal typing
-
-Zero unnecessary features
-
-This is not a SaaS product.
-It is a focused operational tool.
+This is not a SaaS product. It is a focused operational tool.

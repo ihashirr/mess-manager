@@ -1,81 +1,89 @@
-# 🚀 Mess Manager - Professional Redesign Log
-**Session Date: 21 Feb 2026**
+# 🚀 Mess Manager — Redesign & Development Log
+
+**Session Date**: 21 Feb 2026
 
 ## 🎯 Global Objective
 Transform a basic payment tracker into a professional-grade subscription management system using **Derived Logic** and **Single Source of Truth (SSOT)** principles.
 
 ---
 
-## 🛠️ Phase 1: Firestore Schema Redesign
+## Phase 1 — Firestore Schema Redesign
 Deleted brittle "shortcut" fields and implemented a transparent data model.
 - **Removed**: `daysLeft`, `paymentDue`, `amount`.
 - **Added**: `phone`, `pricePerMonth`, `startDate`, `endDate`, `totalPaid`, `notes`, `isActive`.
-- **Logic Philosophy**: Store raw dates and amounts; calculate status in real-time.
+- **Philosophy**: Store raw dates and amounts; calculate status in real-time.
 
-## 🧠 Phase 2: Derived Logic Implementation
-"Stored numbers rot. Derived numbers stay honest."
-- **Utility Module**: Created `utils/customerLogic.ts` to centralize all business rules.
-- **Dynamic Status**: 
-    - `getDaysLeft`: Precisely calculated from `endDate`.
-    - `getCustomerStatus`: Derived status labels (ACTIVE, EXPIRING SOON, EXPIRED).
-    - `getDueAmount`: Live balance calculation (`pricePerMonth - totalPaid`).
-- **Visual Cues**: Implemented orange and red color-coding based on live status.
+## Phase 2 — Derived Logic Implementation
+*"Stored numbers rot. Derived numbers stay honest."*
+- Created `utils/customerLogic.ts` as the central business logic module.
+- `getDaysLeft`: Calculated from `endDate`.
+- `getCustomerStatus`: Derived labels (ACTIVE, EXPIRING SOON, EXPIRED).
+- `getDueAmount`: Live balance (`pricePerMonth - totalPaid`).
+- Color-coded UI: orange for expiring, red for expired.
 
-## ⚡ Phase 3: Smart Payment Extension
-Implemented high-end subscription renewal logic to prevent overlap bugs.
-- **Renewal Math**:
-    - If customer is **Expired**: Renewal starts from `Today + 30 days`.
-    - If customer is **Active**: Renewal stacks as `Current End Date + 30 days`.
-- **Financial Tracking**: `totalPaid += pricePerMonth` logic ensures cumulative payment history.
+## Phase 3 — Smart Payment Extension
+High-end subscription renewal logic to prevent date overlap bugs.
+- **If Expired**: Renewal starts from `Today + 30 days`.
+- **If Active**: Renewal stacks as `Current End Date + 30 days`.
+- `totalPaid += pricePerMonth` ensures cumulative payment history.
 
-## 🍴 Phase 4: Global Menu Upgrade
-Redesigned the daily menu system for scalability and cleanliness.
-- **Date-Based Storage**: Every day's menu is stored as its own document using the ISO date (`YYYY-MM-DD`) as the ID.
-- **SSOT Menu**: One global menu per day. Customer's `plan` ("lunch", "dinner", "both") determines what they see.
-- **Menu Screen**: Completely redesigned `app/menu.tsx` to handle daily menu creation and fetching automatically.
+## Phase 4 — Global Menu Upgrade
+Redesigned the daily menu for scalability.
+- Every day's menu is stored as a Firestore document with the ISO date (`YYYY-MM-DD`) as its ID.
+- One global menu per day. Customer's meal flags determine what they receive.
+- Fully redesigned `app/menu.tsx`.
+
+## Phase 5 — Subscription Type Refactor
+Replaced the string-based `plan` field with a structured boolean object.
+- **Schema change**: `plan: string` → `mealsPerDay: { lunch: boolean, dinner: boolean }`
+- Updated all mock data in `mocks/customers.json`.
+- Updated meal count logic in `app/index.tsx`.
+- Updated Customer form with independent Lunch/Dinner toggles.
+
+## Phase 6 — Firebase Live Mode Integration
+Connected all screens to Firebase Firestore.
+- Implemented `onSnapshot` listeners across `index.tsx`, `customers.tsx`, `payments.tsx`, `menu.tsx`.
+- Introduced `SETTINGS.USE_MOCKS` flag in `constants/Settings.ts` for dev/prod switching.
+- Mock Mode guards prevent any Firebase writes when `USE_MOCKS=true`.
+
+## Phase 7 — Financial Dashboard Engine
+Moved from cumulative tracking to a professional transaction ledger.
+- Created new `payments` Firestore collection for individual transactions.
+- Each "Mark Paid" action creates a permanent, auditable record.
+- New `app/finance.tsx` tab showing:
+  - **Expected Income**: Potential monthly revenue.
+  - **Collected**: Real cash received this month.
+  - **Outstanding**: Remaining balance per customer.
+  - **Collection Progress**: Visual progress bar.
+
+## Phase 8 — Final Audit & UAE Localization
+- Pricing tiers: 350 DHS (single meal), 650 DHS (both meals) — auto-selected by form.
+- Replaced "Rs." with "DHS" across all screens and docs.
+- Added legacy fallback support for old `plan` string records.
+- Full consistency audit across Mock and Live modes.
+
+## Phase 9 — Finance Fixes & Data Cleanup
+- **Per-Customer Outstanding**: Changed from `Expected − Collected` to a sum of actual balances per customer. Prevents negative totals from bulk historical cash flow.
+- **Name Validation**: Form requires a non-empty name — prevents ghost records.
+- **Delete Feature**: Added "DELETE" button to Customer cards for easy cleanup.
+- **Mock State Manager**: Created `utils/mockDb.ts` — synchronized in-memory store for cross-tab mock updates.
+
+## Phase 10 — Transaction Auditing & UI Polish
+- Added "Recent Transactions" list at the bottom of the Finance dashboard.
+- Each transaction shows name, date, amount, and a **DELETE RECORD** button.
+- Progress bar capped at 100% with a "Surplus" note if over-collected.
+
+## Phase 11 — Identity & Data Integrity
+- **Orphan Filtering**: Finance now cross-references every payment against the current customer list. Payments from deleted customers are excluded from "Collected" totals.
+- **Orphan UI**: Deleted-customer transactions are grayed out and labeled "(Deleted Customer)" in the history list.
+- **Strict ID Mapping**: All relationship logic uses Firestore document IDs, not descriptive names.
 
 ---
 
-### 5. Step 5: Subscription Type Refactor
-- **[TECHNICAL_LOGIC.md](file:///c:/Users/ihash/Desktop/Hm/TECHNICAL_LOGIC.md)**: Replace `plan` string with `mealsPerDay: { lunch: boolean, dinner: boolean }`.
-- **[mocks/customers.json](file:///c:/Users/ihash/Desktop/Hm/mocks/customers.json)**: Updated all mock records to use boolean meal flags.
-- **[app/index.tsx](file:///c:/Users/ihash/Desktop/Hm/app/index.tsx)**: Updated stats logic to check `mealsPerDay` flags.
-- **[app/customers.tsx](file:///c:/Users/ihash/Desktop/Hm/app/customers.tsx)**: 
-    - Replaced segmented plan selector with independent Lunch/Dinner toggles.
-    - Updated `handleAddCustomer` to save the new `mealsPerDay` object.
-    - Updated list rendering to display multi-meal labels (e.g., "Lunch + Dinner").
-- **[app/payments.tsx](file:///c:/Users/ihash/Desktop/Hm/app/payments.tsx)**: Updated `Payment` type.
-
-### 7. Phase 7: Financial Dashboard Engine
-Moved from simple cumulative tracking to a professional transaction ledger.
-- **[payments](file:///c:/Users/ihash/Desktop/Hm/app/payments.tsx) Collection**: Created a new Firestore collection to store individual transactions (Amount, Date, Method, MonthTag).
-- **Audit Ability**: Every payment now creates a permanent historical record instead of just incrementing a number.
-- **Finance Dashboard**: Added a new tab (`app/finance.tsx`) that calculates:
-    - **Expected Income**: Potential monthly revenue.
-    - **Collected**: Real cash-in-hand for the current month.
-    - **Outstanding**: The gap you need to close.
-    - **Collection Progress**: A visual bar showing how close you are to your monthly goal.
-
-## ✅ Final Verification Results
-- [x] **Ledger Tracking**: Verified that clicking "PAID" creates a new entry in the `payments` collection.
-- [x] **SSOT Finance**: Verified the dashboard accurately sums the ledger in real-time.
-- [x] **Dynamic Date**: Verified the screen shows the current system date.
-
-## 🇦🇪 Phase 8: Final Audit & Localization
-Transitioned to full UAE market compliance.
-- **Realistic Pricing**: Implemented automatic pricing tiers: 350 DHS for single meal, 650 DHS for both.
-- **Currency Sync**: Replaced "Rs." with "DHS" across all screens and documentation.
-- **Legacy Fallbacks**: Unified the stats logic to support older customers who still have the string-based `plan` field alongside the new boolean flags.
-
-## 🧼 Phase 9: Finance Fixes & Data Cleanup
-Refined the financial model and added management tools.
-- **Per-Customer Outstanding**: Replaced simple subtraction (`Expected - Collected`) with a per-customer sum of actual remaining balances. This prevents negative numbers when collecting past debts.
-- **Validation**: Added name validation to the "Add Customer" form to prevent nameless/ghost records.
-- **Delete Feature**: Added a "DELETE" button to Customer cards to allow removing test data or abandoned subscriptions.
-- **Mock State Manager**: Created `utils/mockDb.ts` to provide a synchronized in-memory database during mock sessions, ensuring cross-tab consistency.
-
-## 🆔 Phase 11: Identity & Data Integrity
-Ensured financial logic remains clean even when customers are deleted.
-- **Orphan Filtering**: Finance dashboard now cross-references every payment with the current customer list. Payments from deleted customers are automatically excluded from "Collected" totals.
-- **Ledger Transparency**: Orphaned transactions are flagged as "(Deleted Customer)" in the history list, allowing for easy manual audit and cleanup.
-- **Strict ID Mapping**: Shifted from descriptive name-based tracking to strict ID-based relationships to prevent "name pollution".
+## ✅ Verification Status
+- [x] Ledger tracking — "PAID" creates a new entry in `payments` collection.
+- [x] SSOT Finance — Dashboard sums the ledger in real-time.
+- [x] Orphan filtering — Deleted customer payments excluded from collected total.
+- [x] Progress bar — Capped at 100%, surplus shown as text.
+- [x] Delete Customer — Removes record from Firestore immediately.
+- [x] Delete Transaction — Removes individual ledger entry from Firestore.
