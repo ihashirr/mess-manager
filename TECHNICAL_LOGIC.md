@@ -21,14 +21,14 @@ This document covers the architecture, data model, and screen-by-screen logic fo
 ## 🏗️ Screen-by-Screen Logic
 
 ### 1. Home Screen (`index.tsx`)
-**Purpose**: Reassurance and daily overview.
-- Queries all `customers` where `isActive == true`.
-- Derived stats:
-  - `activeCount`: Customers where `endDate >= today`
-  - `paymentsDue`: Customers where `totalPaid < pricePerMonth`
-  - `lunchCount`: Customers where `mealsPerDay.lunch == true`
-  - `dinnerCount`: Customers where `mealsPerDay.dinner == true`
-- Legacy fallback: supports old `plan` string field for backward compatibility.
+**Purpose**: Operational command center and daily production overview.
+- Subscribes to both `customers` collection and `menu/{today}` doc simultaneously.
+- **Production Engine cards** (one per meal):
+  - Shows plate count (lunch count / dinner count from active customers)
+  - Renders 3 menu component rows: 🍚 Rice, 🫓 Roti, 🥗 Side from the structured menu
+- **Total Meals Today** = lunchCount + dinnerCount — the single number the cook needs.
+- **Admin stats** below: Active Customers, Payments Due.
+- Legacy meal flag fallback: supports old `plan` string field.
 
 ### 2. Customers Screen (`customers.tsx`)
 **Purpose**: Customer enrollment and management.
@@ -49,9 +49,13 @@ This document covers the architecture, data model, and screen-by-screen logic fo
   - Renewal logic: expired → `today + 30 days`; active → `endDate + 30 days`.
 
 ### 4. Menu Screen (`menu.tsx`)
-**Purpose**: Daily operations communication.
-- Queries `menu/{YYYY-MM-DD}` for today's doc. Creates it if missing.
-- One global menu per day with `lunch` and `dinner` string fields.
+**Purpose**: Daily menu setup by the operator.
+- Fetches `menu/{YYYY-MM-DD}` via `onSnapshot`.
+- **Main salan** is the primary input (the curry that drives everything).
+- **Roti** and **Rice** are toggle switches (serving mode, not dishes).
+- Rice has an optional type field (`rice.type`) shown only when `rice.enabled` is true.
+- `handleSave` writes nested `{ main, rice: { enabled, type }, roti, extra }` per meal.
+- Humans see words, not booleans: `true → "Roti"`, `false → "No Roti"`, `rice.type || "No Rice"`.
 
 ### 5. Finance Screen (`finance.tsx`)
 **Purpose**: Monthly financial health audit.
@@ -90,9 +94,14 @@ This document covers the architecture, data model, and screen-by-screen logic fo
 ### 🍴 Menu Collection
 | Field | Type | Description |
 | :--- | :--- | :--- |
-| `date` | string | ISO date string used as document ID (`YYYY-MM-DD`) |
-| `lunch` | string | Lunch menu items |
-| `dinner` | string | Dinner menu items |
+| `date` | string | ISO date string, used as document ID (`YYYY-MM-DD`) |
+| `lunch.main` | string | Primary curry / salan for lunch |
+| `lunch.rice.enabled` | boolean | Whether rice is served at lunch |
+| `lunch.rice.type` | string | Name of the rice dish (e.g. "Biryani", "Plain Rice") |
+| `lunch.roti` | boolean | Whether roti is served at lunch |
+| `lunch.extra` | string | Optional side (e.g. "Raita", "Salad") |
+| `dinner.*` | same as lunch | Mirror structure for dinner |
+| `updatedAt` | string | ISO timestamp of last save |
 
 ### 💰 Payments Collection
 | Field | Type | Description |

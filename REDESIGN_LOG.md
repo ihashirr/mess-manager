@@ -104,3 +104,20 @@ Replaced flat blob strings with a structured per-category schema. The app now un
 - **Home screen**: Production cards now render each food component on its own row with emoji icons and the meal count badge.
 - **Mock data**: `mocks/menu.json` updated to new schema.
 - **Foundation for production math**: Rice vs roti counts can now be derived separately — future grocery intelligence engine basis.
+
+## Phase 14 — Desi Mess Architecture (Cultural Correctness)
+Refactored from western food-category model to desi kitchen reality model.
+- **Main Salan is primary**: Every meal centers around one salan (the curry). Rice and roti are carriers, not dishes.
+- **New schema**: `lunch: { main, rice: { enabled, type }, roti: boolean, extra }`
+- **Menu tab**: Main salan gets a large top-level input. Roti and Rice are toggle switches. Rice type input appears only when rice is enabled.
+- **Home screen**: Main salan rendered large. Roti and rice shown as human-readable chips ("Roti" / "No Roti", "Plain Rice" / "No Rice").
+- **No booleans shown to users**: System resolves boolean to readable words before rendering.
+
+## Phase 15 — Weekly Attendance Engine
+Introduced a 3-layer operational system: weekly menu, customer attendance commitments, derived production counts.
+- **`utils/weekLogic.ts`**: `getWeekId()` (ISO week), `getTodayName()`, `shortDay()`, `emptyWeekAttendance()` utilities.
+- **Weekly Menu editor**: `menu.tsx` refactored to edit `weeklyMenu/{weekId}` docs. Day picker (Mon–Sun) with today highlighted. Save with Firestore `merge: true`.
+- **Customer Attendance panel**: Each customer card in `customers.tsx` has a `📅 SET WEEK` button. Expands to show 7-day grid of Lunch/Dinner toggle chips. Saves to `customerSelections/{customerId}_{weekId}`.
+- **Attendance-derived counts**: Home screen now derives `lunchCount`/`dinnerCount` from `customerSelections` docs, not from static `mealsPerDay` flags.
+- **Opt-out model**: If a customer has no selection for this week, they are counted as attending (they pay regardless).
+- **Backward compat**: Home screen falls back to old `menu/{today}` doc if `weeklyMenu` not yet set.

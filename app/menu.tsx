@@ -1,86 +1,113 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SETTINGS } from '../constants/Settings';
 import { db } from '../firebase/config';
-import mockMenu from '../mocks/menu.json';
+import { DAYS, DayName, getTodayName, getWeekId, shortDay } from '../utils/weekLogic';
 
-type MealSlot = { rice: string; roti: string; side: string };
-type MenuState = { lunch: MealSlot; dinner: MealSlot };
+type RiceSlot = { enabled: boolean; type: string };
+type MealSlot = { main: string; rice: RiceSlot; roti: boolean; extra: string };
+type DayMenu = { lunch: MealSlot; dinner: MealSlot };
+type WeekMenu = Partial<Record<DayName, DayMenu>>;
 
-const EMPTY_MEAL: MealSlot = { rice: "", roti: "", side: "" };
+const EMPTY_MEAL: MealSlot = { main: "", rice: { enabled: false, type: "" }, roti: true, extra: "" };
+const EMPTY_DAY: DayMenu = { lunch: { ...EMPTY_MEAL }, dinner: { ...EMPTY_MEAL } };
+
+const normalizeMeal = (raw: any): MealSlot => ({
+	main: typeof raw?.main === 'string' ? raw.main : "",
+	rice: (raw?.rice && typeof raw.rice === 'object' && 'enabled' in raw.rice)
+		? raw.rice
+		: { enabled: false, type: typeof raw?.rice === 'string' ? raw.rice : "" },
+	roti: typeof raw?.roti === 'boolean' ? raw.roti : true,
+	extra: typeof raw?.extra === 'string' ? raw.extra : (raw?.side || ""),
+});
 
 export default function MenuScreen() {
-	const [isEditing, setIsEditing] = useState(false);
-	const [menu, setMenu] = useState<MenuState>({
-		lunch: { ...EMPTY_MEAL },
-		dinner: { ...EMPTY_MEAL },
-	});
-	const [loading, setLoading] = useState(true);
+	const weekId = getWeekId();
+	const todayName = getTodayName();
 
-	const today = new Date().toISOString().split('T')[0];
+	const [selectedDay, setSelectedDay] = useState<DayName>(todayName);
+	const [isEditing, setIsEditing] = useState(false);
+	const [weekMenu, setWeekMenu] = useState<WeekMenu>({});
+	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
 		if (SETTINGS.USE_MOCKS) {
-			setMenu({
-				lunch: mockMenu.lunch as MealSlot,
-				dinner: mockMenu.dinner as MealSlot,
-			});
+			// Build a full mock week with today populated
+			const mockWeek: WeekMenu = {};
+			DAYS.forEach(d => { mockWeek[d] = { ...EMPTY_DAY }; });
+			mockWeek[todayName] = {
+				lunch: { main: "Chicken Karahi", rice: { enabled: true, type: "Plain Rice" }, roti: true, extra: "Raita" },
+				dinner: { main: "Daal Makhni", rice: { enabled: false, type: "" }, roti: true, extra: "" },
+			};
+			setWeekMenu(mockWeek);
 			setLoading(false);
 			return;
 		}
 
-		const unsub = onSnapshot(doc(db, "menu", today), (docSnap) => {
-			if (docSnap.exists()) {
-				const data = docSnap.data();
-				setMenu({
-					lunch: data.lunch || { ...EMPTY_MEAL },
-					dinner: data.dinner || { ...EMPTY_MEAL },
-				});
-			} else {
-				setMenu({ lunch: { ...EMPTY_MEAL }, dinner: { ...EMPTY_MEAL } });
-			}
+		const unsub = onSnapshot(doc(db, "weeklyMenu", weekId), (docSnap) => {
+			const raw = docSnap.exists() ? docSnap.data() : {};
+			const normalized: WeekMenu = {};
+			DAYS.forEach(day => {
+				normalized[day] = raw[day]
+					? {
+						lunch: normalizeMeal(raw[day].lunch),
+						dinner: normalizeMeal(raw[day].dinner),
+					}
+					: { lunch: { ...EMPTY_MEAL }, dinner: { ...EMPTY_MEAL } };
+			});
+			setWeekMenu(normalized);
 			setLoading(false);
 		});
-
 		return () => unsub();
-	}, [today]);
+	}, [weekId]);
 
-	const updateField = (meal: 'lunch' | 'dinner', field: keyof MealSlot, value: string) => {
-		setMenu(prev => ({ ...prev, [meal]: { ...prev[meal], [field]: value } }));
+	const currentDay = weekMenu[selectedDay] ?? EMPTY_DAY;
+
+	const updateMeal = (meal: 'lunch' | 'dinner', field: keyof MealSlot, value: any) => {
+		setWeekMenu(prev => ({
+			...prev,
+			[selectedDay]: {
+				...prev[selectedDay] ?? EMPTY_DAY,
+				[meal]: { ...((prev[selectedDay] ?? EMPTY_DAY)[meal]), [field]: value }
+			}
+		}));
+	};
+
+	const updateRice = (meal: 'lunch' | 'dinner', field: keyof RiceSlot, value: any) => {
+		setWeekMenu(prev => ({
+			...prev,
+			[selectedDay]: {
+				...prev[selectedDay] ?? EMPTY_DAY,
+				[meal]: {
+					...((prev[selectedDay] ?? EMPTY_DAY)[meal]),
+					rice: { ...((prev[selectedDay] ?? EMPTY_DAY)[meal].rice), [field]: value }
+				}
+			}
+		}));
 	};
 
 	const handleSave = async () => {
 		try {
 			if (!SETTINGS.USE_MOCKS) {
-				await setDoc(doc(db, "menu", today), {
-					date: today,
-					lunch: menu.lunch,
-					dinner: menu.dinner,
-					updatedAt: new Date().toISOString()
-				});
-			} else {
-				console.log("Mock Mode: Menu not saved to real DB");
+				await setDoc(doc(db, "weeklyMenu", weekId), weekMenu, { merge: true });
 			}
 			setIsEditing(false);
 		} catch (error) {
-			console.error("Error saving menu:", error);
+			console.error("Error saving weekly menu:", error);
 		}
 	};
 
-	if (loading) {
-		return (
-			<View style={styles.centered}>
-				<ActivityIndicator size="large" color="#000" />
-			</View>
-		);
-	}
+	if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color="#000" /></View>;
 
 	return (
 		<ScrollView style={styles.container} contentContainerStyle={styles.content}>
 			<View style={styles.header}>
-				<Text style={styles.title}>Menu Setup</Text>
+				<View>
+					<Text style={styles.title}>Weekly Menu</Text>
+					<Text style={styles.weekLabel}>Week {weekId}</Text>
+				</View>
 				<TouchableOpacity onPress={() => setIsEditing(!isEditing)}>
 					<MaterialCommunityIcons
 						name={isEditing ? "close-circle" : "cog"}
@@ -90,42 +117,126 @@ export default function MenuScreen() {
 				</TouchableOpacity>
 			</View>
 
-			{(['lunch', 'dinner'] as const).map((meal) => (
-				<View key={meal} style={styles.mealSection}>
-					<Text style={styles.mealHeader}>
-						{meal === 'lunch' ? '☀️ LUNCH TODAY — دوپہر کا کھانا' : '🌙 DINNER TODAY — رات کا کھانا'}
-					</Text>
+			{/* Day Picker */}
+			<ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayScroll}>
+				{DAYS.map(day => (
+					<TouchableOpacity
+						key={day}
+						style={[
+							styles.dayChip,
+							selectedDay === day && styles.dayChipActive,
+							day === todayName && styles.dayChipToday,
+						]}
+						onPress={() => { setSelectedDay(day); setIsEditing(false); }}
+					>
+						<Text style={[styles.dayChipText, selectedDay === day && styles.dayChipTextActive]}>
+							{shortDay(day)}
+						</Text>
+						{day === todayName && <Text style={styles.todayDot}>●</Text>}
+					</TouchableOpacity>
+				))}
+			</ScrollView>
 
-					{(['rice', 'roti', 'side'] as const).map((field) => (
-						<View key={field} style={styles.fieldRow}>
-							<Text style={styles.fieldIcon}>
-								{field === 'rice' ? '🍚' : field === 'roti' ? '🫓' : '🥗'}
-							</Text>
-							<View style={styles.fieldContent}>
-								<Text style={styles.fieldLabel}>{field.charAt(0).toUpperCase() + field.slice(1)}</Text>
+			<Text style={styles.selectedDayLabel}>
+				{selectedDay}{selectedDay === todayName ? " — Today" : ""}
+			</Text>
+
+			{/* Meal Sections */}
+			{(['lunch', 'dinner'] as const).map((meal, idx) => {
+				const slot = currentDay[meal];
+				return (
+					<View key={meal} style={styles.mealSection}>
+						<Text style={styles.mealHeader}>
+							{meal === 'lunch' ? '☀️ LUNCH — دوپہر' : '🌙 DINNER — رات'}
+						</Text>
+
+						{/* Main Salan */}
+						<View style={styles.fieldGroup}>
+							<Text style={styles.fieldLabel}>🍲 MAIN SALAN</Text>
+							{isEditing ? (
+								<TextInput
+									style={styles.input}
+									value={slot.main}
+									onChangeText={(v) => updateMeal(meal, 'main', v)}
+									placeholder="e.g. Chicken Karahi, Daal..."
+								/>
+							) : (
+								<Text style={styles.mainValue}>{slot.main || '—'}</Text>
+							)}
+						</View>
+
+						{/* Roti */}
+						<View style={styles.toggleRow}>
+							<Text style={styles.toggleLabel}>🫓 Roti</Text>
+							{isEditing ? (
+								<Switch
+									value={slot.roti}
+									onValueChange={(v) => updateMeal(meal, 'roti', v)}
+									trackColor={{ false: '#ccc', true: '#2e7d32' }}
+									thumbColor="#fff"
+								/>
+							) : (
+								<Text style={[styles.toggleValue, { color: slot.roti ? '#2e7d32' : '#999' }]}>
+									{slot.roti ? 'Yes' : 'No'}
+								</Text>
+							)}
+						</View>
+
+						{/* Rice */}
+						<View style={styles.toggleRow}>
+							<Text style={styles.toggleLabel}>🍚 Rice</Text>
+							{isEditing ? (
+								<Switch
+									value={slot.rice.enabled}
+									onValueChange={(v) => updateRice(meal, 'enabled', v)}
+									trackColor={{ false: '#ccc', true: '#2e7d32' }}
+									thumbColor="#fff"
+								/>
+							) : (
+								<Text style={[styles.toggleValue, { color: slot.rice.enabled ? '#2e7d32' : '#999' }]}>
+									{slot.rice.enabled ? (slot.rice.type || 'Yes') : 'No Rice'}
+								</Text>
+							)}
+						</View>
+
+						{slot.rice.enabled && (
+							<View style={{ paddingLeft: 44, marginTop: -8, marginBottom: 10 }}>
 								{isEditing ? (
 									<TextInput
-										style={styles.input}
-										value={menu[meal][field]}
-										onChangeText={(v) => updateField(meal, field, v)}
-										placeholder={`Enter ${field} dish...`}
+										style={styles.inputSmall}
+										value={slot.rice.type}
+										onChangeText={(v) => updateRice(meal, 'type', v)}
+										placeholder="e.g. Plain Rice, Biryani..."
 									/>
 								) : (
-									<Text style={styles.fieldValue}>
-										{menu[meal][field] || <Text style={styles.empty}>—</Text>}
-									</Text>
+									<Text style={styles.subValue}>{slot.rice.type}</Text>
 								)}
 							</View>
-						</View>
-					))}
+						)}
 
-					{meal === 'lunch' && <View style={styles.divider} />}
-				</View>
-			))}
+						{/* Extra */}
+						<View style={styles.fieldGroup}>
+							<Text style={styles.fieldLabel}>🥗 EXTRA (optional)</Text>
+							{isEditing ? (
+								<TextInput
+									style={styles.input}
+									value={slot.extra}
+									onChangeText={(v) => updateMeal(meal, 'extra', v)}
+									placeholder="e.g. Raita, Salad..."
+								/>
+							) : (
+								<Text style={styles.subValue}>{slot.extra || '—'}</Text>
+							)}
+						</View>
+
+						{idx === 0 && <View style={styles.divider} />}
+					</View>
+				);
+			})}
 
 			{isEditing && (
 				<TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-					<Text style={styles.saveBtnText}>SAVE — محفوظ کریں</Text>
+					<Text style={styles.saveBtnText}>SAVE {shortDay(selectedDay).toUpperCase()} — محفوظ کریں</Text>
 				</TouchableOpacity>
 			)}
 		</ScrollView>
@@ -134,62 +245,43 @@ export default function MenuScreen() {
 
 const styles = StyleSheet.create({
 	container: { flex: 1, backgroundColor: '#fff' },
-	content: { padding: 25, paddingBottom: 50 },
+	content: { padding: 25, paddingBottom: 60 },
 	centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 	header: {
-		flexDirection: 'row',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-		marginBottom: 30,
-		marginTop: 10,
+		flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+		marginBottom: 20, marginTop: 10,
 	},
 	title: { fontSize: 28, fontWeight: 'bold', color: '#1a1a1a' },
+	weekLabel: { fontSize: 13, color: '#999', marginTop: 2 },
+
+	// Day picker
+	dayScroll: { marginBottom: 16 },
+	dayChip: {
+		paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12,
+		backgroundColor: '#f0f0f0', marginRight: 8, alignItems: 'center', minWidth: 50,
+	},
+	dayChipActive: { backgroundColor: '#1a1a1a' },
+	dayChipToday: { borderWidth: 2, borderColor: '#2e7d32' },
+	dayChipText: { fontSize: 14, fontWeight: '700', color: '#666' },
+	dayChipTextActive: { color: '#fff' },
+	todayDot: { fontSize: 8, color: '#2e7d32', marginTop: 2 },
+	selectedDayLabel: { fontSize: 20, fontWeight: '800', color: '#1a1a1a', marginBottom: 20 },
+
 	mealSection: { marginBottom: 10 },
-	mealHeader: {
-		fontSize: 15,
-		fontWeight: '800',
-		color: '#d32f2f',
-		letterSpacing: 0.5,
-		marginBottom: 18,
+	mealHeader: { fontSize: 14, fontWeight: '800', color: '#d32f2f', letterSpacing: 0.5, marginBottom: 18 },
+	fieldGroup: { marginBottom: 16 },
+	fieldLabel: { fontSize: 11, fontWeight: '800', color: '#999', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
+	mainValue: { fontSize: 32, fontWeight: '900', color: '#1a1a1a', lineHeight: 38 },
+	subValue: { fontSize: 18, fontWeight: '700', color: '#444' },
+	toggleRow: {
+		flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+		marginBottom: 14, paddingVertical: 4,
 	},
-	fieldRow: {
-		flexDirection: 'row',
-		alignItems: 'flex-start',
-		marginBottom: 18,
-	},
-	fieldIcon: { fontSize: 26, marginRight: 14, marginTop: 2 },
-	fieldContent: { flex: 1 },
-	fieldLabel: {
-		fontSize: 12,
-		fontWeight: '800',
-		color: '#999',
-		letterSpacing: 1,
-		marginBottom: 4,
-		textTransform: 'uppercase',
-	},
-	fieldValue: {
-		fontSize: 32,
-		fontWeight: '900',
-		color: '#1a1a1a',
-		lineHeight: 38,
-	},
-	empty: { fontSize: 28, color: '#ccc' },
-	input: {
-		fontSize: 20,
-		borderWidth: 2,
-		borderColor: '#eee',
-		borderRadius: 10,
-		padding: 12,
-		backgroundColor: '#f8f9fa',
-	},
-	divider: { height: 2, backgroundColor: '#f0f0f0', marginVertical: 25 },
-	saveBtn: {
-		backgroundColor: '#2e7d32',
-		padding: 20,
-		borderRadius: 15,
-		alignItems: 'center',
-		marginTop: 20,
-		elevation: 5,
-	},
-	saveBtnText: { color: '#fff', fontSize: 22, fontWeight: '900' },
+	toggleLabel: { fontSize: 18, fontWeight: '700', color: '#1a1a1a' },
+	toggleValue: { fontSize: 18, fontWeight: '800' },
+	input: { fontSize: 20, borderWidth: 2, borderColor: '#eee', borderRadius: 10, padding: 12, backgroundColor: '#f8f9fa' },
+	inputSmall: { fontSize: 16, borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 10, backgroundColor: '#f8f9fa', marginBottom: 10 },
+	divider: { height: 2, backgroundColor: '#f0f0f0', marginVertical: 28 },
+	saveBtn: { backgroundColor: '#2e7d32', padding: 20, borderRadius: 15, alignItems: 'center', marginTop: 20, elevation: 5 },
+	saveBtnText: { color: '#fff', fontSize: 20, fontWeight: '900' },
 });

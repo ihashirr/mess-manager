@@ -1,10 +1,11 @@
-import { addDoc, collection, deleteDoc, doc, onSnapshot, query, where } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SETTINGS } from '../constants/Settings';
 import { db } from '../firebase/config';
 import { getCustomerStatus, getDaysLeft, getDueAmount, toDate } from '../utils/customerLogic';
 import { mockDb } from '../utils/mockDb';
+import { DayName, emptyWeekAttendance, getWeekId } from '../utils/weekLogic';
 
 type Customer = {
 	id: string;
@@ -24,6 +25,9 @@ export default function CustomersScreen() {
 	const [customers, setCustomers] = useState<Customer[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [isAdding, setIsAdding] = useState(false);
+	const [expandedId, setExpandedId] = useState<string | null>(null);
+	const [weekAttendance, setWeekAttendance] = useState<Record<DayName, { lunch: boolean; dinner: boolean }>>(emptyWeekAttendance());
+	const weekId = getWeekId();
 
 	// Form State
 	const [newName, setNewName] = useState("");
@@ -129,9 +133,53 @@ export default function CustomersScreen() {
 				console.error("Error deleting customer:", error);
 			}
 		} else {
-			// Mock delete not implemented in mockDb yet but not strictly needed for this UI task
 			console.log("Mock Mode: Delete not persisted");
 		}
+	};
+
+	const handleOpenAttendance = async (customerId: string) => {
+		if (expandedId === customerId) {
+			setExpandedId(null);
+			return;
+		}
+		// Load existing attendance or default to all-true
+		if (!SETTINGS.USE_MOCKS) {
+			try {
+				const snap = await getDoc(doc(db, "customerSelections", `${customerId}_${weekId}`));
+				if (snap.exists()) {
+					setWeekAttendance(snap.data().days as Record<DayName, { lunch: boolean; dinner: boolean }>);
+				} else {
+					setWeekAttendance(emptyWeekAttendance());
+				}
+			} catch (e) {
+				setWeekAttendance(emptyWeekAttendance());
+			}
+		} else {
+			setWeekAttendance(emptyWeekAttendance());
+		}
+		setExpandedId(customerId);
+	};
+
+	const handleSaveAttendance = async (customerId: string) => {
+		if (!SETTINGS.USE_MOCKS) {
+			try {
+				await setDoc(doc(db, "customerSelections", `${customerId}_${weekId}`), {
+					customerId,
+					weekId,
+					days: weekAttendance,
+				});
+			} catch (e) {
+				console.error("Error saving attendance:", e);
+			}
+		}
+		setExpandedId(null);
+	};
+
+	const toggleAttendance = (day: DayName, meal: 'lunch' | 'dinner') => {
+		setWeekAttendance(prev => ({
+			...prev,
+			[day]: { ...prev[day], [meal]: !prev[day][meal] }
+		}));
 	};
 
 	if (loading) return <View style={styles.container}><Text>Loading...</Text></View>;
@@ -284,6 +332,46 @@ export default function CustomersScreen() {
 							</TouchableOpacity>
 						</View>
 						{item.notes ? <Text style={styles.notes}>Note: {item.notes}</Text> : null}
+
+						<TouchableOpacity
+							style={[styles.weekBtn, expandedId === item.id && styles.weekBtnActive]}
+							onPress={() => handleOpenAttendance(item.id)}
+						>
+							<Text style={styles.weekBtnText}>
+								{expandedId === item.id ? '\u2715 CLOSE' : '\U0001F4C5 SET WEEK'}
+							</Text>
+						</TouchableOpacity>
+
+						{expandedId === item.id && (
+							<View style={styles.attendancePanel}>
+								<Text style={styles.attendanceTitle}>Week Attendance \u2014 {weekId}</Text>
+								{DAYS.map(day => (
+									<View key={day} style={styles.dayRow}>
+										<Text style={styles.dayName}>{shortDay(day)}</Text>
+										<View style={styles.mealToggles}>
+											<TouchableOpacity
+												style={[styles.mealChip, weekAttendance[day].lunch && styles.mealChipOn]}
+												onPress={() => toggleAttendance(day, 'lunch')}
+											>
+												<Text style={styles.mealChipText}>\u2600\uFE0F Lunch</Text>
+											</TouchableOpacity>
+											<TouchableOpacity
+												style={[styles.mealChip, weekAttendance[day].dinner && styles.mealChipOn]}
+												onPress={() => toggleAttendance(day, 'dinner')}
+											>
+												<Text style={styles.mealChipText}>\U0001F319 Dinner</Text>
+											</TouchableOpacity>
+										</View>
+									</View>
+								))}
+								<TouchableOpacity
+									style={styles.saveWeekBtn}
+									onPress={() => handleSaveAttendance(item.id)}
+								>
+									<Text style={styles.saveWeekBtnText}>SAVE WEEK \u2014 \u0645\u062d\u0641\u0648\u0638 \u06a9\u0631\u06cc\u06ba</Text>
+								</TouchableOpacity>
+							</View>
+						)}
 					</View>
 				)}
 				ListEmptyComponent={!isAdding ? <Text style={styles.empty}>No active customers</Text> : null}
@@ -495,5 +583,33 @@ const styles = StyleSheet.create({
 		color: '#d32f2f',
 		fontSize: 12,
 		fontWeight: 'bold',
-	}
+	},
+	weekBtn: {
+		marginTop: 12, paddingVertical: 10, paddingHorizontal: 16,
+		backgroundColor: '#e8f5e9', borderRadius: 10, alignSelf: 'flex-start',
+	},
+	weekBtnActive: { backgroundColor: '#ffebee' },
+	weekBtnText: { fontWeight: '800', color: '#2e7d32', fontSize: 13 },
+	attendancePanel: {
+		marginTop: 12, backgroundColor: '#f0f4f8',
+		borderRadius: 12, padding: 14,
+	},
+	attendanceTitle: { fontSize: 11, fontWeight: '800', color: '#999', marginBottom: 12, letterSpacing: 0.5 },
+	dayRow: {
+		flexDirection: 'row', alignItems: 'center',
+		justifyContent: 'space-between', marginBottom: 8,
+	},
+	dayName: { fontSize: 14, fontWeight: '700', color: '#1a1a1a', width: 36 },
+	mealToggles: { flexDirection: 'row', gap: 8 },
+	mealChip: {
+		paddingHorizontal: 12, paddingVertical: 7,
+		backgroundColor: '#ccc', borderRadius: 8,
+	},
+	mealChipOn: { backgroundColor: '#2e7d32' },
+	mealChipText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+	saveWeekBtn: {
+		marginTop: 12, backgroundColor: '#1a1a1a',
+		padding: 14, borderRadius: 10, alignItems: 'center',
+	},
+	saveWeekBtnText: { color: '#fff', fontWeight: '900', fontSize: 15 },
 });

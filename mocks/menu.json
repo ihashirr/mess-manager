@@ -1,12 +1,20 @@
 {
 	"lunch": {
-		"rice": "Biryani",
-		"roti": "Daal",
-		"side": "Raita"
+		"main": "Chicken Karahi",
+		"rice": {
+			"enabled": true,
+			"type": "Plain Rice"
+		},
+		"roti": true,
+		"extra": "Raita"
 	},
 	"dinner": {
-		"rice": "Pulao",
-		"roti": "Chicken Karahi",
-		"side": "Salad"
+		"main": "Daal Makhni",
+		"rice": {
+			"enabled": false,
+			"type": ""
+		},
+		"roti": true,
+		"extra": ""
 	}
 }
