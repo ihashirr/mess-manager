@@ -1,5 +1,12 @@
 {
-	"date": "2026-02-21",
-	"lunch": "Mock Biryani & Raita",
-	"dinner": "Mock Chicken Karahi"
+	"lunch": {
+		"rice": "Biryani",
+		"roti": "Daal",
+		"side": "Raita"
+	},
+	"dinner": {
+		"rice": "Pulao",
+		"roti": "Chicken Karahi",
+		"side": "Salad"
+	}
 }

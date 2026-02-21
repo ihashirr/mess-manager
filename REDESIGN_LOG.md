@@ -87,3 +87,20 @@ Moved from cumulative tracking to a professional transaction ledger.
 - [x] Progress bar — Capped at 100%, surplus shown as text.
 - [x] Delete Customer — Removes record from Firestore immediately.
 - [x] Delete Transaction — Removes individual ledger entry from Firestore.
+
+## Phase 12 — Daily Production Engine
+The Home screen is now an operational command center, not just a stats dashboard.
+- **Production Card**: Dark, high-contrast card at the top of the Home screen.
+- **Lunch Count + Menu**: Shows how many lunch customers + what's on the menu today.
+- **Dinner Count + Menu**: Shows how many dinner customers + what's on the menu tonight.
+- **Total Meals Today**: Summed at the bottom of the card for at-a-glance production planning.
+- **Live Menu Fetch**: `index.tsx` now subscribes to `menu/{today}` in Firestore, so the menu shown on Home always matches what was set on the Menu tab.
+- **Admin Stats**: Moved Active Customers and Payments Due to a compact side-by-side layout below the production card.
+
+## Phase 13 — Structured Menu Schema
+Replaced flat blob strings with a structured per-category schema. The app now understands food components.
+- **New Firestore schema**: `menu/{YYYY-MM-DD}.lunch` and `.dinner` are now objects `{ rice, roti, side }` instead of strings.
+- **Menu tab**: 3 labelled inputs per meal (🍚 Rice, 🫓 Roti, 🥗 Side) — replaces single text blob.
+- **Home screen**: Production cards now render each food component on its own row with emoji icons and the meal count badge.
+- **Mock data**: `mocks/menu.json` updated to new schema.
+- **Foundation for production math**: Rice vs roti counts can now be derived separately — future grocery intelligence engine basis.
