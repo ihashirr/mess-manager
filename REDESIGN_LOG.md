@@ -121,3 +121,10 @@ Introduced a 3-layer operational system: weekly menu, customer attendance commit
 - **Attendance-derived counts**: Home screen now derives `lunchCount`/`dinnerCount` from `customerSelections` docs, not from static `mealsPerDay` flags.
 - **Opt-out model**: If a customer has no selection for this week, they are counted as attending (they pay regardless).
 - **Backward compat**: Home screen falls back to old `menu/{today}` doc if `weeklyMenu` not yet set.
+
+## Phase 16 — Brutal Simplicity (Date-Based Architecture)
+Refactoring to remove overengineering. Storage moved from weekly abstractions to daily reality.
+- **Flat Storage**: `menu/{date}` and `attendance/{date}_{customerId}`.
+- **Home Screen Evolution**: Split into "Production Dashboard" (Stats) and "Daily Attendance" (Input).
+- **Calendar-Based Input**: Users still see the Weekly Mon-Sun calendar for planning, but the database sees individual days.
+- **Dish-Specific Toggles**: Attendance toggles now show the actual dish name (e.g., "Chicken Karahi (Lunch)") instead of generic flags.

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SETTINGS } from '../constants/Settings';
 import { db } from '../firebase/config';
-import { DAYS, DayName, getTodayName, getWeekId, shortDay } from '../utils/weekLogic';
+import { DAYS, DayName, getDateForDayName, getTodayName, getWeekId, shortDay } from '../utils/weekLogic';
 
 type RiceSlot = { enabled: boolean; type: string };
 type MealSlot = { main: string; rice: RiceSlot; roti: boolean; extra: string };
@@ -33,35 +33,26 @@ export default function MenuScreen() {
 	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
+		const selectedDate = getDateForDayName(selectedDay, weekId);
+
 		if (SETTINGS.USE_MOCKS) {
-			// Build a full mock week with today populated
-			const mockWeek: WeekMenu = {};
-			DAYS.forEach(d => { mockWeek[d] = { ...EMPTY_DAY }; });
-			mockWeek[todayName] = {
-				lunch: { main: "Chicken Karahi", rice: { enabled: true, type: "Plain Rice" }, roti: true, extra: "Raita" },
-				dinner: { main: "Daal Makhni", rice: { enabled: false, type: "" }, roti: true, extra: "" },
-			};
-			setWeekMenu(mockWeek);
+			setWeekMenu({ [selectedDay]: { ...EMPTY_DAY } });
 			setLoading(false);
 			return;
 		}
 
-		const unsub = onSnapshot(doc(db, "weeklyMenu", weekId), (docSnap) => {
+		console.log("Subscribing to menu:", selectedDate);
+		const unsub = onSnapshot(doc(db, "menu", selectedDate), (docSnap) => {
 			const raw = docSnap.exists() ? docSnap.data() : {};
-			const normalized: WeekMenu = {};
-			DAYS.forEach(day => {
-				normalized[day] = raw[day]
-					? {
-						lunch: normalizeMeal(raw[day].lunch),
-						dinner: normalizeMeal(raw[day].dinner),
-					}
-					: { lunch: { ...EMPTY_MEAL }, dinner: { ...EMPTY_MEAL } };
-			});
-			setWeekMenu(normalized);
+			const normalized: DayMenu = {
+				lunch: normalizeMeal(raw.lunch),
+				dinner: normalizeMeal(raw.dinner),
+			};
+			setWeekMenu(prev => ({ ...prev, [selectedDay]: normalized }));
 			setLoading(false);
 		});
 		return () => unsub();
-	}, [weekId]);
+	}, [selectedDay, weekId]);
 
 	const currentDay = weekMenu[selectedDay] ?? EMPTY_DAY;
 
@@ -89,13 +80,18 @@ export default function MenuScreen() {
 	};
 
 	const handleSave = async () => {
+		const selectedDate = getDateForDayName(selectedDay, weekId);
 		try {
 			if (!SETTINGS.USE_MOCKS) {
-				await setDoc(doc(db, "weeklyMenu", weekId), weekMenu, { merge: true });
+				const dayData = weekMenu[selectedDay] ?? EMPTY_DAY;
+				await setDoc(doc(db, "menu", selectedDate), {
+					...dayData,
+					updatedAt: new Date().toISOString()
+				}, { merge: true });
 			}
 			setIsEditing(false);
 		} catch (error) {
-			console.error("Error saving weekly menu:", error);
+			console.error("Error saving daily menu:", error);
 		}
 	};
 

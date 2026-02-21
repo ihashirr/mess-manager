@@ -22,10 +22,10 @@ This document covers the architecture, data model, and screen-by-screen logic fo
 
 ### 1. Home Screen (`index.tsx`)
 **Purpose**: Operational command center and daily production overview.
-- Subscribes to both `customers` collection and `menu/{today}` doc simultaneously.
-- **Production Engine cards** (one per meal):
-  - Shows plate count (lunch count / dinner count from active customers)
-  - Renders 3 menu component rows: 🍚 Rice, 🫓 Roti, 🥗 Side from the structured menu
+- **Segmented View**:
+  - **DASHBOARD**: Shows totals (Derived from active customers + attendance overrides).
+  - **ATTENDANCE**: Single-tap list to toggle who's eating today. Toggles show actual dish names.
+- Subscribes to `customers` collection, `menu/{today}`, and `attendance/{today_*} docs`.
 - **Total Meals Today** = lunchCount + dinnerCount — the single number the cook needs.
 - **Admin stats** below: Active Customers, Payments Due.
 - Legacy meal flag fallback: supports old `plan` string field.
@@ -50,12 +50,16 @@ This document covers the architecture, data model, and screen-by-screen logic fo
 
 ### 4. Menu Screen (`menu.tsx`)
 **Purpose**: Daily menu setup by the operator.
-- Fetches `menu/{YYYY-MM-DD}` via `onSnapshot`.
-- **Main salan** is the primary input (the curry that drives everything).
-- **Roti** and **Rice** are toggle switches (serving mode, not dishes).
-- Rice has an optional type field (`rice.type`) shown only when `rice.enabled` is true.
-- `handleSave` writes nested `{ main, rice: { enabled, type }, roti, extra }` per meal.
-- Humans see words, not booleans: `true → "Roti"`, `false → "No Roti"`, `rice.type || "No Rice"`.
+- UI: Weekly Mon–Sun scrollable calendar for planning.
+- **Persistence**: Saves to `menu/{YYYY-MM-DD}` (individual documents).
+- **Structure**: `{ lunch: { main, rice, roti, extra }, dinner: { ... }, updatedAt }`.
+
+### 5. Attendance Logic
+- **Storage**: `attendance/{YYYY-MM-DD}_{customerId}`.
+- **Opt-out Model**: If no attendance record exists for a date, the customer is counted as "Attending" (as billing is fixed monthly).
+- **Weekly Input**: Customers tab allows setting 7 days at once, which performs 7 parallel `setDoc` calls.
+- **Daily Input**: Home screen (Attendance tab) allows quick toggling for today only.
+Humans see words, not booleans: `true → "Roti"`, `false → "No Roti"`, `rice.type || "No Rice"`.
 
 ### 5. Finance Screen (`finance.tsx`)
 **Purpose**: Monthly financial health audit.

@@ -5,7 +5,7 @@ import { SETTINGS } from '../constants/Settings';
 import { db } from '../firebase/config';
 import { getCustomerStatus, getDaysLeft, getDueAmount, toDate } from '../utils/customerLogic';
 import { mockDb } from '../utils/mockDb';
-import { DayName, emptyWeekAttendance, getWeekId } from '../utils/weekLogic';
+import { DAYS, DayName, emptyWeekAttendance, getDatesForWeek, getWeekId, shortDay } from '../utils/weekLogic';
 
 type Customer = {
 	id: string;
@@ -142,16 +142,28 @@ export default function CustomersScreen() {
 			setExpandedId(null);
 			return;
 		}
-		// Load existing attendance or default to all-true
+
+		const dates = getDatesForWeek(weekId);
+		const attendance: Record<DayName, { lunch: boolean; dinner: boolean }> = emptyWeekAttendance();
+
 		if (!SETTINGS.USE_MOCKS) {
 			try {
-				const snap = await getDoc(doc(db, "customerSelections", `${customerId}_${weekId}`));
-				if (snap.exists()) {
-					setWeekAttendance(snap.data().days as Record<DayName, { lunch: boolean; dinner: boolean }>);
-				} else {
-					setWeekAttendance(emptyWeekAttendance());
-				}
+				// Fetch 7 docs in parallel for the week
+				const promises = dates.map((date: string) => getDoc(doc(db, "attendance", `${date}_${customerId}`)));
+				const snaps = await Promise.all(promises);
+
+				snaps.forEach((snap: any, i: number) => {
+					if (snap.exists()) {
+						const dayName = DAYS[i];
+						attendance[dayName] = {
+							lunch: snap.data().lunch ?? true,
+							dinner: snap.data().dinner ?? true
+						};
+					}
+				});
+				setWeekAttendance(attendance);
 			} catch (e) {
+				console.error("Error loading attendance:", e);
 				setWeekAttendance(emptyWeekAttendance());
 			}
 		} else {
@@ -161,13 +173,21 @@ export default function CustomersScreen() {
 	};
 
 	const handleSaveAttendance = async (customerId: string) => {
+		const dates = getDatesForWeek(weekId);
 		if (!SETTINGS.USE_MOCKS) {
 			try {
-				await setDoc(doc(db, "customerSelections", `${customerId}_${weekId}`), {
-					customerId,
-					weekId,
-					days: weekAttendance,
+				const promises = dates.map((date: string, i: number) => {
+					const dayName = DAYS[i];
+					const selection = weekAttendance[dayName];
+					return setDoc(doc(db, "attendance", `${date}_${customerId}`), {
+						customerId,
+						date,
+						lunch: selection.lunch,
+						dinner: selection.dinner,
+						updatedAt: new Date().toISOString()
+					}, { merge: true });
 				});
+				await Promise.all(promises);
 			} catch (e) {
 				console.error("Error saving attendance:", e);
 			}
@@ -338,13 +358,13 @@ export default function CustomersScreen() {
 							onPress={() => handleOpenAttendance(item.id)}
 						>
 							<Text style={styles.weekBtnText}>
-								{expandedId === item.id ? '\u2715 CLOSE' : '\U0001F4C5 SET WEEK'}
+								{expandedId === item.id ? '✕ CLOSE' : '📅 SET WEEK'}
 							</Text>
 						</TouchableOpacity>
 
 						{expandedId === item.id && (
 							<View style={styles.attendancePanel}>
-								<Text style={styles.attendanceTitle}>Week Attendance \u2014 {weekId}</Text>
+								<Text style={styles.attendanceTitle}>Week Attendance — {weekId}</Text>
 								{DAYS.map(day => (
 									<View key={day} style={styles.dayRow}>
 										<Text style={styles.dayName}>{shortDay(day)}</Text>
@@ -353,13 +373,13 @@ export default function CustomersScreen() {
 												style={[styles.mealChip, weekAttendance[day].lunch && styles.mealChipOn]}
 												onPress={() => toggleAttendance(day, 'lunch')}
 											>
-												<Text style={styles.mealChipText}>\u2600\uFE0F Lunch</Text>
+												<Text style={styles.mealChipText}>☀️ Lunch</Text>
 											</TouchableOpacity>
 											<TouchableOpacity
 												style={[styles.mealChip, weekAttendance[day].dinner && styles.mealChipOn]}
 												onPress={() => toggleAttendance(day, 'dinner')}
 											>
-												<Text style={styles.mealChipText}>\U0001F319 Dinner</Text>
+												<Text style={styles.mealChipText}>🌙 Dinner</Text>
 											</TouchableOpacity>
 										</View>
 									</View>
@@ -368,7 +388,7 @@ export default function CustomersScreen() {
 									style={styles.saveWeekBtn}
 									onPress={() => handleSaveAttendance(item.id)}
 								>
-									<Text style={styles.saveWeekBtnText}>SAVE WEEK \u2014 \u0645\u062d\u0641\u0648\u0638 \u06a9\u0631\u06cc\u06ba</Text>
+									<Text style={styles.saveWeekBtnText}>SAVE WEEK — محفوظ کریں</Text>
 								</TouchableOpacity>
 							</View>
 						)}
