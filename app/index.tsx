@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SETTINGS } from '../constants/Settings';
 import { db } from '../firebase/config';
-import mockCustomers from '../mocks/customers.json';
+import { getDaysLeft, getDueAmount, toDate } from '../utils/customerLogic';
+import { mockDb } from '../utils/mockDb';
 
 export default function Index() {
 	const [stats, setStats] = useState({
@@ -15,48 +16,69 @@ export default function Index() {
 	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
-		if (SETTINGS.USE_MOCKS) {
+		const calculateStats = (customerData: any[]) => {
 			let active = 0;
-			let due = 0;
+			let dueCount = 0;
 			let lunch = 0;
 			let dinner = 0;
 
-			mockCustomers.forEach((data) => {
-				if (data.daysLeft > 0) active++;
-				if (data.paymentDue) due++;
-				if (data.plan && data.plan.includes("Lunch")) lunch++;
-				if (data.plan && data.plan.includes("Dinner")) dinner++;
+			customerData.forEach((data) => {
+				const endDate = toDate(data.endDate);
+				const daysLeft = getDaysLeft(endDate);
+				const due = getDueAmount(data.pricePerMonth, data.totalPaid);
+
+				if (daysLeft >= 0) {
+					active++;
+					const isLunch = (data as any).mealsPerDay?.lunch || (data as any).plan === "lunch" || (data as any).plan === "both";
+					const isDinner = (data as any).mealsPerDay?.dinner || (data as any).plan === "dinner" || (data as any).plan === "both";
+					if (isLunch) lunch++;
+					if (isDinner) dinner++;
+					if (due > 0) dueCount++;
+				}
 			});
 
 			setStats({
 				activeCount: active,
-				paymentsDue: due,
+				paymentsDue: dueCount,
 				lunchCount: lunch,
 				dinnerCount: dinner
 			});
 			setLoading(false);
-			return;
+		};
+
+		if (SETTINGS.USE_MOCKS) {
+			calculateStats(mockDb.getCustomers());
+			const unsub = mockDb.subscribe(() => calculateStats(mockDb.getCustomers()));
+			return unsub;
 		}
 
 		const q = query(collection(db, "customers"));
 
 		const unsubscribe = onSnapshot(q, (querySnapshot) => {
 			let active = 0;
-			let due = 0;
+			let dueCount = 0;
 			let lunch = 0;
 			let dinner = 0;
 
 			querySnapshot.forEach((doc) => {
 				const data = doc.data();
-				if (data.daysLeft > 0) active++;
-				if (data.paymentDue) due++;
-				if (data.plan && data.plan.includes("Lunch")) lunch++;
-				if (data.plan && data.plan.includes("Dinner")) dinner++;
+				const endDate = toDate(data.endDate);
+				const daysLeft = getDaysLeft(endDate);
+				const due = getDueAmount(data.pricePerMonth, data.totalPaid);
+
+				if (daysLeft >= 0) {
+					active++;
+					const isLunch = (data as any).mealsPerDay?.lunch || (data as any).plan === "lunch" || (data as any).plan === "both";
+					const isDinner = (data as any).mealsPerDay?.dinner || (data as any).plan === "dinner" || (data as any).plan === "both";
+					if (isLunch) lunch++;
+					if (isDinner) dinner++;
+					if (due > 0) dueCount++;
+				}
 			});
 
 			setStats({
 				activeCount: active,
-				paymentsDue: due,
+				paymentsDue: dueCount,
 				lunchCount: lunch,
 				dinnerCount: dinner
 			});
@@ -70,7 +92,9 @@ export default function Index() {
 
 	return (
 		<ScrollView style={styles.container} contentContainerStyle={styles.content}>
-			<Text style={styles.dateLabel}>Today: 21 Feb 2026</Text>
+			<Text style={styles.dateLabel}>
+				Today: {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+			</Text>
 
 			<View style={styles.statCard}>
 				<Text style={styles.statValue}>{stats.activeCount}</Text>

@@ -1,0 +1,18 @@
+[
+	{
+		"customerId": "mock-1",
+		"customerName": "Ali",
+		"amount": 350,
+		"date": "2026-02-15T10:00:00.000Z",
+		"method": "cash",
+		"monthTag": "2026-02"
+	},
+	{
+		"customerId": "mock-2",
+		"customerName": "Zahra",
+		"amount": 350,
+		"date": "2026-02-18T14:30:00.000Z",
+		"method": "bank",
+		"monthTag": "2026-02"
+	}
+]

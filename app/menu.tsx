@@ -12,6 +12,8 @@ export default function MenuScreen() {
 	const [dinner, setDinner] = useState("");
 	const [loading, setLoading] = useState(true);
 
+	const today = new Date().toISOString().split('T')[0];
+
 	useEffect(() => {
 		if (SETTINGS.USE_MOCKS) {
 			setLunch(mockMenu.lunch);
@@ -20,30 +22,35 @@ export default function MenuScreen() {
 			return;
 		}
 
-		// Listen to the 'today' document in the 'menu' collection
-		const unsub = onSnapshot(doc(db, "menu", "today"), (docSnap) => {
+		// Listen to the document named by today's date in the 'menu' collection
+		const unsub = onSnapshot(doc(db, "menu", today), (docSnap) => {
 			if (docSnap.exists()) {
 				const data = docSnap.data();
 				setLunch(data.lunch || "");
 				setDinner(data.dinner || "");
 			} else {
-				// Fallback or initialization
-				setLunch("Not decided yet");
-				setDinner("Not decided yet");
+				// Fallback for new days
+				setLunch("");
+				setDinner("");
 			}
 			setLoading(false);
 		});
 
 		return () => unsub();
-	}, []);
+	}, [today]);
 
 	const handleSave = async () => {
 		try {
-			await setDoc(doc(db, "menu", "today"), {
-				lunch: lunch,
-				dinner: dinner,
-				updatedAt: new Date().toISOString()
-			});
+			if (!SETTINGS.USE_MOCKS) {
+				await setDoc(doc(db, "menu", today), {
+					date: today,
+					lunch: lunch,
+					dinner: dinner,
+					updatedAt: new Date().toISOString()
+				});
+			} else {
+				console.log("Mock Mode: Menu not saved to real DB");
+			}
 			setIsEditing(false);
 		} catch (error) {
 			console.error("Error saving menu:", error);

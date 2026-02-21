@@ -1,26 +1,47 @@
 [
 	{
 		"id": "mock-1",
-		"name": "Ali (MOCK)",
-		"plan": "Lunch",
-		"daysLeft": 25,
-		"paymentDue": true,
-		"amount": "2500"
+		"name": "Ali",
+		"phone": "0300-1234567",
+		"mealsPerDay": {
+			"lunch": true,
+			"dinner": false
+		},
+		"pricePerMonth": 350,
+		"startDate": "2026-01-20T00:00:00.000Z",
+		"endDate": "2026-02-20T00:00:00.000Z",
+		"totalPaid": 350,
+		"notes": "Spicy food",
+		"isActive": true
 	},
 	{
 		"id": "mock-2",
-		"name": "Zahra (MOCK)",
-		"plan": "Dinner",
-		"daysLeft": 10,
-		"paymentDue": false,
-		"amount": "1200"
+		"name": "Zahra",
+		"phone": "0321-7654321",
+		"mealsPerDay": {
+			"lunch": false,
+			"dinner": true
+		},
+		"pricePerMonth": 350,
+		"startDate": "2026-01-23T00:00:00.000Z",
+		"endDate": "2026-02-23T00:00:00.000Z",
+		"totalPaid": 350,
+		"notes": "Low salt",
+		"isActive": true
 	},
 	{
 		"id": "mock-3",
-		"name": "Umer (MOCK)",
-		"plan": "Lunch + Dinner",
-		"daysLeft": 5,
-		"paymentDue": true,
-		"amount": "4500"
+		"name": "Umer",
+		"phone": "0333-1112223",
+		"mealsPerDay": {
+			"lunch": true,
+			"dinner": true
+		},
+		"pricePerMonth": 650,
+		"startDate": "2026-02-10T00:00:00.000Z",
+		"endDate": "2026-03-10T00:00:00.000Z",
+		"totalPaid": 0,
+		"notes": "No notes",
+		"isActive": true
 	}
 ]

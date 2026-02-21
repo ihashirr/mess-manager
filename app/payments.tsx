@@ -1,15 +1,19 @@
-import { collection, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SETTINGS } from '../constants/Settings';
 import { db } from '../firebase/config';
-import mockCustomers from '../mocks/customers.json';
+import { getDueAmount, toDate } from '../utils/customerLogic';
+import { mockDb } from '../utils/mockDb';
 
 type Payment = {
 	id: string;
 	name: string;
-	amount: string;
-	paymentDue: boolean;
+	pricePerMonth: number;
+	totalPaid: number;
+	isActive: boolean;
+	mealsPerDay: { lunch: boolean; dinner: boolean };
+	endDate: any;
 };
 
 export default function PaymentsScreen() {
@@ -17,20 +21,29 @@ export default function PaymentsScreen() {
 	const [loading, setLoading] = useState(true);
 
 	useEffect(() => {
-		if (SETTINGS.USE_MOCKS) {
-			const paymentsArray = (mockCustomers as Payment[]).filter(c => c.paymentDue);
-			setPayments(paymentsArray);
+		const loadPayments = () => {
+			const customers = mockDb.getCustomers();
+			const paymentsArray = (customers as any[]).filter(c => c.isActive && getDueAmount(c.pricePerMonth, c.totalPaid) > 0);
+			setPayments(paymentsArray as Payment[]);
 			setLoading(false);
-			return;
+		};
+
+		if (SETTINGS.USE_MOCKS) {
+			loadPayments();
+			const unsub = mockDb.subscribe(loadPayments);
+			return unsub;
 		}
 
-		// Rule: If paymentDue === true -> show in Payments list
-		const q = query(collection(db, "customers"), where("paymentDue", "==", true));
+		// Rule: If isActive and dueAmount > 0 -> show in Payments list
+		const q = query(collection(db, "customers"), where("isActive", "==", true));
 
 		const unsubscribe = onSnapshot(q, (querySnapshot) => {
 			const paymentsArray: Payment[] = [];
 			querySnapshot.forEach((doc) => {
-				paymentsArray.push({ id: doc.id, ...doc.data() } as Payment);
+				const data = doc.data();
+				if (getDueAmount(data.pricePerMonth, data.totalPaid) > 0) {
+					paymentsArray.push({ id: doc.id, ...data } as Payment);
+				}
 			});
 			setPayments(paymentsArray);
 			setLoading(false);
@@ -39,15 +52,54 @@ export default function PaymentsScreen() {
 		return () => unsubscribe();
 	}, []);
 
-	const markAsPaid = async (id: string) => {
+	const recordPayment = async (customer: Payment) => {
 		try {
-			const customerRef = doc(db, "customers", id);
-			await updateDoc(customerRef, {
-				paymentDue: false
-			});
-			console.log("Payment marked as paid in DB");
+			const today = new Date();
+			const currentEndDate = toDate(customer.endDate);
+			let newEndDate = new Date(currentEndDate);
+
+			if (today > currentEndDate) {
+				newEndDate = new Date(today);
+			}
+
+			newEndDate.setDate(newEndDate.getDate() + 30);
+
+			if (!SETTINGS.USE_MOCKS) {
+				// 1. Record the individual transaction in the ledger
+				const monthTag = today.toISOString().slice(0, 7); // "YYYY-MM"
+				await addDoc(collection(db, "payments"), {
+					customerId: customer.id,
+					customerName: customer.name,
+					amount: customer.pricePerMonth,
+					date: today,
+					method: "cash", // Default to cash for now
+					monthTag: monthTag
+				});
+
+				// 2. Update the customer record (cached cumulative total)
+				const customerRef = doc(db, "customers", customer.id);
+				await updateDoc(customerRef, {
+					totalPaid: (customer.totalPaid || 0) + customer.pricePerMonth,
+					endDate: newEndDate
+				});
+				console.log("Transaction recorded in ledger and DB updated");
+			} else {
+				console.log("Mock Payment: Recording in local session storage");
+				mockDb.updateCustomer(customer.id, {
+					totalPaid: (customer.totalPaid || 0) + customer.pricePerMonth,
+					endDate: newEndDate
+				});
+				mockDb.addPayment({
+					customerId: customer.id,
+					customerName: customer.name,
+					amount: customer.pricePerMonth,
+					date: today,
+					method: "cash",
+					monthTag: today.toISOString().slice(0, 7)
+				});
+			}
 		} catch (error) {
-			console.error("Error updating payment status:", error);
+			console.error("Error recording payment:", error);
 		}
 	};
 
@@ -61,15 +113,18 @@ export default function PaymentsScreen() {
 				renderItem={({ item }) => (
 					<View style={styles.card}>
 						<View style={styles.info}>
-							<Text style={styles.name}>{item.name}</Text>
-							<Text style={styles.amount}>Rs. {item.amount}</Text>
+							<View>
+								<Text style={styles.name}>{item.name}</Text>
+								<Text style={styles.subText}>Paid: {item.totalPaid} / {item.pricePerMonth}</Text>
+							</View>
+							<Text style={styles.amount}>DHS {getDueAmount(item.pricePerMonth, item.totalPaid)}</Text>
 						</View>
 
 						<TouchableOpacity
 							style={styles.button}
-							onPress={() => markAsPaid(item.id)}
+							onPress={() => recordPayment(item)}
 						>
-							<Text style={styles.buttonText}>PAID - وصول ہو گیا</Text>
+							<Text style={styles.buttonText}>RECORD PAYMENT - ادائیگی درج کریں</Text>
 						</TouchableOpacity>
 					</View>
 				)}
@@ -103,10 +158,15 @@ const styles = StyleSheet.create({
 		fontSize: 22,
 		fontWeight: 'bold',
 	},
+	subText: {
+		fontSize: 16,
+		color: '#666',
+		marginTop: 2,
+	},
 	amount: {
 		fontSize: 22,
 		fontWeight: 'bold',
-		color: '#2e7d32',
+		color: '#d32f2f',
 	},
 	button: {
 		backgroundColor: '#2e7d32',
