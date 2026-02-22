@@ -2,7 +2,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { collection, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Card } from '../components/ui/Card';
+import { Section } from '../components/ui/Section';
 import { SETTINGS } from '../constants/Settings';
+import { Theme } from '../constants/Theme';
 import { db } from '../firebase/config';
 import { getDaysLeft, getDueAmount, toDate } from '../utils/customerLogic';
 import { mockDb } from '../utils/mockDb';
@@ -197,47 +200,51 @@ export default function Index() {
 							{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })}
 						</Text>
 
-						<View style={styles.row}>
-							<MaterialCommunityIcons name="silverware-fork-knife" size={18} color="#666" />
-							<Text style={styles.sectionHeader}>Today's Production — آج کتنا پکانا ہے</Text>
-						</View>
+						<Section
+							title="Today's Production — آج کتنا پکانا ہے"
+							style={{ paddingHorizontal: 0 }}
+							contentStyle={{ paddingHorizontal: 0 }}
+						>
+							<MealCard label="Lunch" count={stats.lunchCount} slot={todayMenu.lunch} icon="weather-sunny" iconColor="#FFD700" />
+							<MealCard label="Dinner" count={stats.dinnerCount} slot={todayMenu.dinner} icon="weather-night" iconColor="#5C6BC0" />
 
-						<MealCard label="Lunch" count={stats.lunchCount} slot={todayMenu.lunch} icon="weather-sunny" iconColor="#FFD700" />
-						<MealCard label="Dinner" count={stats.dinnerCount} slot={todayMenu.dinner} icon="weather-night" iconColor="#5C6BC0" />
-
-						<View style={styles.totalRow}>
-							<Text style={styles.totalLabel}>Total Meals Today</Text>
-							<Text style={styles.totalCount}>{stats.lunchCount + stats.dinnerCount}</Text>
-						</View>
-
-						<View style={styles.statsRow}>
-							<View style={[styles.statCard, { borderColor: '#2e7d32' }]}>
-								<Text style={styles.statValue}>{stats.activeCount}</Text>
-								<Text style={styles.statLabel}>Active{'\n'}Customers</Text>
+							<View style={styles.totalRow}>
+								<Text style={styles.totalLabel}>Total Meals Today</Text>
+								<Text style={styles.totalCount}>{stats.lunchCount + stats.dinnerCount}</Text>
 							</View>
-							<View style={[styles.statCard, { borderColor: '#d32f2f' }]}>
-								<Text style={[styles.statValue, { color: '#d32f2f' }]}>{stats.paymentsDue}</Text>
-								<Text style={styles.statLabel}>Payments{'\n'}Due</Text>
+
+							<View style={styles.statsRow}>
+								<Card variant="outlined" style={styles.statCard}>
+									<Text style={styles.statValue}>{stats.activeCount}</Text>
+									<Text style={styles.statLabel}>Active{'\n'}Customers</Text>
+								</Card>
+								<Card variant="outlined" style={[styles.statCard, { borderColor: Theme.colors.danger }]}>
+									<Text style={[styles.statValue, { color: Theme.colors.danger }]}>{stats.paymentsDue}</Text>
+									<Text style={styles.statLabel}>Payments{'\n'}Due</Text>
+								</Card>
 							</View>
-						</View>
+						</Section>
 					</>
 				) : (
 					<>
-						<View style={styles.row}>
-							<MaterialCommunityIcons name="clipboard-text" size={18} color="#666" />
-							<Text style={styles.sectionHeader}>Who is eating today? — آج کون کھائے گا؟</Text>
-						</View>
-						{customers.map(c => (
-							<CustomerAttendanceRow
-								key={c.id}
-								customer={c}
-								menu={todayMenu}
-								attendance={attendance[c.id]}
-								onToggle={(meal: 'lunch' | 'dinner') => toggleTodayAttendance(c.id, meal)}
-								date={todayDate}
-							/>
-						))}
-						{customers.length === 0 && <Text style={styles.emptyText}>No active customers found.</Text>}
+						<Section
+							title="Who is eating today? — آج کون کھائے گا؟"
+							style={{ paddingHorizontal: 0 }}
+							contentStyle={{ paddingHorizontal: 0 }}
+						>
+
+							{customers.map(c => (
+								<CustomerAttendanceRow
+									key={c.id}
+									customer={c}
+									menu={todayMenu}
+									attendance={attendance[c.id]}
+									onToggle={(meal: 'lunch' | 'dinner') => toggleTodayAttendance(c.id, meal)}
+									date={todayDate}
+								/>
+							))}
+							{customers.length === 0 && <Text style={styles.emptyText}>No active customers found.</Text>}
+						</Section>
 					</>
 				)}
 			</ScrollView>
@@ -248,7 +255,7 @@ export default function Index() {
 const MealCard = ({ label, count, slot, icon, iconColor }: { label: string; count: number; slot: MealSlot; icon: any; iconColor: string }) => {
 	const riceType = slot.rice.enabled ? (slot.rice.type || "Plain Rice") : "No Rice";
 	return (
-		<View style={styles.mealCard}>
+		<Card variant="elevated" style={styles.mealCard}>
 			<View style={styles.mealCardHeader}>
 				<View style={styles.row}>
 					<MaterialCommunityIcons name={icon} size={20} color={iconColor} />
@@ -260,28 +267,28 @@ const MealCard = ({ label, count, slot, icon, iconColor }: { label: string; coun
 				</View>
 			</View>
 			<View style={styles.row}>
-				<MaterialCommunityIcons name="pot-steam" size={14} color="#666" />
+				<MaterialCommunityIcons name="pot-steam" size={14} color={Theme.colors.textMuted} />
 				<Text style={styles.mainSalanLabel}>MAIN SALAN</Text>
 			</View>
 			{slot.main ? (
 				<Text style={styles.mainSalanValue}>{slot.main}</Text>
 			) : (
 				<View style={styles.row}>
-					<MaterialCommunityIcons name="alert-circle-outline" size={20} color="#ff5252" />
+					<MaterialCommunityIcons name="alert-circle-outline" size={20} color={Theme.colors.danger} />
 					<Text style={styles.notSetWarning}>Not Set</Text>
 				</View>
 			)}
 			<View style={styles.servingRow}>
 				<View style={styles.servingItem}>
-					<MaterialCommunityIcons name="bread-slice-outline" size={14} color="#888" />
+					<MaterialCommunityIcons name="bread-slice-outline" size={14} color={Theme.colors.textDimmed} />
 					<Text style={styles.servingText}>{slot.roti ? "Roti" : "No Roti"}</Text>
 				</View>
 				<View style={styles.servingItem}>
-					<MaterialCommunityIcons name="rice" size={14} color="#888" />
+					<MaterialCommunityIcons name="rice" size={14} color={Theme.colors.textDimmed} />
 					<Text style={styles.servingText}>{riceType}</Text>
 				</View>
 			</View>
-		</View>
+		</Card>
 	);
 };
 
@@ -324,56 +331,102 @@ const CustomerAttendanceRow = ({ customer, menu, attendance, onToggle, date }: a
 };
 
 const styles = StyleSheet.create({
-	container: { flex: 1, backgroundColor: '#f4f7f6' },
+	container: { flex: 1, backgroundColor: Theme.colors.background },
 	bgDecoration: {
 		position: 'absolute', top: 0, left: 0, right: 0, height: 400,
-		backgroundColor: 'rgba(0,0,0,0.03)', borderBottomLeftRadius: 80, borderBottomRightRadius: 80,
+		backgroundColor: Theme.colors.decoration, borderBottomLeftRadius: 80, borderBottomRightRadius: 80,
 		zIndex: -1
 	},
 	centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-	tabBar: { flexDirection: 'row', backgroundColor: '#fff', padding: 4, borderRadius: 12, margin: 20, marginBottom: 0, elevation: 2 },
-	tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 8 },
-	tabItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-	tabActive: { backgroundColor: '#fff', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
-	tabText: { fontSize: 13, fontWeight: '800', color: '#999' },
-	tabTextActive: { color: '#1a1a1a' },
+	tabBar: {
+		flexDirection: 'row',
+		backgroundColor: Theme.colors.surface,
+		padding: Theme.spacing.xs,
+		borderRadius: Theme.radius.lg,
+		margin: Theme.spacing.screen,
+		marginBottom: 0,
+		...Theme.shadows.soft
+	},
+	tab: { flex: 1, paddingVertical: Theme.spacing.md, alignItems: 'center', borderRadius: Theme.radius.sm },
+	tabItem: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
+	tabActive: {
+		backgroundColor: Theme.colors.surface,
+		...Theme.shadows.soft
+	},
+	tabText: { ...Theme.typography.caption, color: Theme.colors.textDimmed, fontWeight: '800' },
+	tabTextActive: { color: Theme.colors.text },
 
-	scrollContent: { padding: 20, paddingBottom: 150 },
-	row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+	scrollContent: { padding: Theme.spacing.screen, paddingBottom: 150 },
+	row: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
 	rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-	dateLabel: { fontSize: 18, color: '#666', fontWeight: 'bold', marginBottom: 16 },
-	sectionHeader: { fontSize: 14, fontWeight: '800', color: '#666', letterSpacing: 0.5 },
+	dateLabel: { ...Theme.typography.heading, fontSize: 18, color: Theme.colors.textMuted, marginBottom: Theme.spacing.lg },
+	sectionHeader: { ...Theme.typography.section, color: Theme.colors.textMuted },
 
-	mealCard: { backgroundColor: '#1a1a1a', borderRadius: 18, padding: 20, marginBottom: 12 },
-	mealCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-	mealCardTitle: { fontSize: 16, fontWeight: '900', color: '#fff' },
-	plateBadge: { alignItems: 'center', backgroundColor: '#2e7d32', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-	plateCount: { fontSize: 24, fontWeight: '900', color: '#fff' },
+	mealCard: {
+		backgroundColor: Theme.colors.elevated, // Nested container for high contrast inside surface
+		marginBottom: Theme.spacing.md
+	},
+	mealCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Theme.spacing.md },
+	mealCardTitle: { ...Theme.typography.bodyBold, color: Theme.colors.textInverted, fontWeight: '900' },
+	plateBadge: {
+		alignItems: 'center',
+		backgroundColor: Theme.colors.primary,
+		paddingHorizontal: Theme.spacing.md,
+		paddingVertical: Theme.spacing.xs,
+		borderRadius: Theme.radius.md
+	},
+	plateCount: { ...Theme.typography.giant, fontSize: 24, color: Theme.colors.textInverted },
 	plateSub: { fontSize: 8, color: '#a5d6a7', fontWeight: '800' },
-	mainSalanLabel: { fontSize: 9, fontWeight: '800', color: '#666', letterSpacing: 1 },
-	mainSalanValue: { fontSize: 24, fontWeight: '900', color: '#fff', marginVertical: 4 },
-	notSetWarning: { fontSize: 20, fontWeight: '900', color: '#ff5252', marginVertical: 4, fontStyle: 'italic' },
-	servingRow: { flexDirection: 'row', gap: 12, marginTop: 4 },
-	servingItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-	servingText: { fontSize: 13, color: '#888', fontWeight: '600' },
+	mainSalanLabel: { ...Theme.typography.label, color: Theme.colors.textMuted },
+	mainSalanValue: { ...Theme.typography.giant, fontSize: 24, color: Theme.colors.textInverted, marginVertical: Theme.spacing.xs },
+	notSetWarning: { ...Theme.typography.subheading, color: Theme.colors.danger, marginVertical: Theme.spacing.xs, fontStyle: 'italic', fontWeight: '900' },
+	servingRow: { flexDirection: 'row', gap: Theme.spacing.md, marginTop: Theme.spacing.xs },
+	servingItem: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.xs },
+	servingText: { ...Theme.typography.caption, color: Theme.colors.textDimmed, fontWeight: '600' },
 
-	totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f0f9f0', borderRadius: 14, padding: 18, borderWidth: 2, borderColor: '#2e7d32', marginVertical: 10 },
-	totalLabel: { fontSize: 16, fontWeight: '700', color: '#2e7d32' },
-	totalCount: { fontSize: 36, fontWeight: '900', color: '#2e7d32' },
+	totalRow: {
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		backgroundColor: '#f0f9f0',
+		borderRadius: Theme.radius.xl,
+		padding: Theme.spacing.xl,
+		borderWidth: 2,
+		borderColor: Theme.colors.primary,
+		marginVertical: Theme.spacing.sm
+	},
+	totalLabel: { ...Theme.typography.bodyBold, color: Theme.colors.primary },
+	totalCount: { ...Theme.typography.giant, color: Theme.colors.primary },
 
-	statsRow: { flexDirection: 'row', gap: 15, marginTop: 10 },
-	statCard: { flex: 1, padding: 15, backgroundColor: '#f8f9fa', borderRadius: 16, borderWidth: 1, alignItems: 'center' },
-	statValue: { fontSize: 32, fontWeight: '900', color: '#1a1a1a' },
-	statLabel: { fontSize: 12, color: '#666', fontWeight: '600', marginTop: 2, textAlign: 'center' },
+	statsRow: { flexDirection: 'row', gap: Theme.spacing.lg, marginTop: Theme.spacing.md },
+	statCard: {
+		flex: 1,
+		padding: Theme.spacing.lg,
+		alignItems: 'center'
+	},
+	statValue: { ...Theme.typography.giant, fontSize: 32, color: Theme.colors.text },
+	statLabel: { ...Theme.typography.label, fontSize: 12, color: Theme.colors.textMuted, marginTop: Theme.spacing.xs, textAlign: 'center' },
 
-	customerRow: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#eee', paddingVertical: 15 },
-	customerInfo: { marginBottom: 10 },
-	customerName: { fontSize: 17, fontWeight: '700', color: '#1a1a1a' },
-	toggleGroup: { flexDirection: 'row', gap: 10 },
-	toggleBtn: { flex: 1, paddingHorizontal: 15, paddingVertical: 12, borderRadius: 14, backgroundColor: '#f5f5f5', borderWidth: 1, borderColor: '#eee' },
-	toggleBtnOn: { backgroundColor: '#e8f5e9', borderColor: '#2e7d32', elevation: 2 },
-	lockedBadge: { fontSize: 10, fontWeight: '800', color: '#666', marginTop: 2 },
-	toggleBtnLabel: { fontSize: 10, fontWeight: '800', color: '#666' },
-	toggleBtnDish: { fontSize: 14, fontWeight: '700', color: '#1a1a1a', marginTop: 2 },
-	emptyText: { textAlign: 'center', color: '#999', marginTop: 40, fontSize: 16 },
+	customerRow: { backgroundColor: Theme.colors.surface, borderBottomWidth: 1, borderBottomColor: Theme.colors.border, paddingVertical: Theme.spacing.xl },
+	customerInfo: { marginBottom: Theme.spacing.md },
+	customerName: { ...Theme.typography.bodyBold, color: Theme.colors.text },
+	toggleGroup: { flexDirection: 'row', gap: Theme.spacing.md },
+	toggleBtn: {
+		flex: 1,
+		paddingHorizontal: Theme.spacing.lg,
+		paddingVertical: Theme.spacing.md,
+		borderRadius: Theme.radius.xl,
+		backgroundColor: Theme.colors.surfaceSecondary,
+		borderWidth: 1,
+		borderColor: Theme.colors.border
+	},
+	toggleBtnOn: {
+		backgroundColor: '#e8f5e9',
+		borderColor: Theme.colors.primary,
+		...Theme.shadows.soft
+	},
+	lockedBadge: { ...Theme.typography.label, color: Theme.colors.textMuted, marginTop: 2 },
+	toggleBtnLabel: { ...Theme.typography.label, color: Theme.colors.textMuted },
+	toggleBtnDish: { ...Theme.typography.bodyBold, fontSize: 14, color: Theme.colors.text, marginTop: 2 },
+	emptyText: { textAlign: 'center', color: Theme.colors.textDimmed, marginTop: 40, fontSize: 16 },
 });

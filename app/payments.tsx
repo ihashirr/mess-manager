@@ -1,8 +1,11 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { addDoc, collection, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
 import { SETTINGS } from '../constants/Settings';
+import { Theme } from '../constants/Theme';
 import { db } from '../firebase/config';
 import { getDueAmount, toDate } from '../utils/customerLogic';
 import { mockDb } from '../utils/mockDb';
@@ -122,7 +125,7 @@ export default function PaymentsScreen() {
 				keyExtractor={(item) => item.id}
 				contentContainerStyle={styles.content}
 				renderItem={({ item }) => (
-					<View style={styles.card}>
+					<Card style={{ marginBottom: Theme.spacing.lg }}>
 						<View style={styles.info}>
 							<View>
 								<Text style={styles.name}>{item.name}</Text>
@@ -131,13 +134,11 @@ export default function PaymentsScreen() {
 							<Text style={styles.amount}>DHS {getDueAmount(item.pricePerMonth, item.totalPaid)}</Text>
 						</View>
 
-						<TouchableOpacity
-							style={styles.button}
+						<Button
+							title="RECORD PAYMENT - ادائیگی درج کریں"
 							onPress={() => recordPayment(item)}
-						>
-							<Text style={styles.buttonText}>RECORD PAYMENT - ادائیگی درج کریں</Text>
-						</TouchableOpacity>
-					</View>
+						/>
+					</Card>
 				)}
 				ListEmptyComponent={
 					<View style={styles.emptyContainer}>
@@ -151,31 +152,29 @@ export default function PaymentsScreen() {
 }
 
 const styles = StyleSheet.create({
-	container: { flex: 1, backgroundColor: '#f4f7f6' },
+	container: { flex: 1, backgroundColor: Theme.colors.background },
 	bgDecoration: {
 		position: 'absolute', top: 0, left: 0, right: 0, height: 400,
-		backgroundColor: 'rgba(0,0,0,0.03)', borderBottomLeftRadius: 80, borderBottomRightRadius: 80,
+		backgroundColor: Theme.colors.decoration, borderBottomLeftRadius: 80, borderBottomRightRadius: 80,
 		zIndex: -1
 	},
 	header: {
-		flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-		paddingHorizontal: 25, paddingTop: 60, paddingBottom: 25, backgroundColor: '#fff',
-		elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 5,
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		paddingHorizontal: 25,
+		paddingTop: 60,
+		paddingBottom: 25,
+		backgroundColor: Theme.colors.surface,
+		...Theme.shadows.soft,
 	},
-	title: { fontSize: 26, fontWeight: '900', color: '#1a1a1a', letterSpacing: -0.5 },
-	subtitle: { fontSize: 13, color: '#999', fontWeight: '800', marginTop: 2, textTransform: 'uppercase' },
-	content: { padding: 20, paddingBottom: 150 },
-	card: {
-		padding: 22, backgroundColor: '#fff', borderRadius: 20, marginBottom: 15,
-		borderWidth: 1, borderColor: '#eee', elevation: 3, shadowColor: '#000',
-		shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.1, shadowRadius: 6,
-	},
+	title: { ...Theme.typography.heading, fontSize: 26, color: Theme.colors.text },
+	subtitle: { ...Theme.typography.label, fontSize: 13, color: Theme.colors.textDimmed, marginTop: 2, textTransform: 'uppercase' },
+	content: { padding: Theme.spacing.screen, paddingBottom: 150 },
 	info: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-	name: { fontSize: 20, fontWeight: '900', color: '#1a1a1a' },
-	subText: { fontSize: 13, color: '#666', fontWeight: '700', marginTop: 2 },
-	amount: { fontSize: 20, fontWeight: '900', color: '#d32f2f' },
-	button: { backgroundColor: '#2e7d32', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
-	buttonText: { color: '#fff', fontSize: 14, fontWeight: '900', letterSpacing: 0.5 },
-	emptyContainer: { alignItems: 'center', marginTop: 80, gap: 15 },
-	empty: { textAlign: 'center', fontSize: 18, color: '#2e7d32', fontWeight: '900' }
+	name: { ...Theme.typography.subheading, fontSize: 20, color: Theme.colors.text },
+	subText: { ...Theme.typography.caption, color: Theme.colors.textMuted, marginTop: 2 },
+	amount: { ...Theme.typography.bodyBold, fontSize: 20, color: Theme.colors.danger },
+	emptyContainer: { alignItems: 'center', marginTop: 80, gap: Theme.spacing.lg },
+	empty: { textAlign: 'center', ...Theme.typography.subheading, fontSize: 18, color: Theme.colors.primary }
 });

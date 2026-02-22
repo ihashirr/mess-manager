@@ -1,12 +1,17 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { addDoc, collection, deleteDoc, doc, getDoc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Badge } from '../components/ui/Badge';
+import { Card } from '../components/ui/Card';
+import { Input } from '../components/ui/Input';
 import { SETTINGS } from '../constants/Settings';
+import { Theme } from '../constants/Theme';
 import { db } from '../firebase/config';
 import { getCustomerStatus, getDaysLeft, getDueAmount, toDate } from '../utils/customerLogic';
 import { mockDb } from '../utils/mockDb';
-import { DAYS, DayName, emptyWeekAttendance, getDatesForWeek, getWeekId, shortDay } from '../utils/weekLogic';
+import { DAYS, DayName, emptyWeekAttendance, formatISO, getDatesForWeek, getWeekId, shortDay } from '../utils/weekLogic';
+
 
 type MealSlot = { main: string; roti: boolean; rice: { enabled: boolean; type: string }; extra: string };
 type DayMenu = { lunch: MealSlot; dinner: MealSlot };
@@ -51,11 +56,11 @@ export default function CustomersScreen() {
 	const [isDinner, setIsDinner] = useState(false);
 	const [newPrice, setNewPrice] = useState("2500");
 	const [newNotes, setNewNotes] = useState("");
-	const [newStartDate, setNewStartDate] = useState(new Date().toISOString().split('T')[0]);
+	const [newStartDate, setNewStartDate] = useState(formatISO(new Date()));
 	const [newEndDate, setNewEndDate] = useState(() => {
 		const d = new Date();
 		d.setMonth(d.getMonth() + 1);
-		return d.toISOString().split('T')[0];
+		return formatISO(d);
 	});
 
 	useEffect(() => {
@@ -291,16 +296,14 @@ export default function CustomersScreen() {
 			{isAdding && (
 				<View style={styles.form}>
 					<Text style={styles.label}>Name - نام</Text>
-					<TextInput
-						style={styles.input}
+					<Input
 						value={newName}
 						onChangeText={setNewName}
 						placeholder="Customer Name"
 					/>
 
 					<Text style={styles.label}>Phone - فون نمبر</Text>
-					<TextInput
-						style={styles.input}
+					<Input
 						value={newPhone}
 						onChangeText={setNewPhone}
 						placeholder="0300-1234567"
@@ -331,8 +334,7 @@ export default function CustomersScreen() {
 						</View>
 						<View style={{ flex: 1 }}>
 							<Text style={styles.label}>Price - قیمت</Text>
-							<TextInput
-								style={styles.input}
+							<Input
 								value={newPrice}
 								onChangeText={setNewPrice}
 								keyboardType="numeric"
@@ -343,8 +345,7 @@ export default function CustomersScreen() {
 					<View style={styles.row}>
 						<View style={{ flex: 1, marginRight: 10 }}>
 							<Text style={styles.label}>Start - تاریخ آغاز</Text>
-							<TextInput
-								style={styles.input}
+							<Input
 								value={newStartDate}
 								onChangeText={setNewStartDate}
 								placeholder="YYYY-MM-DD"
@@ -352,8 +353,7 @@ export default function CustomersScreen() {
 						</View>
 						<View style={{ flex: 1 }}>
 							<Text style={styles.label}>End - تاریخ ختم</Text>
-							<TextInput
-								style={styles.input}
+							<Input
 								value={newEndDate}
 								onChangeText={setNewEndDate}
 								placeholder="YYYY-MM-DD"
@@ -362,8 +362,7 @@ export default function CustomersScreen() {
 					</View>
 
 					<Text style={styles.label}>Notes - نوٹ</Text>
-					<TextInput
-						style={styles.input}
+					<Input
 						value={newNotes}
 						onChangeText={setNewNotes}
 						placeholder="Any specific instructions..."
@@ -381,7 +380,7 @@ export default function CustomersScreen() {
 				keyExtractor={(item) => item.id}
 				contentContainerStyle={{ paddingBottom: 150 }}
 				renderItem={({ item }) => (
-					<View style={styles.card}>
+					<Card style={{ margin: Theme.spacing.screen, marginTop: 0 }}>
 						<Text style={styles.name}>
 							{item.name}
 							{getCustomerStatus(toDate(item.endDate)) === 'expired' && " (EXPIRED)"}
@@ -402,8 +401,8 @@ export default function CustomersScreen() {
 								{toDate(item.startDate).toLocaleDateString()} to {toDate(item.endDate).toLocaleDateString()}
 							</Text>
 							<View style={styles.statusBadge}>
-								{getCustomerStatus(toDate(item.endDate)) === 'expired' && <Text style={styles.expiredLabel}>EXPIRED</Text>}
-								{getCustomerStatus(toDate(item.endDate)) === 'expiring-soon' && <Text style={styles.expiringLabel}>EXPIRING SOON</Text>}
+								{getCustomerStatus(toDate(item.endDate)) === 'expired' && <Badge label="EXPIRED" variant="danger" style={{ marginRight: 6 }} />}
+								{getCustomerStatus(toDate(item.endDate)) === 'expiring-soon' && <Badge label="EXPIRING SOON" variant="warning" style={{ marginRight: 6 }} />}
 								<Text style={styles.paid}>Paid: {item.totalPaid}</Text>
 							</View>
 						</View>
@@ -494,7 +493,7 @@ export default function CustomersScreen() {
 								</TouchableOpacity>
 							</View>
 						)}
-					</View>
+					</Card>
 				)}
 				ListEmptyComponent={!isAdding ? <Text style={styles.empty}>No active customers</Text> : null}
 			/>
@@ -505,11 +504,11 @@ export default function CustomersScreen() {
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
-		backgroundColor: '#f4f7f6',
+		backgroundColor: Theme.colors.background,
 	},
 	bgDecoration: {
 		position: 'absolute', top: 0, left: 0, right: 0, height: 400,
-		backgroundColor: 'rgba(0,0,0,0.03)', borderBottomLeftRadius: 80, borderBottomRightRadius: 80,
+		backgroundColor: Theme.colors.decoration, borderBottomLeftRadius: 80, borderBottomRightRadius: 80,
 		zIndex: -1
 	},
 	header: {
@@ -518,17 +517,13 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		paddingHorizontal: 25,
 		paddingTop: 60,
-		paddingBottom: 20,
-		backgroundColor: '#fff',
-		elevation: 4,
-		shadowColor: '#000',
-		shadowOffset: { width: 0, height: 2 },
-		shadowOpacity: 0.05,
-		shadowRadius: 5,
+		paddingBottom: Theme.spacing.xl,
+		backgroundColor: Theme.colors.surface,
+		...Theme.shadows.soft,
 	},
-	headerRight: { flexDirection: 'row', alignItems: 'center', gap: 15 },
+	headerRight: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.lg },
 	headerActionBtn: {
-		backgroundColor: '#e8f5e9',
+		backgroundColor: Theme.colors.surfaceSecondary,
 		width: 40,
 		height: 40,
 		borderRadius: 20,
@@ -538,11 +533,12 @@ const styles = StyleSheet.create({
 		borderColor: '#a5d6a7',
 	},
 	title: {
+		...Theme.typography.subheading,
 		fontSize: 24,
-		fontWeight: 'bold',
+		color: Theme.colors.text,
 	},
 	addBtn: {
-		backgroundColor: '#2e7d32',
+		backgroundColor: Theme.colors.primary,
 		width: 40,
 		height: 40,
 		borderRadius: 20,
@@ -550,36 +546,28 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 	},
 	cancelBtn: {
-		backgroundColor: '#d32f2f',
+		backgroundColor: Theme.colors.danger,
 	},
 	addBtnText: {
-		color: '#fff',
+		color: Theme.colors.textInverted,
 		fontSize: 24,
 		fontWeight: 'bold',
 	},
 	form: {
 		padding: 25,
-		backgroundColor: '#fff',
+		backgroundColor: Theme.colors.surface,
 		borderBottomWidth: 1,
-		borderBottomColor: '#eee',
-		elevation: 2,
+		borderBottomColor: Theme.colors.border,
+		...Theme.shadows.soft,
 	},
-	formFooter: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 20, alignSelf: 'center' },
-	formInfo: { fontSize: 12, fontWeight: '700', color: '#999', fontStyle: 'italic' },
+	formFooter: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.xs, marginTop: 20, alignSelf: 'center' },
+	formInfo: { ...Theme.typography.caption, color: Theme.colors.textDimmed, fontStyle: 'italic' },
 	label: {
+		...Theme.typography.bodyBold,
 		fontSize: 16,
-		fontWeight: '600',
-		color: '#666',
+		color: Theme.colors.textMuted,
 		marginBottom: 5,
 		marginTop: 10,
-	},
-	input: {
-		backgroundColor: '#fff',
-		borderWidth: 1,
-		borderColor: '#ddd',
-		borderRadius: 8,
-		padding: 12,
-		fontSize: 16,
 	},
 	row: {
 		flexDirection: 'row',
@@ -587,63 +575,44 @@ const styles = StyleSheet.create({
 	},
 	planSelector: {
 		flexDirection: 'row',
-		backgroundColor: '#eee',
-		borderRadius: 8,
+		backgroundColor: Theme.colors.border,
+		borderRadius: Theme.radius.md,
 		padding: 3,
 	},
 	planOption: {
 		flex: 1,
 		paddingVertical: 10,
 		alignItems: 'center',
-		borderRadius: 6,
+		borderRadius: Theme.radius.sm,
 	},
 	planOptionSelected: {
-		backgroundColor: '#fff',
-		elevation: 2,
-		shadowColor: '#000',
-		shadowOffset: { width: 0, height: 1 },
-		shadowOpacity: 0.2,
-		shadowRadius: 1,
+		backgroundColor: Theme.colors.surface,
+		...Theme.shadows.soft,
 	},
 	planOptionText: {
+		...Theme.typography.label,
 		fontSize: 12,
-		fontWeight: 'bold',
-		color: '#666',
+		color: Theme.colors.textMuted,
 	},
 	planOptionTextSelected: {
-		color: '#2e7d32',
+		color: Theme.colors.primary,
 	},
 	saveBtn: {
-		backgroundColor: '#2e7d32',
+		backgroundColor: Theme.colors.primary,
 		paddingVertical: 15,
-		borderRadius: 8,
+		borderRadius: Theme.radius.md,
 		alignItems: 'center',
 		marginTop: 20,
 	},
 	saveBtnText: {
-		color: '#fff',
+		color: Theme.colors.textInverted,
 		fontSize: 16,
 		fontWeight: 'bold',
 	},
-	card: {
-		margin: 20,
-		marginTop: 0,
-		marginBottom: 20,
-		padding: 20,
-		backgroundColor: '#fff',
-		borderRadius: 12,
-		borderWidth: 1,
-		borderColor: '#eee',
-		elevation: 2,
-		shadowColor: '#000',
-		shadowOffset: { width: 0, height: 2 },
-		shadowOpacity: 0.1,
-		shadowRadius: 4,
-	},
 	name: {
+		...Theme.typography.subheading,
 		fontSize: 22,
-		fontWeight: 'bold',
-		color: '#1a1a1a',
+		color: Theme.colors.text,
 	},
 	details: {
 		flexDirection: 'row',
@@ -652,115 +621,94 @@ const styles = StyleSheet.create({
 		marginTop: 8,
 	},
 	plan: {
+		...Theme.typography.bodyBold,
 		fontSize: 16,
-		fontWeight: '600',
-		color: '#2e7d32',
+		color: Theme.colors.primary,
 	},
 	phone: {
-		fontSize: 16,
-		color: '#666',
+		...Theme.typography.body,
+		color: Theme.colors.textMuted,
 	},
 	dates: {
-		fontSize: 14,
-		color: '#999',
+		...Theme.typography.caption,
+		color: Theme.colors.textDimmed,
 	},
 	statusBadge: {
 		flexDirection: 'row',
 		alignItems: 'center',
 	},
-	expiredLabel: {
-		backgroundColor: '#ffebee',
-		color: '#d32f2f',
-		fontSize: 10,
-		fontWeight: 'bold',
-		paddingHorizontal: 6,
-		paddingVertical: 2,
-		borderRadius: 4,
-		marginRight: 6,
-	},
-	expiringLabel: {
-		backgroundColor: '#fff3e0',
-		color: '#ef6c00',
-		fontSize: 10,
-		fontWeight: 'bold',
-		paddingHorizontal: 6,
-		paddingVertical: 2,
-		borderRadius: 4,
-		marginRight: 6,
-	},
 	paid: {
+		...Theme.typography.bodyBold,
 		fontSize: 14,
-		fontWeight: 'bold',
-		color: '#2e7d32',
+		color: Theme.colors.primary,
 	},
 	daysRemaining: {
 		marginTop: 10,
+		...Theme.typography.bodyBold,
 		fontSize: 14,
-		fontWeight: 'bold',
-		color: '#666',
+		color: Theme.colors.textMuted,
 	},
 	textRed: {
-		color: '#d32f2f',
+		color: Theme.colors.danger,
 	},
 	textOrange: {
 		color: '#ef6c00',
 	},
 	empty: {
 		textAlign: 'center',
-		fontSize: 16,
-		color: '#999',
+		...Theme.typography.body,
+		color: Theme.colors.textDimmed,
 		marginTop: 40,
 	},
 	notes: {
-		fontSize: 13,
-		color: '#888',
+		...Theme.typography.caption,
 		fontStyle: 'italic',
 		marginTop: 8,
 		paddingTop: 8,
 		borderTopWidth: 1,
-		borderTopColor: '#f0f0f0',
+		borderTopColor: Theme.colors.border,
 	},
 	deleteBtn: {
 		backgroundColor: '#ffebee',
-		paddingHorizontal: 12,
-		paddingVertical: 6,
-		borderRadius: 6,
+		paddingHorizontal: Theme.spacing.md,
+		paddingVertical: Theme.spacing.xs,
+		borderRadius: Theme.radius.sm,
 	},
 	deleteBtnText: {
-		color: '#d32f2f',
+		color: Theme.colors.danger,
+		...Theme.typography.label,
 		fontSize: 12,
-		fontWeight: 'bold',
 	},
 	weekBtn: {
 		marginTop: 12, paddingVertical: 10, paddingHorizontal: 16,
-		backgroundColor: '#e8f5e9', borderRadius: 10, alignSelf: 'flex-start',
+		backgroundColor: '#e8f5e9', borderRadius: Theme.radius.md, alignSelf: 'flex-start',
 	},
 	weekBtnActive: { backgroundColor: '#ffebee' },
-	weekBtnText: { fontWeight: '800', color: '#2e7d32', fontSize: 13 },
+	weekBtnText: { ...Theme.typography.caption, fontWeight: '800', color: Theme.colors.primary, fontSize: 13 },
 	btnContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 	chipContent: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 	attendancePanel: {
-		marginTop: 12, backgroundColor: '#f0f4f8',
-		borderRadius: 12, padding: 14,
+		marginTop: 12, backgroundColor: Theme.colors.surfaceSecondary,
+		borderRadius: Theme.radius.lg, padding: 14,
 	},
-	attendanceTitle: { fontSize: 11, fontWeight: '800', color: '#999', marginBottom: 12, letterSpacing: 0.5 },
+	attendanceTitle: { ...Theme.typography.label, color: Theme.colors.textDimmed, marginBottom: 12 },
 	dayRow: {
 		flexDirection: 'row', alignItems: 'center',
 		justifyContent: 'space-between', marginBottom: 8,
 	},
-	dayName: { fontSize: 14, fontWeight: '700', color: '#1a1a1a', width: 36 },
-	mealToggles: { flexDirection: 'row', gap: 10, flex: 1, marginLeft: 10 },
+	dayName: { ...Theme.typography.bodyBold, fontSize: 14, color: Theme.colors.text, width: 36 },
+	mealToggles: { flexDirection: 'row', gap: Theme.spacing.md, flex: 1, marginLeft: 10 },
 	mealChip: {
 		flex: 1, paddingHorizontal: 12, paddingVertical: 8,
-		backgroundColor: '#f0f0f0', borderRadius: 10, borderWidth: 1, borderColor: '#ddd',
+		backgroundColor: Theme.colors.surface, borderRadius: Theme.radius.md, borderWidth: 1, borderColor: Theme.colors.borderStrong,
 	},
-	mealChipOn: { backgroundColor: '#e8f5e9', borderColor: '#2e7d32' },
-	mealChipLabel: { fontSize: 9, fontWeight: '800', color: '#666' },
-	mealChipDish: { fontSize: 13, fontWeight: '700', color: '#1a1a1a', marginTop: 1 },
+	mealChipOn: { backgroundColor: '#e8f5e9', borderColor: Theme.colors.primary },
+	mealChipLabel: { ...Theme.typography.label, fontSize: 9, color: Theme.colors.textMuted },
+	mealChipDish: { ...Theme.typography.bodyBold, fontSize: 13, color: Theme.colors.text, marginTop: 1 },
 	saveWeekBtn: {
-		marginTop: 15, backgroundColor: '#1a1a1a',
-		padding: 16, borderRadius: 12, alignItems: 'center',
-		elevation: 2,
+		marginTop: 15, backgroundColor: Theme.colors.elevated,
+		padding: 16, borderRadius: Theme.radius.lg, alignItems: 'center',
+		...Theme.shadows.soft,
 	},
-	saveWeekBtnText: { color: '#fff', fontWeight: '900', fontSize: 15, letterSpacing: 1 },
+	saveWeekBtnText: { color: Theme.colors.textInverted, fontWeight: '900', fontSize: 15, letterSpacing: 1 },
 });

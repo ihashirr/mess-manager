@@ -1,8 +1,11 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { collection, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
 import { SETTINGS } from '../constants/Settings';
+import { Theme } from '../constants/Theme';
 import { db } from '../firebase/config';
 import { mockDb } from '../utils/mockDb';
 import { DAYS, DayName, getDateForDayName, getDatesForWeek, getPrevWeekId, getTodayName, getWeekId } from '../utils/weekLogic';
@@ -262,16 +265,22 @@ export default function MenuScreen() {
 					<Text style={styles.weekLabel}>Operational Master Plan • Week {weekId}</Text>
 				</View>
 				<View style={styles.headerBtns}>
-					<TouchableOpacity style={styles.jumpBtn} onPress={scrollToToday}>
-						<MaterialCommunityIcons name="calendar-today" size={18} color="#2e7d32" />
-						<Text style={styles.jumpBtnText}>TODAY</Text>
-					</TouchableOpacity>
+					<Button
+						variant="outline"
+						size="sm"
+						title="TODAY"
+						iconLeft="calendar-today"
+						onPress={scrollToToday}
+					/>
 
 					{saveBatch.size > 0 && (
-						<TouchableOpacity style={styles.headerSaveBtn} onPress={handleSave}>
-							<MaterialCommunityIcons name="content-save-check" size={18} color="#fff" />
-							<Text style={styles.headerSaveText}>SAVE ({saveBatch.size})</Text>
-						</TouchableOpacity>
+						<Button
+							variant="primary"
+							size="sm"
+							title={`SAVE (${saveBatch.size})`}
+							iconLeft="content-save-check"
+							onPress={handleSave}
+						/>
 					)}
 
 					<TouchableOpacity style={styles.headerBtn} onPress={() => { }}>
@@ -339,16 +348,15 @@ export default function MenuScreen() {
 							{isExpanded ? (
 								<View style={styles.cardExpandedContent}>
 									{isToday && (
-										<TouchableOpacity
-											style={styles.copyTodayBtn}
+										<Button
+											title="DUPLICATE TODAY..."
+											iconLeft="content-duplicate"
 											onPress={() => {
 												setCopySelection(new Set(DAYS.filter((d: DayName) => d !== todayName)));
 												setShowCopyModal(true);
 											}}
-										>
-											<MaterialCommunityIcons name="content-duplicate" size={16} color="#fff" />
-											<Text style={styles.copyTodayText}>DUPLICATE TODAY...</Text>
-										</TouchableOpacity>
+											style={{ marginBottom: Theme.spacing.xl }}
+										/>
 									)}
 
 									<View style={styles.mealsRow}>
@@ -372,12 +380,11 @@ export default function MenuScreen() {
 
 													{isEditing ? (
 														<View style={styles.editCard}>
-															<TextInput
-																style={[styles.input, isToday && styles.inputDark]}
+															<Input
 																value={slot.main}
 																onChangeText={(v) => updateMeal(day, meal, 'main', v)}
 																placeholder="Set Main Dish..."
-																placeholderTextColor={isToday ? "#888" : "#ccc"}
+																containerStyle={{ marginBottom: 0 }}
 															/>
 															<View style={styles.row}>
 																<Text style={[styles.label, isToday && styles.textWhite]}>Roti</Text>
@@ -396,20 +403,18 @@ export default function MenuScreen() {
 																/>
 															</View>
 															{slot.rice.enabled && (
-																<TextInput
-																	style={[styles.inputSmall, isToday && styles.inputDark]}
+																<Input
 																	value={slot.rice.type}
 																	onChangeText={(v) => updateRice(day, meal, 'type', v)}
 																	placeholder="Rice Type (Plain/Biryani)"
-																	placeholderTextColor={isToday ? "#999" : "#ccc"}
+																	containerStyle={{ marginBottom: 0 }}
 																/>
 															)}
-															<TextInput
-																style={[styles.inputExtra, isToday && styles.inputDark]}
+															<Input
 																value={slot.extra}
 																onChangeText={(v) => updateMeal(day, meal, 'extra', v)}
 																placeholder="Secondary Side/Salad"
-																placeholderTextColor={isToday ? "#999" : "#ccc"}
+																containerStyle={{ marginBottom: 0 }}
 															/>
 														</View>
 													) : (
@@ -505,18 +510,16 @@ export default function MenuScreen() {
 						</View>
 
 						<View style={styles.modalFooter}>
-							<TouchableOpacity
-								style={styles.modalCancel}
+							<Button
+								variant="ghost"
+								title="CANCEL"
 								onPress={() => setShowCopyModal(false)}
-							>
-								<Text style={styles.modalCancelText}>CANCEL</Text>
-							</TouchableOpacity>
-							<TouchableOpacity
-								style={styles.modalApply}
+							/>
+							<Button
+								variant="primary"
+								title={`APPLY TO ${copySelection.size} DAYS`}
 								onPress={() => handleSelectiveCopy(copySelection)}
-							>
-								<Text style={styles.modalApplyText}>APPLY TO {copySelection.size} DAYS</Text>
-							</TouchableOpacity>
+							/>
 						</View>
 					</View>
 				</View>
@@ -527,102 +530,196 @@ export default function MenuScreen() {
 }
 
 const styles = StyleSheet.create({
-	container: { flex: 1, backgroundColor: '#f4f7f6' },
+	container: { flex: 1, backgroundColor: Theme.colors.background },
 	bgDecoration: {
 		position: 'absolute', top: 0, left: 0, right: 0, height: 400,
-		backgroundColor: 'rgba(0,0,0,0.03)', borderBottomLeftRadius: 80, borderBottomRightRadius: 80,
+		backgroundColor: Theme.colors.decoration, borderBottomLeftRadius: 80, borderBottomRightRadius: 80,
 		zIndex: -1
 	},
-	content: { padding: 20, paddingBottom: 150 },
+	content: { padding: Theme.spacing.screen, paddingBottom: 150 },
 	header: {
 		flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-		paddingHorizontal: 25, paddingTop: 60, paddingBottom: 20,
-		backgroundColor: '#fff', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 5,
+		paddingHorizontal: 25, paddingTop: 60, paddingBottom: Theme.spacing.xl,
+		backgroundColor: Theme.colors.surface, ...Theme.shadows.soft,
 	},
-	headerBtns: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-	title: { fontSize: 28, fontWeight: '900', color: '#1a1a1a', letterSpacing: -0.5 },
-	weekLabel: { fontSize: 13, color: '#999', fontWeight: '800', marginTop: 2, textTransform: 'uppercase' },
-	jumpBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#e8f5e9', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, borderWidth: 1, borderColor: '#a5d6a7' },
-	jumpBtnText: { fontSize: 12, fontWeight: '900', color: '#2e7d32' },
+	headerBtns: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.md },
+	title: { ...Theme.typography.heading, color: Theme.colors.text },
+	weekLabel: { ...Theme.typography.label, fontSize: 13, color: Theme.colors.textDimmed, marginTop: 2, textTransform: 'uppercase' },
+	jumpBtn: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: Theme.spacing.sm,
+		backgroundColor: '#e8f5e9',
+		paddingHorizontal: Theme.spacing.md,
+		paddingVertical: Theme.spacing.sm,
+		borderRadius: Theme.radius.lg,
+		borderWidth: 1,
+		borderColor: '#a5d6a7'
+	},
+	jumpBtnText: { ...Theme.typography.label, fontSize: 12, color: Theme.colors.primary },
 
-	headerSaveBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#4caf50', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, elevation: 2 },
-	headerSaveText: { fontSize: 11, fontWeight: '900', color: '#fff' },
-	headerBtn: { padding: 4 },
+	headerSaveBtn: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: Theme.spacing.sm,
+		backgroundColor: Theme.colors.success,
+		paddingHorizontal: Theme.spacing.md,
+		paddingVertical: Theme.spacing.sm,
+		borderRadius: Theme.radius.lg,
+		...Theme.shadows.soft
+	},
+	headerSaveText: { ...Theme.typography.label, fontSize: 11, color: Theme.colors.textInverted },
+	headerBtn: { padding: Theme.spacing.xs },
 
 	dayCard: {
-		backgroundColor: '#fff', borderRadius: 25, padding: 22, marginBottom: 20,
-		borderWidth: 1, borderColor: '#eee', elevation: 4, shadowColor: '#000',
-		shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8,
+		backgroundColor: Theme.colors.surface,
+		borderRadius: Theme.radius.huge,
+		padding: Theme.spacing.xxl,
+		marginBottom: Theme.spacing.xl,
+		borderWidth: 1,
+		borderColor: Theme.colors.border,
+		...Theme.shadows.medium,
 	},
 	dayCardToday: {
-		backgroundColor: '#1a1a1a',
-		borderColor: '#4caf50',
+		backgroundColor: Theme.colors.elevated,
+		borderColor: Theme.colors.success,
 		borderWidth: 2,
-		elevation: 12,
-		shadowOpacity: 0.4,
-		shadowRadius: 15,
+		...Theme.shadows.strong,
 	},
 	dayCardExpanded: {
-		borderColor: '#4caf50',
-		// Removed backgroundColor to allow dayCardToday to persist
+		borderColor: Theme.colors.success,
 	},
 	dayHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 5 },
-	dayHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-	dayTitle: { fontSize: 24, fontWeight: '900', color: '#1a1a1a', letterSpacing: -0.5 },
-	forecastLabel: { fontSize: 13, fontWeight: '800', color: '#888', marginTop: 2, letterSpacing: 0.5 },
-	demandHigh: { color: '#e67e22', fontWeight: '900' },
-	todayBadge: { backgroundColor: '#4caf50', color: '#fff', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, fontSize: 10, fontWeight: '900', overflow: 'hidden' },
+	dayHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
+	dayTitle: { ...Theme.typography.heading, fontSize: 24, color: Theme.colors.text },
+	forecastLabel: { ...Theme.typography.label, fontSize: 13, color: Theme.colors.textDimmed, marginTop: 2 },
+	demandHigh: { color: Theme.colors.warning, fontWeight: '900' },
+	todayBadge: {
+		backgroundColor: Theme.colors.success,
+		color: Theme.colors.textInverted,
+		paddingHorizontal: Theme.spacing.md,
+		paddingVertical: Theme.spacing.xs,
+		borderRadius: Theme.radius.sm,
+		fontSize: 10,
+		fontWeight: '900',
+		overflow: 'hidden'
+	},
 
-	summaryRow: { marginTop: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: 'rgba(0,0,0,0.05)', flexDirection: 'row', gap: 15 },
-	summaryMeal: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
-	summaryText: { fontSize: 14, fontWeight: '700', color: '#666' },
+	summaryRow: {
+		marginTop: Theme.spacing.sm,
+		paddingTop: Theme.spacing.md,
+		borderTopWidth: 1,
+		borderTopColor: 'rgba(0,0,0,0.05)',
+		flexDirection: 'row',
+		gap: Theme.spacing.lg
+	},
+	summaryMeal: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
+	summaryText: { ...Theme.typography.caption, fontSize: 14, color: Theme.colors.textMuted },
 
-	cardExpandedContent: { marginTop: 15 },
-	copyTodayBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#2e7d32', paddingVertical: 10, borderRadius: 12, marginBottom: 20 },
-	copyTodayText: { color: '#fff', fontSize: 11, fontWeight: '900', letterSpacing: 1 },
+	cardExpandedContent: { marginTop: Theme.spacing.lg },
+	copyTodayBtn: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'center',
+		gap: Theme.spacing.sm,
+		backgroundColor: Theme.colors.primary,
+		paddingVertical: Theme.spacing.md,
+		borderRadius: Theme.radius.lg,
+		marginBottom: Theme.spacing.xl
+	},
+	copyTodayText: { ...Theme.typography.label, color: Theme.colors.textInverted, fontSize: 11 },
 
-	mealsRow: { flexDirection: 'row', gap: 20 },
+	mealsRow: { flexDirection: 'row', gap: Theme.spacing.xl },
 	mealColumn: { flex: 1 },
-	mealLabel: { fontSize: 11, fontWeight: '900', color: '#d32f2f', marginBottom: 8, letterSpacing: 1 },
-	mealLabelToday: { color: '#ff5252' },
+	mealLabel: { ...Theme.typography.label, fontSize: 11, color: Theme.colors.danger, marginBottom: Theme.spacing.sm },
+	mealLabelToday: { color: Theme.colors.danger },
 
-	// View Mode (Compact)
+	// View Mode
 	viewCard: { minHeight: 40 },
-	mainValue: { fontSize: 20, fontWeight: '900', color: '#1a1a1a', lineHeight: 26 },
-	notSetContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-	notSetWarning: { fontSize: 18, fontWeight: '800', color: '#d32f2f', fontStyle: 'italic' },
-	servingInfo: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
-	servingText: { fontSize: 14, color: '#666', fontWeight: '700' },
-	extraText: { fontSize: 13, color: '#444', fontWeight: '800', fontStyle: 'italic' },
+	mainValue: { ...Theme.typography.subheading, fontSize: 20, color: Theme.colors.text, lineHeight: 26 },
+	notSetContainer: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
+	notSetWarning: { ...Theme.typography.bodyBold, fontSize: 18, color: Theme.colors.danger, fontStyle: 'italic' },
+	servingInfo: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm, marginTop: Theme.spacing.xs },
+	servingText: { ...Theme.typography.bodyBold, fontSize: 14, color: Theme.colors.textMuted },
+	extraText: { ...Theme.typography.caption, fontSize: 13, color: '#444', fontStyle: 'italic' },
 
-	// Edit Mode (Expanded)
-	editCard: { gap: 10, marginTop: 10 },
-	input: { fontSize: 16, fontWeight: '600', borderWidth: 1, borderColor: '#ddd', borderRadius: 12, padding: 12, backgroundColor: '#fcfcfc' },
-	inputSmall: { fontSize: 14, borderWidth: 1, borderColor: '#eee', borderRadius: 10, padding: 10, backgroundColor: '#fff' },
-	inputExtra: { fontSize: 14, color: '#444', borderWidth: 1, borderColor: '#eee', borderRadius: 10, padding: 10, backgroundColor: '#fff' },
+	// Edit Mode
+	editCard: { gap: Theme.spacing.md, marginTop: Theme.spacing.md },
+	input: {
+		...Theme.typography.body,
+		borderWidth: 1,
+		borderColor: Theme.colors.borderStrong,
+		borderRadius: Theme.radius.lg,
+		padding: Theme.spacing.md,
+		backgroundColor: '#fcfcfc'
+	},
+	inputSmall: {
+		fontSize: 14,
+		borderWidth: 1,
+		borderColor: Theme.colors.border,
+		borderRadius: Theme.radius.md,
+		padding: Theme.spacing.md,
+		backgroundColor: Theme.colors.surface
+	},
+	inputExtra: {
+		fontSize: 14,
+		color: Theme.colors.text,
+		borderWidth: 1,
+		borderColor: Theme.colors.border,
+		borderRadius: Theme.radius.md,
+		padding: Theme.spacing.md,
+		backgroundColor: Theme.colors.surface
+	},
 	row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 2 },
-	label: { fontSize: 15, fontWeight: '700', color: '#444' },
-
+	label: { ...Theme.typography.bodyBold, fontSize: 15, color: '#444' },
 
 	// Helpers
-	textWhite: { color: '#fff' },
-	textMutedDark: { color: '#777' },
-	inputDark: { backgroundColor: '#2a2a2a', color: '#fff', borderColor: '#444' },
-	centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
+	textWhite: { color: Theme.colors.textInverted },
+	textMutedDark: { color: Theme.colors.textDimmed },
+	inputDark: { backgroundColor: '#2a2a2a', color: Theme.colors.textInverted, borderColor: '#444' },
+	centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Theme.colors.surface },
+
 	// Modal
-	modalOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
-	modalContent: { backgroundColor: '#fff', width: '85%', borderRadius: 25, padding: 25, elevation: 20 },
-	modalTitle: { fontSize: 20, fontWeight: '900', color: '#1a1a1a' },
-	modalSub: { fontSize: 13, color: '#666', marginTop: 4, marginBottom: 20, fontWeight: '600' },
-	dayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 25 },
-	dayChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 15, paddingVertical: 10, backgroundColor: '#f0f0f0', borderRadius: 12, borderWidth: 1, borderColor: '#eee' },
-	dayChipActive: { backgroundColor: '#2e7d32', borderColor: '#2e7d32' },
-	dayChipText: { fontSize: 14, fontWeight: '800', color: '#444' },
-	modalFooter: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
-	modalCancel: { paddingHorizontal: 20, paddingVertical: 12 },
-	modalCancelText: { fontSize: 13, fontWeight: '800', color: '#888' },
-	modalApply: { backgroundColor: '#1a1a1a', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 10 },
-	modalApplyText: { fontSize: 13, fontWeight: '900', color: '#fff' },
+	modalOverlay: {
+		...StyleSheet.absoluteFillObject,
+		backgroundColor: Theme.colors.overlay,
+		justifyContent: 'center',
+		alignItems: 'center',
+		zIndex: 1000
+	},
+	modalContent: {
+		backgroundColor: Theme.colors.surface,
+		width: '85%',
+		borderRadius: Theme.radius.huge,
+		padding: Theme.spacing.huge,
+		...Theme.shadows.strong
+	},
+	modalTitle: { ...Theme.typography.subheading, fontSize: 20, color: Theme.colors.text },
+	modalSub: { ...Theme.typography.caption, color: Theme.colors.textMuted, marginTop: 4, marginBottom: Theme.spacing.xl },
+	dayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Theme.spacing.md, marginBottom: Theme.spacing.xl },
+	dayChip: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: Theme.spacing.sm,
+		paddingHorizontal: Theme.spacing.lg,
+		paddingVertical: Theme.spacing.md,
+		backgroundColor: Theme.colors.surfaceSecondary,
+		borderRadius: Theme.radius.lg,
+		borderWidth: 1,
+		borderColor: Theme.colors.border
+	},
+	dayChipActive: { backgroundColor: Theme.colors.primary, borderColor: Theme.colors.primary },
+	dayChipText: { ...Theme.typography.bodyBold, fontSize: 14, color: '#444' },
+	modalFooter: { flexDirection: 'row', justifyContent: 'flex-end', gap: Theme.spacing.md },
+	modalCancel: { paddingHorizontal: Theme.spacing.xl, paddingVertical: Theme.spacing.md },
+	modalCancelText: { ...Theme.typography.caption, color: Theme.colors.textDimmed },
+	modalApply: {
+		backgroundColor: Theme.colors.elevated,
+		paddingHorizontal: Theme.spacing.xl,
+		paddingVertical: Theme.spacing.md,
+		borderRadius: Theme.radius.md
+	},
+	modalApplyText: { ...Theme.typography.label, fontSize: 13, color: Theme.colors.textInverted },
 });
 
 

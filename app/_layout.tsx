@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import { StyleSheet } from 'react-native';
+import { Theme } from '../constants/Theme';
 
 export default function TabLayout() {
 	return (
@@ -8,8 +9,8 @@ export default function TabLayout() {
 			screenOptions={{
 				headerShown: false,
 				tabBarStyle: styles.tabBar,
-				tabBarActiveTintColor: '#4caf50', // Premium Green
-				tabBarInactiveTintColor: '#888888', // Silver Inactive
+				tabBarActiveTintColor: Theme.colors.primary,
+				tabBarInactiveTintColor: Theme.colors.textDimmed,
 				tabBarLabelStyle: styles.tabLabel,
 				// @ts-ignore - web only property for clarity
 				tabBarItemStyle: { outline: 'none' },
@@ -91,23 +92,18 @@ const styles = StyleSheet.create({
 		left: 20,
 		right: 20,
 		height: 80,
-		backgroundColor: '#1a1a1a', // Premium Dark Box
+		backgroundColor: Theme.colors.elevated,
 		borderRadius: 25,
 		borderTopWidth: 0,
-		elevation: 25,
-		shadowColor: '#000',
-		shadowOffset: { width: 0, height: 15 },
-		shadowOpacity: 0.3,
-		shadowRadius: 20,
+		...Theme.shadows.strong,
 		paddingBottom: 12,
 		paddingTop: 10,
 		borderWidth: 1,
 		borderColor: '#333333',
 	},
 	tabLabel: {
+		...Theme.typography.label,
 		fontSize: 12,
-		fontWeight: '900',
-		letterSpacing: 0.5,
 		marginTop: 2,
 		textTransform: 'uppercase',
 	},

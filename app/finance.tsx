@@ -2,7 +2,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { collection, deleteDoc, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Card } from '../components/ui/Card';
 import { SETTINGS } from '../constants/Settings';
+import { Theme } from '../constants/Theme';
 import { db } from '../firebase/config';
 import { getDaysLeft, getDueAmount, toDate } from '../utils/customerLogic';
 import { mockDb } from '../utils/mockDb';
@@ -131,32 +133,32 @@ export default function FinanceScreen() {
 				</View>
 
 				<View style={styles.grid}>
-					<View style={[styles.card, { borderLeftColor: '#4caf50' }]}>
+					<Card style={[styles.card, { borderLeftColor: '#4caf50' }]}>
 						<Text style={styles.label}>EXPECTED</Text>
 						<Text style={styles.value}>DHS {metrics.expected}</Text>
 						<Text style={styles.cardSubText}>Monthly Goal</Text>
-					</View>
+					</Card>
 
-					<View style={[styles.card, { borderLeftColor: '#2196f3' }]}>
+					<Card style={[styles.card, { borderLeftColor: '#2196f3' }]}>
 						<Text style={styles.label}>COLLECTED</Text>
 						<Text style={styles.value}>DHS {metrics.collected}</Text>
 						<Text style={styles.cardSubText}>Received So Far</Text>
-					</View>
+					</Card>
 
-					<View style={[styles.card, { borderLeftColor: '#f44336' }]}>
+					<Card style={[styles.card, { borderLeftColor: '#f44336' }]}>
 						<Text style={styles.label}>OUTSTANDING</Text>
 						<Text style={styles.value}>DHS {metrics.outstanding}</Text>
 						<Text style={styles.cardSubText}>To Be Collected</Text>
-					</View>
+					</Card>
 
-					<View style={[styles.card, { borderLeftColor: '#9c27b0' }]}>
+					<Card style={[styles.card, { borderLeftColor: '#9c27b0' }]}>
 						<Text style={styles.label}>ACTIVE SUBS</Text>
 						<Text style={styles.value}>{metrics.activeCount}</Text>
 						<Text style={styles.cardSubText}>Paying Members</Text>
-					</View>
+					</Card>
 				</View>
 
-				<View style={styles.progressSection}>
+				<Card style={styles.progressSection}>
 					<View style={styles.rowBetween}>
 						<Text style={styles.sectionTitle}>Collection Goal</Text>
 						<Text style={styles.percentageText}>{percentage}%</Text>
@@ -173,7 +175,7 @@ export default function FinanceScreen() {
 							<Text style={styles.surplusText}>Surplus: DHS {metrics.collected - metrics.expected}</Text>
 						</View>
 					)}
-				</View>
+				</Card>
 
 				<View style={styles.historySection}>
 					<View style={styles.rowBetween}>
@@ -187,7 +189,7 @@ export default function FinanceScreen() {
 						</View>
 					) : (
 						transactions.map((tx) => (
-							<View key={tx.id} style={[styles.transactionCard, tx.isOrphan && styles.orphanCard]}>
+							<Card key={tx.id} style={[styles.transactionCard, tx.isOrphan && styles.orphanCard]}>
 								<View style={styles.txIconContainer}>
 									<MaterialCommunityIcons
 										name={tx.method === 'bank' ? 'bank' : 'cash-multiple'}
@@ -211,7 +213,7 @@ export default function FinanceScreen() {
 										<MaterialCommunityIcons name="delete-outline" size={16} color="#d32f2f" />
 									</TouchableOpacity>
 								</View>
-							</View>
+							</Card>
 						))
 					)}
 				</View>
@@ -221,50 +223,78 @@ export default function FinanceScreen() {
 }
 
 const styles = StyleSheet.create({
-	container: { flex: 1, backgroundColor: '#f4f7f6' },
+	container: { flex: 1, backgroundColor: Theme.colors.background },
 	bgDecoration: {
 		position: 'absolute', top: 0, left: 0, right: 0, height: 400,
-		backgroundColor: 'rgba(0,0,0,0.03)', borderBottomLeftRadius: 80, borderBottomRightRadius: 80,
+		backgroundColor: Theme.colors.decoration, borderBottomLeftRadius: 80, borderBottomRightRadius: 80,
 		zIndex: -1
 	},
 	content: { paddingBottom: 150 },
 	header: {
-		backgroundColor: '#1a1a1a', paddingHorizontal: 25, paddingTop: 60, paddingBottom: 40,
-		flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-		borderBottomLeftRadius: 30, borderBottomRightRadius: 30, elevation: 10,
+		backgroundColor: Theme.colors.elevated,
+		paddingHorizontal: 25,
+		paddingTop: 60,
+		paddingBottom: 40,
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		alignItems: 'center',
+		borderBottomLeftRadius: 30,
+		borderBottomRightRadius: 30,
+		...Theme.shadows.strong,
 	},
-	title: { fontSize: 28, fontWeight: '900', color: '#fff', letterSpacing: 1 },
-	subtitle: { fontSize: 14, color: '#888', marginTop: 4, fontWeight: '600', textTransform: 'uppercase' },
-	grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: 20, marginTop: -25 },
+	title: { ...Theme.typography.heading, color: Theme.colors.textInverted, letterSpacing: 1 },
+	subtitle: { ...Theme.typography.label, fontSize: 14, color: Theme.colors.textDimmed, marginTop: 4, textTransform: 'uppercase' },
+	grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: Theme.spacing.screen, marginTop: -25 },
 	card: {
-		width: '48%', backgroundColor: '#fff', padding: 18, borderRadius: 20, marginBottom: 15,
-		borderLeftWidth: 6, elevation: 6, shadowColor: '#000',
-		shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8,
+		width: '48%',
+		marginBottom: 15,
+		borderLeftWidth: 6,
 	},
-	label: { fontSize: 10, fontWeight: '800', color: '#999', marginBottom: 6, letterSpacing: 1 },
-	value: { fontSize: 18, fontWeight: '900', color: '#1a1a1a' },
-	cardSubText: { fontSize: 10, color: '#bbb', marginTop: 4, fontWeight: '600' },
-	progressSection: { marginHorizontal: 20, backgroundColor: '#fff', padding: 20, borderRadius: 25, marginTop: 5, elevation: 4 },
-	rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-	sectionTitle: { fontSize: 18, fontWeight: '800', color: '#1a1a1a' },
-	percentageText: { fontSize: 18, fontWeight: '900', color: '#4caf50' },
-	progressBarBg: { height: 12, backgroundColor: '#f0f0f0', borderRadius: 6, overflow: 'hidden' },
-	progressBarFill: { height: '100%', backgroundColor: '#4caf50', borderRadius: 6 },
+	label: { ...Theme.typography.label, color: Theme.colors.textDimmed, marginBottom: 6 },
+	value: { ...Theme.typography.bodyBold, fontSize: 18, color: Theme.colors.text },
+	cardSubText: { ...Theme.typography.caption, fontSize: 10, color: Theme.colors.textDimmed, marginTop: 4 },
+	progressSection: {
+		marginHorizontal: Theme.spacing.screen,
+		borderRadius: Theme.radius.huge,
+		marginTop: 5,
+	},
+	rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Theme.spacing.md },
+	sectionTitle: { ...Theme.typography.subheading, fontSize: 18, color: Theme.colors.text },
+	percentageText: { ...Theme.typography.bodyBold, fontSize: 18, color: Theme.colors.success },
+	progressBarBg: { height: 12, backgroundColor: Theme.colors.border, borderRadius: 6, overflow: 'hidden' },
+	progressBarFill: { height: '100%', backgroundColor: Theme.colors.success, borderRadius: 6 },
 	surplusContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 10 },
-	surplusText: { color: '#2e7d32', fontWeight: '800', fontSize: 13 },
-	historySection: { marginTop: 25, paddingHorizontal: 20 },
-	countBadge: { backgroundColor: '#1a1a1a', color: '#fff', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 15, fontSize: 12, fontWeight: '800', overflow: 'hidden' },
-	transactionCard: {
-		flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 15, borderRadius: 20, marginBottom: 10,
-		elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4,
+	surplusText: { ...Theme.typography.bodyBold, color: Theme.colors.primary, fontSize: 13 },
+	historySection: { marginTop: 25, paddingHorizontal: Theme.spacing.screen },
+	countBadge: {
+		backgroundColor: Theme.colors.elevated,
+		color: Theme.colors.textInverted,
+		paddingHorizontal: 12,
+		paddingVertical: Theme.spacing.xs,
+		borderRadius: 15,
+		fontSize: 12,
+		fontWeight: '800',
+		overflow: 'hidden'
 	},
-	txIconContainer: { width: 40, height: 40, backgroundColor: '#f4f7f6', borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
-	orphanCard: { opacity: 0.6, backgroundColor: '#fafafa' },
-	txName: { fontSize: 16, fontWeight: '700', color: '#1a1a1a' },
-	txDate: { fontSize: 12, color: '#999', marginTop: 2 },
+	transactionCard: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		marginBottom: Theme.spacing.sm,
+	},
+	txIconContainer: {
+		width: 40,
+		height: 40,
+		backgroundColor: Theme.colors.background,
+		borderRadius: Theme.radius.lg,
+		justifyContent: 'center',
+		alignItems: 'center'
+	},
+	orphanCard: { opacity: 0.6, backgroundColor: Theme.colors.surfaceSecondary },
+	txName: { ...Theme.typography.bodyBold, color: Theme.colors.text },
+	txDate: { ...Theme.typography.caption, color: Theme.colors.textDimmed, marginTop: 2 },
 	txRight: { alignItems: 'flex-end', justifyContent: 'center' },
-	txAmount: { fontSize: 16, fontWeight: '900', color: '#2e7d32' },
+	txAmount: { ...Theme.typography.bodyBold, color: Theme.colors.primary },
 	txDelete: { marginTop: 4 },
-	emptyCard: { backgroundColor: '#fff', padding: 40, borderRadius: 25, alignItems: 'center', elevation: 2 },
-	emptyText: { color: '#999', fontStyle: 'italic', fontSize: 14 }
+	emptyCard: { backgroundColor: Theme.colors.surface, padding: 40, borderRadius: Theme.radius.huge, alignItems: 'center', ...Theme.shadows.soft },
+	emptyText: { ...Theme.typography.body, color: Theme.colors.textDimmed, fontStyle: 'italic', fontSize: 14 }
 });
