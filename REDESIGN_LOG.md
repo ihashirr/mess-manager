@@ -128,3 +128,81 @@ Refactoring to remove overengineering. Storage moved from weekly abstractions to
 - **Home Screen Evolution**: Split into "Production Dashboard" (Stats) and "Daily Attendance" (Input).
 - **Calendar-Based Input**: Users still see the Weekly Mon-Sun calendar for planning, but the database sees individual days.
 - **Dish-Specific Toggles**: Attendance toggles now show the actual dish name (e.g., "Chicken Karahi (Lunch)") instead of generic flags.
+
+## Phase 17 — Logic Integrity (Subscription Locking)
+Hardened the app against data contamination by enforcing strict subscription rules.
+- **Conditional Toggles**: Attendance switches on Home and Customers screens only appear if the customer has a paid plan for that meal (Lunch/Dinner).
+- **Hardened Counts**: Production counts on the Dashboard now double-check subscription flags before adding a customer to the tally.
+
+## Phase 18 — Deadline Logic (Freeze Rules)
+Implemented "Operational Physics" to stop manual chaos during production.
+- **10 AM Cutoff**: Today's attendance locks automatically at 10:00 AM (local time).
+- **🔒 LOCKED UI**: Toggles become disabled and show a lock badge once the deadline passes or for past dates.
+
+## Phase 19 — Vertical Week Control Panel
+Transformed the Menu screen from individual tabs into a comprehensive weekly operational master view.
+- **Whole-Week Visibility**: All 7 days (Monday–Sunday) appear in a single, vertical scrollable list.
+- **Centralized Planning**: Operators can plan the entire week's logistics without screen-switching.
+
+## Phase 20 — Not Set Warnings (Ambiguity Reduction)
+Eliminated generic placeholders ("e.g. Chicken Karahi") that felt unfinished.
+- **High Visibility**: Any unconfigured meal displays a bold, red **"⚠️ Not Set"** warning.
+- **Clarity**: Applied both to the Menu planner and the Home dashboard cards.
+
+## Phase 21 — Active Day Visual Dominance
+Anchored the operator's attention to current production reality.
+- **Today's Dark Mode**: The active day card features a high-contrast dark theme (#1a1a1a) with elevation and border highlights.
+- **Visual Hierarchy**: Sunday (Today) looks like a "Current Active Task" compared to the rest of the week.
+
+## Phase 22 — Production Forecasts (Intelligent Menu)
+Tied menu planning directly to customer demand.
+- **Live Forecasts**: Each day card in the Menu shows a "Demand: ☀️ X | 🌙 Y" tally.
+- **Physics Check**: These counts come from live customer/attendance subscriptions, ensuring the operator knows exactly how much to cook while planning.
+
+## Phase 23 — View/Edit Structural Split
+Reduced UI noise by separating viewing from modification.
+- **View Mode (Default)**: Clean typography, focused on "This is what we are cooking."
+- **Edit Mode (Gear Icon)**: Reveals configuration fields (Inputs, Switches) only when active.
+
+## Phase 24 — Smart Sticky Save Experience
+Implemented a modern, centralized save pattern for the weekly master plan.
+- **Sticky Bar**: A bottom bar appears ONLY when changes are uncommitted.
+- **Batch Processing**: "SAVE WEEK" persists all modifications across the week in one transaction.
+
+## Phase 25 — Ultra-Smart Bottom Navigation Overhaul
+Redesigned the standard tab bar into a premium operational dock.
+- **Floating Effect**: Implementing `position: 'absolute'` with rounded corners and high elevation to create a "floating dock" feel.
+- **Icon Intelligence**: Every tab now features custom `MaterialCommunityIcons` with distinct active/inactive states.
+- **Visual Depth**: Added shadows and optimized spacing for a ultra-smart, professional aesthetic that matches the new Menu panel.
+
+## Phase 26 — Ultra-Smart Finance Dashboard Polish
+Finalized the design system consistency across the operational suite.
+- **Dark-Mode Header**: Implemented a bold, dark-themed summary header for the finance screen.
+- **Elevated Metrics**: Metric cards now feature high-elevation, rounded corners, and color-coded accent borders.
+- **Iconographic Context**: Added `MaterialCommunityIcons` to the header and transaction list for instant visual recognition of payment types.
+
+## Phase 28 — Operation "Ideal Flow" (Menu Management)
+Reconstructed the daily workflow for frictionless kitchen operations.
+- **Smart Focus**: Automated auto-expansion and vertical anchoring for "Today's" card upon entry.
+- **Cognitive Reduction**: Collapsed 6/7 days into "Ultra-Minimal" summaries (text-only dishes).
+- **Bulk Productivity**: Introduced "Copy Today to Week" for instant 7-day planning.
+
+## Phase 29 — Visual Synchronization (100% Vector Icons)
+Standardized the visual language to eliminate platform fragmentation.
+- **The Great Emoji Purge**: Replaced all hardcoded emojis (☀️, 🌙, 🍛, etc.) with `MaterialCommunityIcons`.
+- **Consistency**: Guaranteed 1:1 visual parity between Android and iOS.
+- **Premium Aesthetics**: Adopted high-resolution vectors for all actions (Locks, Checks, Forecasts).
+
+## Phase 30 — UI Refinement (Header-Integrated Controls)
+Optimized screen real estate by merging secondary actions into the primary header.
+- **Save Migration**: Moved the "Save Week" functionality from a floating sticky bar to the Header.
+- **Contextual Visibility**: The Save button appears only when changes exist, showing a "Modified Count" badge.
+- **Zero Conflict**: Eliminated overlap between the save bar and the new premium navigation dock.
+
+---
+
+## ✅ Verification Status (Updated)
+- [x] Vector Icon Parity — All screens use MaterialCommunityIcons exclusively.
+- [x] Ideal Flow — Menu auto-focuses on Today with minimal distraction from other days.
+- [x] Integrated Save — Header button performs batch persistence with real-time change tracking.
+- [x] Nav Dock — Floating 3D dark-mode navigation with high-contrast active indicators.

@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { addDoc, collection, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -107,9 +108,19 @@ export default function PaymentsScreen() {
 
 	return (
 		<View style={styles.container}>
+			<View style={styles.bgDecoration} />
+			<View style={styles.header}>
+				<View>
+					<Text style={styles.title}>Pending Collection</Text>
+					<Text style={styles.subtitle}>{payments.length} Active Due Accounts</Text>
+				</View>
+				<MaterialCommunityIcons name="hand-coin" size={32} color="#2e7d32" />
+			</View>
+
 			<FlatList
 				data={payments}
 				keyExtractor={(item) => item.id}
+				contentContainerStyle={styles.content}
 				renderItem={({ item }) => (
 					<View style={styles.card}>
 						<View style={styles.info}>
@@ -128,63 +139,43 @@ export default function PaymentsScreen() {
 						</TouchableOpacity>
 					</View>
 				)}
-				ListEmptyComponent={<Text style={styles.empty}>All payments received! ✅</Text>}
+				ListEmptyComponent={
+					<View style={styles.emptyContainer}>
+						<MaterialCommunityIcons name="check-circle" size={32} color="#2e7d32" />
+						<Text style={styles.empty}>All payments received!</Text>
+					</View>
+				}
 			/>
 		</View>
 	);
 }
 
 const styles = StyleSheet.create({
-	container: {
-		flex: 1,
-		padding: 20,
-		backgroundColor: '#fff',
+	container: { flex: 1, backgroundColor: '#f4f7f6' },
+	bgDecoration: {
+		position: 'absolute', top: 0, left: 0, right: 0, height: 400,
+		backgroundColor: 'rgba(0,0,0,0.03)', borderBottomLeftRadius: 80, borderBottomRightRadius: 80,
+		zIndex: -1
 	},
+	header: {
+		flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+		paddingHorizontal: 25, paddingTop: 60, paddingBottom: 25, backgroundColor: '#fff',
+		elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 5,
+	},
+	title: { fontSize: 26, fontWeight: '900', color: '#1a1a1a', letterSpacing: -0.5 },
+	subtitle: { fontSize: 13, color: '#999', fontWeight: '800', marginTop: 2, textTransform: 'uppercase' },
+	content: { padding: 20, paddingBottom: 150 },
 	card: {
-		padding: 20,
-		borderWidth: 1,
-		borderColor: '#eee',
-		borderRadius: 12,
-		marginBottom: 20,
-		backgroundColor: '#f9f9f9',
+		padding: 22, backgroundColor: '#fff', borderRadius: 20, marginBottom: 15,
+		borderWidth: 1, borderColor: '#eee', elevation: 3, shadowColor: '#000',
+		shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.1, shadowRadius: 6,
 	},
-	info: {
-		flexDirection: 'row',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-		marginBottom: 15,
-	},
-	name: {
-		fontSize: 22,
-		fontWeight: 'bold',
-	},
-	subText: {
-		fontSize: 16,
-		color: '#666',
-		marginTop: 2,
-	},
-	amount: {
-		fontSize: 22,
-		fontWeight: 'bold',
-		color: '#d32f2f',
-	},
-	button: {
-		backgroundColor: '#2e7d32',
-		paddingVertical: 15,
-		borderRadius: 8,
-		alignItems: 'center',
-	},
-	buttonText: {
-		color: '#fff',
-		fontSize: 18,
-		fontWeight: '800',
-		letterSpacing: 1,
-	},
-	empty: {
-		textAlign: 'center',
-		fontSize: 18,
-		marginTop: 50,
-		color: '#2e7d32',
-		fontWeight: 'bold',
-	}
+	info: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+	name: { fontSize: 20, fontWeight: '900', color: '#1a1a1a' },
+	subText: { fontSize: 13, color: '#666', fontWeight: '700', marginTop: 2 },
+	amount: { fontSize: 20, fontWeight: '900', color: '#d32f2f' },
+	button: { backgroundColor: '#2e7d32', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
+	buttonText: { color: '#fff', fontSize: 14, fontWeight: '900', letterSpacing: 0.5 },
+	emptyContainer: { alignItems: 'center', marginTop: 80, gap: 15 },
+	empty: { textAlign: 'center', fontSize: 18, color: '#2e7d32', fontWeight: '900' }
 });

@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { collection, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -53,13 +54,29 @@ export default function Index() {
 		}
 
 		// 1. Subscribe to Today's Menu
-		const unsubMenu = onSnapshot(doc(db, "menu", todayDate), (snap) => {
-			const data = snap.exists() ? snap.data() : {};
-			setTodayMenu({
-				lunch: normalizeMeal(data.lunch),
-				dinner: normalizeMeal(data.dinner),
+		let unsubMenu = () => { };
+		if (SETTINGS.USE_MOCKS) {
+			// In mock mode, we could use a global mockDb menu but for now let's just use what's in SETTINGS or similar
+			// To keep it simple and reactive, index.tsx should ideally use the same mock source as Menu screen
+			// We'll add getMenu to mockDb
+			const loadMockMenu = () => {
+				const data = mockDb.getMenu(todayDate);
+				setTodayMenu({
+					lunch: normalizeMeal(data.lunch),
+					dinner: normalizeMeal(data.dinner),
+				});
+			};
+			loadMockMenu();
+			unsubMenu = mockDb.subscribe(loadMockMenu);
+		} else {
+			unsubMenu = onSnapshot(doc(db, "menu", todayDate), (snap) => {
+				const data = snap.exists() ? snap.data() : {};
+				setTodayMenu({
+					lunch: normalizeMeal(data.lunch),
+					dinner: normalizeMeal(data.dinner),
+				});
 			});
-		});
+		}
 
 		// 2. Subscribe to Active Customers
 		const unsubCustomers = onSnapshot(query(collection(db, "customers")), (snap) => {
@@ -94,7 +111,7 @@ export default function Index() {
 		return () => { unsubMenu(); unsubCustomers(); unsubAttendance(); };
 	}, [todayDate]);
 
-	// Calculate Derived Production Counts
+	// Calculate Derived Production Counts (Hardened Logic)
 	useEffect(() => {
 		let lCount = 0, dCount = 0;
 		customers.forEach(c => {
@@ -102,9 +119,14 @@ export default function Index() {
 			const subscribedLunch = c.mealsPerDay?.lunch !== false;
 			const subscribedDinner = c.mealsPerDay?.dinner !== false;
 
-			// If selection exists, use it. Else, assume YES (opt-out).
-			if (subscribedLunch && (!selection || selection.lunch !== false)) lCount++;
-			if (subscribedDinner && (!selection || selection.dinner !== false)) dCount++;
+			// Logic Integrity: Only count if SUBSCRIBED AND (Selected YES or NO Record)
+			if (subscribedLunch) {
+				if (!selection || selection.lunch !== false) lCount++;
+			}
+
+			if (subscribedDinner) {
+				if (!selection || selection.dinner !== false) dCount++;
+			}
 		});
 		setStats(prev => ({ ...prev, lunchCount: lCount, dinnerCount: dCount }));
 	}, [customers, attendance]);
@@ -137,19 +159,34 @@ export default function Index() {
 
 	return (
 		<View style={styles.container}>
+			<View style={styles.bgDecoration} />
 			{/* Segmented Control */}
 			<View style={styles.tabBar}>
 				<TouchableOpacity
 					style={[styles.tab, activeTab === 'dashboard' && styles.tabActive]}
 					onPress={() => setActiveTab('dashboard')}
 				>
-					<Text style={[styles.tabText, activeTab === 'dashboard' && styles.tabTextActive]}>📊 DASHBOARD</Text>
+					<View style={styles.tabItem}>
+						<MaterialCommunityIcons
+							name="view-dashboard"
+							size={16}
+							color={activeTab === 'dashboard' ? '#1a1a1a' : '#999'}
+						/>
+						<Text style={[styles.tabText, activeTab === 'dashboard' && styles.tabTextActive]}>DASHBOARD</Text>
+					</View>
 				</TouchableOpacity>
 				<TouchableOpacity
 					style={[styles.tab, activeTab === 'attendance' && styles.tabActive]}
 					onPress={() => setActiveTab('attendance')}
 				>
-					<Text style={[styles.tabText, activeTab === 'attendance' && styles.tabTextActive]}>📝 ATTENDANCE</Text>
+					<View style={styles.tabItem}>
+						<MaterialCommunityIcons
+							name="clipboard-text"
+							size={16}
+							color={activeTab === 'attendance' ? '#1a1a1a' : '#999'}
+						/>
+						<Text style={[styles.tabText, activeTab === 'attendance' && styles.tabTextActive]}>ATTENDANCE</Text>
+					</View>
 				</TouchableOpacity>
 			</View>
 
@@ -160,10 +197,13 @@ export default function Index() {
 							{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })}
 						</Text>
 
-						<Text style={styles.sectionHeader}>🍽️ Today's Production — آج کتنا پکانا ہے</Text>
+						<View style={styles.row}>
+							<MaterialCommunityIcons name="silverware-fork-knife" size={18} color="#666" />
+							<Text style={styles.sectionHeader}>Today's Production — آج کتنا پکانا ہے</Text>
+						</View>
 
-						<MealCard label="☀️ Lunch" count={stats.lunchCount} slot={todayMenu.lunch} />
-						<MealCard label="🌙 Dinner" count={stats.dinnerCount} slot={todayMenu.dinner} />
+						<MealCard label="Lunch" count={stats.lunchCount} slot={todayMenu.lunch} icon="weather-sunny" iconColor="#FFD700" />
+						<MealCard label="Dinner" count={stats.dinnerCount} slot={todayMenu.dinner} icon="weather-night" iconColor="#5C6BC0" />
 
 						<View style={styles.totalRow}>
 							<Text style={styles.totalLabel}>Total Meals Today</Text>
@@ -183,7 +223,10 @@ export default function Index() {
 					</>
 				) : (
 					<>
-						<Text style={styles.sectionHeader}>📋 Who is eating today? — آج کون کھائے گا؟</Text>
+						<View style={styles.row}>
+							<MaterialCommunityIcons name="clipboard-text" size={18} color="#666" />
+							<Text style={styles.sectionHeader}>Who is eating today? — آج کون کھائے گا؟</Text>
+						</View>
 						{customers.map(c => (
 							<CustomerAttendanceRow
 								key={c.id}
@@ -191,6 +234,7 @@ export default function Index() {
 								menu={todayMenu}
 								attendance={attendance[c.id]}
 								onToggle={(meal: 'lunch' | 'dinner') => toggleTodayAttendance(c.id, meal)}
+								date={todayDate}
 							/>
 						))}
 						{customers.length === 0 && <Text style={styles.emptyText}>No active customers found.</Text>}
@@ -201,28 +245,47 @@ export default function Index() {
 	);
 }
 
-const MealCard = ({ label, count, slot }: { label: string; count: number; slot: MealSlot }) => {
+const MealCard = ({ label, count, slot, icon, iconColor }: { label: string; count: number; slot: MealSlot; icon: any; iconColor: string }) => {
 	const riceType = slot.rice.enabled ? (slot.rice.type || "Plain Rice") : "No Rice";
 	return (
 		<View style={styles.mealCard}>
 			<View style={styles.mealCardHeader}>
-				<Text style={styles.mealCardTitle}>{label}</Text>
+				<View style={styles.row}>
+					<MaterialCommunityIcons name={icon} size={20} color={iconColor} />
+					<Text style={styles.mealCardTitle}>{label}</Text>
+				</View>
 				<View style={styles.plateBadge}>
 					<Text style={styles.plateCount}>{count}</Text>
 					<Text style={styles.plateSub}>plates</Text>
 				</View>
 			</View>
-			<Text style={styles.mainSalanLabel}>🍲 MAIN SALAN</Text>
-			<Text style={styles.mainSalanValue}>{slot.main || 'Not set'}</Text>
+			<View style={styles.row}>
+				<MaterialCommunityIcons name="pot-steam" size={14} color="#666" />
+				<Text style={styles.mainSalanLabel}>MAIN SALAN</Text>
+			</View>
+			{slot.main ? (
+				<Text style={styles.mainSalanValue}>{slot.main}</Text>
+			) : (
+				<View style={styles.row}>
+					<MaterialCommunityIcons name="alert-circle-outline" size={20} color="#ff5252" />
+					<Text style={styles.notSetWarning}>Not Set</Text>
+				</View>
+			)}
 			<View style={styles.servingRow}>
-				<Text style={styles.servingText}>🫓 {slot.roti ? "Roti" : "No Roti"}</Text>
-				<Text style={styles.servingText}>🍚 {riceType}</Text>
+				<View style={styles.servingItem}>
+					<MaterialCommunityIcons name="bread-slice-outline" size={14} color="#888" />
+					<Text style={styles.servingText}>{slot.roti ? "Roti" : "No Roti"}</Text>
+				</View>
+				<View style={styles.servingItem}>
+					<MaterialCommunityIcons name="rice" size={14} color="#888" />
+					<Text style={styles.servingText}>{riceType}</Text>
+				</View>
 			</View>
 		</View>
 	);
 };
 
-const CustomerAttendanceRow = ({ customer, menu, attendance, onToggle }: any) => {
+const CustomerAttendanceRow = ({ customer, menu, attendance, onToggle, date }: any) => {
 	const sel = attendance || { lunch: true, dinner: true };
 	const subLunch = customer.mealsPerDay?.lunch !== false;
 	const subDinner = customer.mealsPerDay?.dinner !== false;
@@ -238,7 +301,9 @@ const CustomerAttendanceRow = ({ customer, menu, attendance, onToggle }: any) =>
 						style={[styles.toggleBtn, sel.lunch && styles.toggleBtnOn]}
 						onPress={() => onToggle('lunch')}
 					>
-						<Text style={styles.toggleBtnLabel}>LUNCH</Text>
+						<View style={styles.rowBetween}>
+							<Text style={styles.toggleBtnLabel}>LUNCH</Text>
+						</View>
 						<Text style={styles.toggleBtnDish} numberOfLines={1}>{menu.lunch.main || 'Rice/Roti'}</Text>
 					</TouchableOpacity>
 				)}
@@ -247,7 +312,9 @@ const CustomerAttendanceRow = ({ customer, menu, attendance, onToggle }: any) =>
 						style={[styles.toggleBtn, sel.dinner && styles.toggleBtnOn]}
 						onPress={() => onToggle('dinner')}
 					>
-						<Text style={styles.toggleBtnLabel}>DINNER</Text>
+						<View style={styles.rowBetween}>
+							<Text style={styles.toggleBtnLabel}>DINNER</Text>
+						</View>
 						<Text style={styles.toggleBtnDish} numberOfLines={1}>{menu.dinner.main || 'Rice/Roti'}</Text>
 					</TouchableOpacity>
 				)}
@@ -257,17 +324,25 @@ const CustomerAttendanceRow = ({ customer, menu, attendance, onToggle }: any) =>
 };
 
 const styles = StyleSheet.create({
-	container: { flex: 1, backgroundColor: '#fff' },
+	container: { flex: 1, backgroundColor: '#f4f7f6' },
+	bgDecoration: {
+		position: 'absolute', top: 0, left: 0, right: 0, height: 400,
+		backgroundColor: 'rgba(0,0,0,0.03)', borderBottomLeftRadius: 80, borderBottomRightRadius: 80,
+		zIndex: -1
+	},
 	centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-	tabBar: { flexDirection: 'row', backgroundColor: '#f8f9fa', padding: 4, borderRadius: 12, margin: 20, marginBottom: 0 },
+	tabBar: { flexDirection: 'row', backgroundColor: '#fff', padding: 4, borderRadius: 12, margin: 20, marginBottom: 0, elevation: 2 },
 	tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 8 },
+	tabItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
 	tabActive: { backgroundColor: '#fff', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
 	tabText: { fontSize: 13, fontWeight: '800', color: '#999' },
 	tabTextActive: { color: '#1a1a1a' },
 
-	scrollContent: { padding: 20, paddingBottom: 40 },
+	scrollContent: { padding: 20, paddingBottom: 150 },
+	row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+	rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 	dateLabel: { fontSize: 18, color: '#666', fontWeight: 'bold', marginBottom: 16 },
-	sectionHeader: { fontSize: 14, fontWeight: '800', color: '#666', marginBottom: 16, letterSpacing: 0.5 },
+	sectionHeader: { fontSize: 14, fontWeight: '800', color: '#666', letterSpacing: 0.5 },
 
 	mealCard: { backgroundColor: '#1a1a1a', borderRadius: 18, padding: 20, marginBottom: 12 },
 	mealCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
@@ -277,7 +352,9 @@ const styles = StyleSheet.create({
 	plateSub: { fontSize: 8, color: '#a5d6a7', fontWeight: '800' },
 	mainSalanLabel: { fontSize: 9, fontWeight: '800', color: '#666', letterSpacing: 1 },
 	mainSalanValue: { fontSize: 24, fontWeight: '900', color: '#fff', marginVertical: 4 },
+	notSetWarning: { fontSize: 20, fontWeight: '900', color: '#ff5252', marginVertical: 4, fontStyle: 'italic' },
 	servingRow: { flexDirection: 'row', gap: 12, marginTop: 4 },
+	servingItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 	servingText: { fontSize: 13, color: '#888', fontWeight: '600' },
 
 	totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f0f9f0', borderRadius: 14, padding: 18, borderWidth: 2, borderColor: '#2e7d32', marginVertical: 10 },
@@ -293,8 +370,9 @@ const styles = StyleSheet.create({
 	customerInfo: { marginBottom: 10 },
 	customerName: { fontSize: 17, fontWeight: '700', color: '#1a1a1a' },
 	toggleGroup: { flexDirection: 'row', gap: 10 },
-	toggleBtn: { flex: 1, padding: 10, borderRadius: 10, backgroundColor: '#f0f0f0', borderWidth: 1, borderColor: '#ddd' },
-	toggleBtnOn: { backgroundColor: '#e8f5e9', borderColor: '#2e7d32' },
+	toggleBtn: { flex: 1, paddingHorizontal: 15, paddingVertical: 12, borderRadius: 14, backgroundColor: '#f5f5f5', borderWidth: 1, borderColor: '#eee' },
+	toggleBtnOn: { backgroundColor: '#e8f5e9', borderColor: '#2e7d32', elevation: 2 },
+	lockedBadge: { fontSize: 10, fontWeight: '800', color: '#666', marginTop: 2 },
 	toggleBtnLabel: { fontSize: 10, fontWeight: '800', color: '#666' },
 	toggleBtnDish: { fontSize: 14, fontWeight: '700', color: '#1a1a1a', marginTop: 2 },
 	emptyText: { textAlign: 'center', color: '#999', marginTop: 40, fontSize: 16 },

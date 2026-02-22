@@ -12,6 +12,7 @@ This document covers the architecture, data model, and screen-by-screen logic fo
 | **Real-time updates** | `onSnapshot` listeners — no manual refresh needed |
 | **State** | Per-screen independent fetching, no global store |
 | **Derived logic** | All status fields computed at runtime (never stored) |
+| **Deadlines** | No cutoff — full editability for past and today's records |
 | **Dev mode** | `SETTINGS.USE_MOCKS = true` uses `mockDb.ts` — no Firebase calls |
 
 > "Stored numbers rot. Derived numbers stay honest."
@@ -26,9 +27,10 @@ This document covers the architecture, data model, and screen-by-screen logic fo
   - **DASHBOARD**: Shows totals (Derived from active customers + attendance overrides).
   - **ATTENDANCE**: Single-tap list to toggle who's eating today. Toggles show actual dish names.
 - Subscribes to `customers` collection, `menu/{today}`, and `attendance/{today_*} docs`.
-- **Total Meals Today** = lunchCount + dinnerCount — the single number the cook needs.
-- **Admin stats** below: Active Customers, Payments Due.
-- Legacy meal flag fallback: supports old `plan` string field.
+- **Total Meals Today**: Sum of Lunch/Dinner plates.
+- **Logic Integrity**: 
+    - **Subscription Locking**: Counts and toggles ignore customers not subscribed to a specific meal.
+- **Admin Stats**: Compact side-by-side view for database overview.
 
 ### 2. Customers Screen (`customers.tsx`)
 **Purpose**: Customer enrollment and management.
@@ -49,17 +51,23 @@ This document covers the architecture, data model, and screen-by-screen logic fo
   - Renewal logic: expired → `today + 30 days`; active → `endDate + 30 days`.
 
 ### 4. Menu Screen (`menu.tsx`)
-**Purpose**: Daily menu setup by the operator.
-- UI: Weekly Mon–Sun scrollable calendar for planning.
-- **Persistence**: Saves to `menu/{YYYY-MM-DD}` (individual documents).
-- **Structure**: `{ lunch: { main, rice, roti, extra }, dinner: { ... }, updatedAt }`.
+**Purpose**: Operational master-plan for the week.
+- **Structure**: Vertical scrollable list of all 7 days (Monday–Sunday).
+- **Two Modes**:
+    - **View Mode (Default)**: Visual checklist of "What we are cooking" with bold typography.
+    - **Edit Mode (Gear)**: Reveals input fields and toggles for configuration.
+- **Visual Dominance**: Today's card is dark-themed (#1a1a1a) to stand out as the current focus.
+- **Intelligence Layer**: Displays live **Production Forecasts** (Demand counts) under each day card, synced to customer/attendance data.
+- **Sticky Save Bar**: Bottom bar appears for uncommitted changes allowing a single "SAVE WEEK" batch update.
+- **Persistence**: Saves to `menu/{YYYY-MM-DD}` via individual day commits.
 
 ### 5. Attendance Logic
 - **Storage**: `attendance/{YYYY-MM-DD}_{customerId}`.
-- **Opt-out Model**: If no attendance record exists for a date, the customer is counted as "Attending" (as billing is fixed monthly).
-- **Weekly Input**: Customers tab allows setting 7 days at once, which performs 7 parallel `setDoc` calls.
+- **Full Flexibility**: No 10 AM cutoff. Attendance can be toggled for current, past, and future dates without restriction.
+- **Opt-out Model**: If no record exists, customer is counted as "Attending" (Default YES).
+- **Hardened Filtering**: Toggles and counts are conditionally rendered based on `mealsPerDay` subscription flags. Unsubscribed meals are never counted or displayed.
+- **Weekly Input**: Customers tab allows setting 7 days at once.
 - **Daily Input**: Home screen (Attendance tab) allows quick toggling for today only.
-Humans see words, not booleans: `true → "Roti"`, `false → "No Roti"`, `rice.type || "No Rice"`.
 
 ### 5. Finance Screen (`finance.tsx`)
 **Purpose**: Monthly financial health audit.
@@ -121,6 +129,8 @@ Humans see words, not booleans: `true → "Roti"`, `false → "No Roti"`, `rice.
 
 ## 🎨 UI Philosophy
 
+- **Floating UI**: Bottom navigation is a decoupled, floating dock with rounded corners and high elevation, providing a modern, premium feel.
+- **Icon Intelligence**: Navigation uses a dedicated `MaterialCommunityIcons` set with active/inactive state visual logic for instant cognitive recognition.
 - **Large fonts**: Cards and stats optimized for readability at arm's length.
 - **Color language**: Red `#d32f2f` = warning/due. Green `#2e7d32` = success/paid.
 - **Urdu labels**: Primary action buttons use Urdu text for native-language accessibility.

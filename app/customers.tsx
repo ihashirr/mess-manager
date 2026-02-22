@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { addDoc, collection, deleteDoc, doc, getDoc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -6,6 +7,19 @@ import { db } from '../firebase/config';
 import { getCustomerStatus, getDaysLeft, getDueAmount, toDate } from '../utils/customerLogic';
 import { mockDb } from '../utils/mockDb';
 import { DAYS, DayName, emptyWeekAttendance, getDatesForWeek, getWeekId, shortDay } from '../utils/weekLogic';
+
+type MealSlot = { main: string; roti: boolean; rice: { enabled: boolean; type: string }; extra: string };
+type DayMenu = { lunch: MealSlot; dinner: MealSlot };
+type WeekMenu = Partial<Record<DayName, DayMenu>>;
+
+const normalizeMeal = (raw: any): MealSlot => ({
+	main: typeof raw?.main === 'string' ? raw.main : "",
+	rice: (raw?.rice && typeof raw.rice === 'object' && 'enabled' in raw.rice)
+		? raw.rice
+		: { enabled: false, type: typeof raw?.rice === 'string' ? raw.rice : "" },
+	roti: typeof raw?.roti === 'boolean' ? raw.roti : true,
+	extra: typeof raw?.extra === 'string' ? raw.extra : (raw?.side || ""),
+});
 
 type Customer = {
 	id: string;
@@ -27,6 +41,7 @@ export default function CustomersScreen() {
 	const [isAdding, setIsAdding] = useState(false);
 	const [expandedId, setExpandedId] = useState<string | null>(null);
 	const [weekAttendance, setWeekAttendance] = useState<Record<DayName, { lunch: boolean; dinner: boolean }>>(emptyWeekAttendance());
+	const [weekMenu, setWeekMenu] = useState<WeekMenu>({});
 	const weekId = getWeekId();
 
 	// Form State
@@ -80,6 +95,46 @@ export default function CustomersScreen() {
 		return () => unsubscribe();
 	}, []);
 
+	useEffect(() => {
+		const dates = getDatesForWeek(weekId);
+
+		const loadMenu = () => {
+			if (SETTINGS.USE_MOCKS) {
+				const mock: WeekMenu = {};
+				dates.forEach((date: string, idx: number) => {
+					const dayName = DAYS[idx];
+					const data = mockDb.getMenu(date);
+					mock[dayName] = {
+						lunch: normalizeMeal(data.lunch),
+						dinner: normalizeMeal(data.dinner),
+					};
+				});
+				setWeekMenu(mock);
+			}
+		};
+
+		if (SETTINGS.USE_MOCKS) {
+			loadMenu();
+			return mockDb.subscribe(loadMenu);
+		}
+
+		const unsubMenu = dates.map((date: string, idx: number) => {
+			const dayName = DAYS[idx];
+			return onSnapshot(doc(db, "menu", date), (snap) => {
+				const data = snap.exists() ? snap.data() : {};
+				setWeekMenu(prev => ({
+					...prev,
+					[dayName]: {
+						lunch: normalizeMeal(data.lunch),
+						dinner: normalizeMeal(data.dinner),
+					}
+				}));
+			});
+		});
+
+		return () => unsubMenu.forEach((unsub: () => void) => unsub());
+	}, [weekId]);
+
 	const handleAddCustomer = async () => {
 		if (!newName.trim()) {
 			alert("Please enter a name");
@@ -102,7 +157,7 @@ export default function CustomersScreen() {
 			} else {
 				console.log("Mock Mode: Adding customer to local session storage");
 				mockDb.addCustomer({
-					id: `mock-${Date.now()}`,
+					id: `mock - ${Date.now()} `,
 					name: newName,
 					phone: newPhone,
 					mealsPerDay: { lunch: isLunch, dinner: isDinner },
@@ -149,7 +204,7 @@ export default function CustomersScreen() {
 		if (!SETTINGS.USE_MOCKS) {
 			try {
 				// Fetch 7 docs in parallel for the week
-				const promises = dates.map((date: string) => getDoc(doc(db, "attendance", `${date}_${customerId}`)));
+				const promises = dates.map((date: string) => getDoc(doc(db, "attendance", `${date}_${customerId} `)));
 				const snaps = await Promise.all(promises);
 
 				snaps.forEach((snap: any, i: number) => {
@@ -191,6 +246,8 @@ export default function CustomersScreen() {
 			} catch (e) {
 				console.error("Error saving attendance:", e);
 			}
+		} else {
+			// Mock save logic if needed, but currently mock state is handled in toggleAttendance locally
 		}
 		setExpandedId(null);
 	};
@@ -206,14 +263,29 @@ export default function CustomersScreen() {
 
 	return (
 		<View style={styles.container}>
+			<View style={styles.bgDecoration} />
 			<View style={styles.header}>
 				<Text style={styles.title}>Active Customers</Text>
-				<TouchableOpacity
-					style={[styles.addBtn, isAdding && styles.cancelBtn]}
-					onPress={() => setIsAdding(!isAdding)}
-				>
-					<Text style={styles.addBtnText}>{isAdding ? "✕" : "+"}</Text>
-				</TouchableOpacity>
+				<View style={styles.headerRight}>
+					{isAdding && (
+						<TouchableOpacity
+							style={styles.headerActionBtn}
+							onPress={handleAddCustomer}
+						>
+							<MaterialCommunityIcons name="content-save-check" size={24} color="#2e7d32" />
+						</TouchableOpacity>
+					)}
+					<TouchableOpacity
+						style={[styles.addBtn, isAdding && styles.cancelBtn]}
+						onPress={() => setIsAdding(!isAdding)}
+					>
+						<MaterialCommunityIcons
+							name={isAdding ? "close" : "plus"}
+							size={24}
+							color="#fff"
+						/>
+					</TouchableOpacity>
+				</View>
 			</View>
 
 			{isAdding && (
@@ -297,18 +369,17 @@ export default function CustomersScreen() {
 						placeholder="Any specific instructions..."
 					/>
 
-					<TouchableOpacity
-						style={styles.saveBtn}
-						onPress={handleAddCustomer}
-					>
-						<Text style={styles.saveBtnText}>SAVE CUSTOMER - محفوظ کریں</Text>
-					</TouchableOpacity>
+					<View style={styles.formFooter}>
+						<MaterialCommunityIcons name="information-outline" size={14} color="#999" />
+						<Text style={styles.formInfo}>Save from header when ready</Text>
+					</View>
 				</View>
 			)}
 
 			<FlatList
 				data={customers}
 				keyExtractor={(item) => item.id}
+				contentContainerStyle={{ paddingBottom: 150 }}
 				renderItem={({ item }) => (
 					<View style={styles.card}>
 						<Text style={styles.name}>
@@ -357,30 +428,61 @@ export default function CustomersScreen() {
 							style={[styles.weekBtn, expandedId === item.id && styles.weekBtnActive]}
 							onPress={() => handleOpenAttendance(item.id)}
 						>
-							<Text style={styles.weekBtnText}>
-								{expandedId === item.id ? '✕ CLOSE' : '📅 SET WEEK'}
-							</Text>
+							<View style={styles.btnContent}>
+								<MaterialCommunityIcons
+									name={expandedId === item.id ? "close" : "calendar-edit"}
+									size={16}
+									color={expandedId === item.id ? "#d32f2f" : "#2e7d32"}
+								/>
+								<Text style={[styles.weekBtnText, expandedId === item.id && styles.textRed]}>
+									{expandedId === item.id ? 'CLOSE' : 'SET WEEK'}
+								</Text>
+							</View>
 						</TouchableOpacity>
 
 						{expandedId === item.id && (
 							<View style={styles.attendancePanel}>
 								<Text style={styles.attendanceTitle}>Week Attendance — {weekId}</Text>
-								{DAYS.map(day => (
+								{DAYS.map((day: DayName) => (
 									<View key={day} style={styles.dayRow}>
 										<Text style={styles.dayName}>{shortDay(day)}</Text>
 										<View style={styles.mealToggles}>
-											<TouchableOpacity
-												style={[styles.mealChip, weekAttendance[day].lunch && styles.mealChipOn]}
-												onPress={() => toggleAttendance(day, 'lunch')}
-											>
-												<Text style={styles.mealChipText}>☀️ Lunch</Text>
-											</TouchableOpacity>
-											<TouchableOpacity
-												style={[styles.mealChip, weekAttendance[day].dinner && styles.mealChipOn]}
-												onPress={() => toggleAttendance(day, 'dinner')}
-											>
-												<Text style={styles.mealChipText}>🌙 Dinner</Text>
-											</TouchableOpacity>
+											{(item.mealsPerDay?.lunch !== false) && (
+												<TouchableOpacity
+													style={[
+														styles.mealChip,
+														weekAttendance[day].lunch && styles.mealChipOn
+													]}
+													onPress={() => toggleAttendance(day, 'lunch')}
+												>
+													<View style={styles.chipContent}>
+														<View>
+															<Text style={styles.mealChipLabel}>LUNCH</Text>
+															<Text style={styles.mealChipDish} numberOfLines={1}>
+																{(weekMenu[day]?.lunch?.main) || 'Rice/Roti'}
+															</Text>
+														</View>
+													</View>
+												</TouchableOpacity>
+											)}
+											{(item.mealsPerDay?.dinner !== false) && (
+												<TouchableOpacity
+													style={[
+														styles.mealChip,
+														weekAttendance[day].dinner && styles.mealChipOn
+													]}
+													onPress={() => toggleAttendance(day, 'dinner')}
+												>
+													<View style={styles.chipContent}>
+														<View>
+															<Text style={styles.mealChipLabel}>DINNER</Text>
+															<Text style={styles.mealChipDish} numberOfLines={1}>
+																{(weekMenu[day]?.dinner?.main) || 'Rice/Roti'}
+															</Text>
+														</View>
+													</View>
+												</TouchableOpacity>
+											)}
 										</View>
 									</View>
 								))}
@@ -403,15 +505,37 @@ export default function CustomersScreen() {
 const styles = StyleSheet.create({
 	container: {
 		flex: 1,
-		backgroundColor: '#fff',
+		backgroundColor: '#f4f7f6',
+	},
+	bgDecoration: {
+		position: 'absolute', top: 0, left: 0, right: 0, height: 400,
+		backgroundColor: 'rgba(0,0,0,0.03)', borderBottomLeftRadius: 80, borderBottomRightRadius: 80,
+		zIndex: -1
 	},
 	header: {
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		alignItems: 'center',
-		padding: 20,
-		borderBottomWidth: 1,
-		borderBottomColor: '#eee',
+		paddingHorizontal: 25,
+		paddingTop: 60,
+		paddingBottom: 20,
+		backgroundColor: '#fff',
+		elevation: 4,
+		shadowColor: '#000',
+		shadowOffset: { width: 0, height: 2 },
+		shadowOpacity: 0.05,
+		shadowRadius: 5,
+	},
+	headerRight: { flexDirection: 'row', alignItems: 'center', gap: 15 },
+	headerActionBtn: {
+		backgroundColor: '#e8f5e9',
+		width: 40,
+		height: 40,
+		borderRadius: 20,
+		justifyContent: 'center',
+		alignItems: 'center',
+		borderWidth: 1,
+		borderColor: '#a5d6a7',
 	},
 	title: {
 		fontSize: 24,
@@ -434,11 +558,14 @@ const styles = StyleSheet.create({
 		fontWeight: 'bold',
 	},
 	form: {
-		padding: 20,
-		backgroundColor: '#f9f9f9',
+		padding: 25,
+		backgroundColor: '#fff',
 		borderBottomWidth: 1,
 		borderBottomColor: '#eee',
+		elevation: 2,
 	},
+	formFooter: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 20, alignSelf: 'center' },
+	formInfo: { fontSize: 12, fontWeight: '700', color: '#999', fontStyle: 'italic' },
 	label: {
 		fontSize: 16,
 		fontWeight: '600',
@@ -610,6 +737,8 @@ const styles = StyleSheet.create({
 	},
 	weekBtnActive: { backgroundColor: '#ffebee' },
 	weekBtnText: { fontWeight: '800', color: '#2e7d32', fontSize: 13 },
+	btnContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+	chipContent: { flexDirection: 'row', alignItems: 'center', gap: 4 },
 	attendancePanel: {
 		marginTop: 12, backgroundColor: '#f0f4f8',
 		borderRadius: 12, padding: 14,
@@ -620,16 +749,18 @@ const styles = StyleSheet.create({
 		justifyContent: 'space-between', marginBottom: 8,
 	},
 	dayName: { fontSize: 14, fontWeight: '700', color: '#1a1a1a', width: 36 },
-	mealToggles: { flexDirection: 'row', gap: 8 },
+	mealToggles: { flexDirection: 'row', gap: 10, flex: 1, marginLeft: 10 },
 	mealChip: {
-		paddingHorizontal: 12, paddingVertical: 7,
-		backgroundColor: '#ccc', borderRadius: 8,
+		flex: 1, paddingHorizontal: 12, paddingVertical: 8,
+		backgroundColor: '#f0f0f0', borderRadius: 10, borderWidth: 1, borderColor: '#ddd',
 	},
-	mealChipOn: { backgroundColor: '#2e7d32' },
-	mealChipText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+	mealChipOn: { backgroundColor: '#e8f5e9', borderColor: '#2e7d32' },
+	mealChipLabel: { fontSize: 9, fontWeight: '800', color: '#666' },
+	mealChipDish: { fontSize: 13, fontWeight: '700', color: '#1a1a1a', marginTop: 1 },
 	saveWeekBtn: {
-		marginTop: 12, backgroundColor: '#1a1a1a',
-		padding: 14, borderRadius: 10, alignItems: 'center',
+		marginTop: 15, backgroundColor: '#1a1a1a',
+		padding: 16, borderRadius: 12, alignItems: 'center',
+		elevation: 2,
 	},
-	saveWeekBtnText: { color: '#fff', fontWeight: '900', fontSize: 15 },
+	saveWeekBtnText: { color: '#fff', fontWeight: '900', fontSize: 15, letterSpacing: 1 },
 });

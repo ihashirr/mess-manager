@@ -6,11 +6,13 @@ export const shortDay = (day: DayName) => day.slice(0, 3);
 
 export const getWeekId = () => {
 	const d = new Date();
-	const dayNum = d.getUTCDay() || 7;
-	d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-	const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+	// ISO week rules: Week 1 is the week with the first Thursday
+	// We use local dates to stay consistent with the UI day names
+	const dayNum = d.getDay() || 7; // Sunday is 0, so 7
+	d.setDate(d.getDate() + 4 - dayNum);
+	const yearStart = new Date(d.getFullYear(), 0, 1);
 	const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-	return `${d.getUTCFullYear()}-W${weekNo.toString().padStart(2, '0')}`;
+	return `${d.getFullYear()}-W${weekNo.toString().padStart(2, '0')}`;
 };
 
 export const getTodayName = (): DayName => {
@@ -24,7 +26,12 @@ export const emptyWeekAttendance = () => {
 	return obj as Record<DayName, { lunch: boolean; dinner: boolean }>;
 };
 
-export const formatISO = (date: Date) => date.toISOString().split('T')[0];
+export const formatISO = (date: Date) => {
+	const year = date.getFullYear();
+	const month = (date.getMonth() + 1).toString().padStart(2, '0');
+	const day = date.getDate().toString().padStart(2, '0');
+	return `${year}-${month}-${day}`;
+};
 
 export const getDatesForWeek = (weekId: string): string[] => {
 	const [yearStr, weekStr] = weekId.split('-W');
@@ -50,4 +57,20 @@ export const getDateForDayName = (dayName: DayName, weekId: string): string => {
 	const dates = getDatesForWeek(weekId);
 	const idx = DAYS.indexOf(dayName);
 	return dates[idx];
+};
+
+export const getPrevWeekId = (weekId: string): string => {
+	const [yearStr, weekStr] = weekId.split('-W');
+	let year = parseInt(yearStr);
+	let week = parseInt(weekStr);
+
+	if (week === 1) {
+		year -= 1;
+		// Simplification: Assume 52 weeks, but better to use a library for ISO weeks if parity is critical
+		week = 52;
+	} else {
+		week -= 1;
+	}
+
+	return `${year}-W${week.toString().padStart(2, '0')}`;
 };

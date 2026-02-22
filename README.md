@@ -12,7 +12,7 @@ A focused, high-readability mobile app for home-based meal service operators. Re
 | **Customers** | Enroll customers, set subscription dates & meal plans, delete records |
 | **Payments** | One-tap "Mark Paid" flow with subscription renewal logic |
 | **Finance** | Monthly income ledger with expected vs. collected tracking |
-| **Menu** | Set and view today's lunch & dinner offerings |
+| **Menu** | Weekly Control Panel with live demand forecasts |
 
 ---
 

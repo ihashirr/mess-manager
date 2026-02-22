@@ -4,6 +4,7 @@ import mockPaymentsJson from '../mocks/payments.json';
 // In-memory singletons to simulate a physical database during the app session
 let currentMockCustomers = [...mockCustomersJson];
 let currentMockPayments = [...mockPaymentsJson];
+let currentMockMenu: Record<string, any> = {};
 const listeners: Set<() => void> = new Set();
 
 const notify = () => listeners.forEach(l => l());
@@ -11,6 +12,7 @@ const notify = () => listeners.forEach(l => l());
 export const mockDb = {
 	getCustomers: () => [...currentMockCustomers],
 	getPayments: () => [...currentMockPayments],
+	getMenu: (date: string) => currentMockMenu[date] || {},
 
 	updateCustomer: (id: string, updates: any) => {
 		currentMockCustomers = currentMockCustomers.map(c =>
@@ -26,6 +28,11 @@ export const mockDb = {
 
 	addPayment: (payment: any) => {
 		currentMockPayments = [...currentMockPayments, payment];
+		notify();
+	},
+
+	saveMenu: (date: string, data: any) => {
+		currentMockMenu[date] = data;
 		notify();
 	},
 
