@@ -1,31 +1,22 @@
 export const Theme = {
 	colors: {
-		// Layout
-		background: '#F4F7F6',
-		surface: '#FFFFFF',
-		surfaceSecondary: '#F8F9FA',
-		elevated: '#1A1A1A', // Dark cards used in the current design
-
-		// Brand & Semantic
-		primary: '#2E7D32',   // Trustworthy Green for Food/Payments
-		secondary: '#5C6BC0', // Indigo for secondary actions
-		accent: '#FFD700',    // Gold for highlights
-
-		// Status
+		// Functional
+		primary: '#2E7D32',
 		success: '#4CAF50',
 		danger: '#FF5252',
 		warning: '#FF9800',
-		info: '#2196F3',
 
-		// Typography & Borders
-		text: '#1A1A1A',
-		textMuted: '#666666',
-		textDimmed: '#999999',
-		textInverted: '#FFFFFF',
+		// Structural
+		bg: '#F4F7F6',
+		surface: '#FFFFFF',
+		surfaceElevated: '#1A1A1A',
 		border: '#EEEEEE',
-		borderStrong: '#DDDDDD',
+		textPrimary: '#1A1A1A',
+		textSecondary: '#666666',
+		textMuted: '#999999',
+		textInverted: '#FFFFFF',
 
-		// Overlays
+		// Utilities
 		overlay: 'rgba(0,0,0,0.6)',
 		decoration: 'rgba(0,0,0,0.03)',
 	},
@@ -38,85 +29,60 @@ export const Theme = {
 		xl: 20,
 		xxl: 24,
 		huge: 32,
+		massive: 40,
 		screen: 20, // Standard screen padding
+		screenPadding: 16, // Horizontal padding for all screens
 	},
 
 	radius: {
-		sm: 6,
-		md: 10,
-		lg: 12,
-		xl: 14,
-		xxl: 18,
-		huge: 25,
+		xs: 4,
+		sm: 8,
+		md: 12,
+		lg: 16,
+		xl: 24,
 		full: 9999,
 	},
 
 	typography: {
-		heading: {
+		// Tier A - Answer (Large, Bold, Clean)
+		answer: {
 			size: 28,
 			weight: '900' as const,
 			letterSpacing: -0.5,
 		},
-		subheading: {
-			size: 20,
-			weight: '700' as const,
+		answerGiant: {
+			size: 36,
+			weight: '900' as const,
 		},
-		section: {
+		// Tier B - Section Label (Medium, Slightly Muted)
+		label: {
 			size: 14,
 			weight: '800' as const,
 			letterSpacing: 0.5,
 		},
-		body: {
+		labelMedium: {
 			size: 16,
-			weight: '500' as const,
-		},
-		bodyBold: {
-			size: 17,
 			weight: '700' as const,
 		},
-		caption: {
-			size: 13,
+		// Tier C - Details (Small, Muted)
+		detail: {
+			size: 12,
 			weight: '600' as const,
 		},
-		label: {
-			size: 10,
+		detailBold: {
+			size: 12,
 			weight: '800' as const,
-			letterSpacing: 1,
+			letterSpacing: 0.5,
 		},
+		// Specialized
 		urdu: {
 			size: 18,
 			weight: 'bold' as const,
 		},
-		// Specialized counts
-		giant: {
-			size: 36,
-			weight: '900' as const,
-		}
 	},
 
-	shadows: {
-		soft: {
-			shadowColor: '#000',
-			shadowOffset: { width: 0, height: 2 },
-			shadowOpacity: 0.05,
-			shadowRadius: 5,
-			elevation: 2,
-		},
-		medium: {
-			shadowColor: '#000',
-			shadowOffset: { width: 0, height: 4 },
-			shadowOpacity: 0.1,
-			shadowRadius: 8,
-			elevation: 4,
-		},
-		strong: {
-			shadowColor: '#000',
-			shadowOffset: { width: 0, height: 12 },
-			shadowOpacity: 0.4,
-			shadowRadius: 15,
-			elevation: 12,
-		}
-	},
+	// Flat Modern: Shadows removed in favor of borders and contrast
+	shadows: {},
 
 	// Layer 2: Behavioral Physics
 	elevation: {

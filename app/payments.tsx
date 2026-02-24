@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { PrimaryPanel } from '../components/ui/PrimaryPanel';
+import { Screen } from '../components/ui/Screen';
+import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { SETTINGS } from '../constants/Settings';
 import { Theme } from '../constants/Theme';
 import { db } from '../firebase/config';
@@ -109,23 +112,34 @@ export default function PaymentsScreen() {
 
 	if (loading) return <View style={styles.container}><Text>Loading...</Text></View>;
 
+	const totalDue = payments.reduce((acc, current) => acc + getDueAmount(current.pricePerMonth, current.totalPaid), 0);
+
 	return (
-		<View style={styles.container}>
-			<View style={styles.bgDecoration} />
-			<View style={styles.header}>
-				<View>
-					<Text style={styles.title}>Pending Collection</Text>
-					<Text style={styles.subtitle}>{payments.length} Active Due Accounts</Text>
-				</View>
-				<MaterialCommunityIcons name="hand-coin" size={32} color="#2e7d32" />
+		<Screen scrollable={false}>
+			<ScreenHeader
+				title="Payments"
+				subtitle="Collection Ledger"
+				rightAction={
+					<MaterialCommunityIcons name="currency-usd" size={28} color={Theme.colors.primary} />
+				}
+			/>
+
+			<View style={{ paddingHorizontal: Theme.spacing.screenPadding }}>
+				<PrimaryPanel title="Pending Revenue">
+					<View style={styles.summaryRow}>
+						<Text style={styles.summaryValue}>DHS {totalDue}</Text>
+						<Text style={styles.summaryLabel}>FROM {payments.length} ACCOUNTS</Text>
+					</View>
+				</PrimaryPanel>
 			</View>
 
 			<FlatList
 				data={payments}
 				keyExtractor={(item) => item.id}
 				contentContainerStyle={styles.content}
+				showsVerticalScrollIndicator={false}
 				renderItem={({ item }) => (
-					<Card style={{ marginBottom: Theme.spacing.lg }}>
+					<Card variant="elevated" style={{ marginBottom: Theme.spacing.lg }}>
 						<View style={styles.info}>
 							<View>
 								<Text style={styles.name}>{item.name}</Text>
@@ -142,39 +156,32 @@ export default function PaymentsScreen() {
 				)}
 				ListEmptyComponent={
 					<View style={styles.emptyContainer}>
-						<MaterialCommunityIcons name="check-circle" size={32} color="#2e7d32" />
+						<MaterialCommunityIcons name="check-circle" size={32} color={Theme.colors.success} />
 						<Text style={styles.empty}>All payments received!</Text>
 					</View>
 				}
 			/>
-		</View>
+		</Screen>
 	);
 }
 
 const styles = StyleSheet.create({
-	container: { flex: 1, backgroundColor: Theme.colors.background },
+	container: { flex: 1, backgroundColor: Theme.colors.bg },
 	bgDecoration: {
 		position: 'absolute', top: 0, left: 0, right: 0, height: 400,
 		backgroundColor: Theme.colors.decoration, borderBottomLeftRadius: 80, borderBottomRightRadius: 80,
 		zIndex: -1
 	},
-	header: {
-		flexDirection: 'row',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-		paddingHorizontal: 25,
-		paddingTop: 60,
-		paddingBottom: 25,
-		backgroundColor: Theme.colors.surface,
-		...Theme.shadows.soft,
-	},
-	title: { ...Theme.typography.heading, fontSize: 26, color: Theme.colors.text },
-	subtitle: { ...Theme.typography.label, fontSize: 13, color: Theme.colors.textDimmed, marginTop: 2, textTransform: 'uppercase' },
+	title: { ...Theme.typography.answer, color: Theme.colors.textPrimary },
+	subtitle: { ...Theme.typography.label, color: Theme.colors.textMuted, textTransform: 'uppercase' },
 	content: { padding: Theme.spacing.screen, paddingBottom: 150 },
-	info: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-	name: { ...Theme.typography.subheading, fontSize: 20, color: Theme.colors.text },
-	subText: { ...Theme.typography.caption, color: Theme.colors.textMuted, marginTop: 2 },
-	amount: { ...Theme.typography.bodyBold, fontSize: 20, color: Theme.colors.danger },
-	emptyContainer: { alignItems: 'center', marginTop: 80, gap: Theme.spacing.lg },
-	empty: { textAlign: 'center', ...Theme.typography.subheading, fontSize: 18, color: Theme.colors.primary }
+	info: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Theme.spacing.lg },
+	name: { ...Theme.typography.labelMedium, color: Theme.colors.textPrimary },
+	subText: { ...Theme.typography.detail, color: Theme.colors.textSecondary, marginTop: Theme.spacing.xs },
+	amount: { ...Theme.typography.labelMedium, color: Theme.colors.danger },
+	emptyContainer: { alignItems: 'center', marginTop: Theme.spacing.massive, gap: Theme.spacing.lg },
+	empty: { textAlign: 'center', ...Theme.typography.labelMedium, color: Theme.colors.primary },
+	summaryRow: { alignItems: 'center', justifyContent: 'center' },
+	summaryValue: { ...Theme.typography.answerGiant, color: Theme.colors.textInverted },
+	summaryLabel: { ...Theme.typography.label, color: Theme.colors.textInverted, opacity: 0.6, marginTop: Theme.spacing.xs },
 });

@@ -61,10 +61,14 @@ const styles = StyleSheet.create({
 
 const variantStyles = StyleSheet.create({
 	elevated: {
-		...Theme.shadows.soft,
+		borderWidth: 1,
+		borderColor: Theme.colors.border,
+		backgroundColor: Theme.colors.surface,
 	},
 	flat: {
-		backgroundColor: Theme.colors.surfaceSecondary,
+		backgroundColor: Theme.colors.bg,
+		borderWidth: 1,
+		borderColor: 'transparent',
 	},
 	outlined: {
 		borderWidth: 1,

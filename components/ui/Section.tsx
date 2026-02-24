@@ -35,16 +35,16 @@ const styles = StyleSheet.create({
 		marginBottom: Theme.spacing.md,
 	},
 	title: {
-		...Theme.typography.subheading,
-		color: Theme.colors.text,
+		...Theme.typography.labelMedium,
+		color: Theme.colors.textPrimary,
 	},
 	subtitle: {
-		...Theme.typography.caption,
-		color: Theme.colors.textDimmed,
-		marginTop: 2,
+		...Theme.typography.detailBold,
+		color: Theme.colors.textMuted,
+		marginTop: Theme.spacing.xs,
 		textTransform: 'uppercase',
 	},
 	content: {
-		paddingHorizontal: Theme.spacing.screen,
+		// Removed padding to avoid double-padding with Screen
 	}
 });

@@ -5,6 +5,8 @@ import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native
 import { Badge } from '../components/ui/Badge';
 import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
+import { Screen } from '../components/ui/Screen';
+import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { SETTINGS } from '../constants/Settings';
 import { Theme } from '../constants/Theme';
 import { db } from '../firebase/config';
@@ -267,31 +269,33 @@ export default function CustomersScreen() {
 	if (loading) return <View style={styles.container}><Text>Loading...</Text></View>;
 
 	return (
-		<View style={styles.container}>
-			<View style={styles.bgDecoration} />
-			<View style={styles.header}>
-				<Text style={styles.title}>Active Customers</Text>
-				<View style={styles.headerRight}>
-					{isAdding && (
+		<Screen scrollable={false}>
+			<ScreenHeader
+				title="Customers"
+				subtitle={`${customers.length} ACTIVE MEMBERS`}
+				rightAction={
+					<View style={styles.headerRight}>
+						{isAdding && (
+							<TouchableOpacity
+								style={styles.headerActionBtn}
+								onPress={handleAddCustomer}
+							>
+								<MaterialCommunityIcons name="content-save-check" size={24} color={Theme.colors.success} />
+							</TouchableOpacity>
+						)}
 						<TouchableOpacity
-							style={styles.headerActionBtn}
-							onPress={handleAddCustomer}
+							style={[styles.addBtn, isAdding && styles.cancelBtn]}
+							onPress={() => setIsAdding(!isAdding)}
 						>
-							<MaterialCommunityIcons name="content-save-check" size={24} color="#2e7d32" />
+							<MaterialCommunityIcons
+								name={isAdding ? "close" : "account-plus"}
+								size={24}
+								color="#fff"
+							/>
 						</TouchableOpacity>
-					)}
-					<TouchableOpacity
-						style={[styles.addBtn, isAdding && styles.cancelBtn]}
-						onPress={() => setIsAdding(!isAdding)}
-					>
-						<MaterialCommunityIcons
-							name={isAdding ? "close" : "plus"}
-							size={24}
-							color="#fff"
-						/>
-					</TouchableOpacity>
-				</View>
-			</View>
+					</View>
+				}
+			/>
 
 			{isAdding && (
 				<View style={styles.form}>
@@ -378,9 +382,9 @@ export default function CustomersScreen() {
 			<FlatList
 				data={customers}
 				keyExtractor={(item) => item.id}
-				contentContainerStyle={{ paddingBottom: 150 }}
+				contentContainerStyle={{ padding: Theme.spacing.screen, paddingBottom: 150 }}
 				renderItem={({ item }) => (
-					<Card style={{ margin: Theme.spacing.screen, marginTop: 0 }}>
+					<Card style={{ marginBottom: Theme.spacing.lg }}>
 						<Text style={styles.name}>
 							{item.name}
 							{getCustomerStatus(toDate(item.endDate)) === 'expired' && " (EXPIRED)"}
@@ -497,45 +501,22 @@ export default function CustomersScreen() {
 				)}
 				ListEmptyComponent={!isAdding ? <Text style={styles.empty}>No active customers</Text> : null}
 			/>
-		</View>
+		</Screen>
 	);
 }
 
 const styles = StyleSheet.create({
-	container: {
-		flex: 1,
-		backgroundColor: Theme.colors.background,
-	},
-	bgDecoration: {
-		position: 'absolute', top: 0, left: 0, right: 0, height: 400,
-		backgroundColor: Theme.colors.decoration, borderBottomLeftRadius: 80, borderBottomRightRadius: 80,
-		zIndex: -1
-	},
-	header: {
-		flexDirection: 'row',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-		paddingHorizontal: 25,
-		paddingTop: 60,
-		paddingBottom: Theme.spacing.xl,
-		backgroundColor: Theme.colors.surface,
-		...Theme.shadows.soft,
-	},
+	container: { flex: 1, backgroundColor: Theme.colors.bg },
 	headerRight: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.lg },
 	headerActionBtn: {
-		backgroundColor: Theme.colors.surfaceSecondary,
+		backgroundColor: Theme.colors.bg,
 		width: 40,
 		height: 40,
 		borderRadius: 20,
 		justifyContent: 'center',
 		alignItems: 'center',
 		borderWidth: 1,
-		borderColor: '#a5d6a7',
-	},
-	title: {
-		...Theme.typography.subheading,
-		fontSize: 24,
-		color: Theme.colors.text,
+		borderColor: Theme.colors.success,
 	},
 	addBtn: {
 		backgroundColor: Theme.colors.primary,
@@ -548,123 +529,101 @@ const styles = StyleSheet.create({
 	cancelBtn: {
 		backgroundColor: Theme.colors.danger,
 	},
-	addBtnText: {
-		color: Theme.colors.textInverted,
-		fontSize: 24,
-		fontWeight: 'bold',
-	},
 	form: {
-		padding: 25,
+		padding: Theme.spacing.xxl,
 		backgroundColor: Theme.colors.surface,
 		borderBottomWidth: 1,
 		borderBottomColor: Theme.colors.border,
-		...Theme.shadows.soft,
 	},
-	formFooter: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.xs, marginTop: 20, alignSelf: 'center' },
-	formInfo: { ...Theme.typography.caption, color: Theme.colors.textDimmed, fontStyle: 'italic' },
+	formFooter: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.xs, marginTop: Theme.spacing.xl, alignSelf: 'center' },
+	formInfo: { ...Theme.typography.detail, color: Theme.colors.textMuted, fontStyle: 'italic' },
 	label: {
-		...Theme.typography.bodyBold,
-		fontSize: 16,
-		color: Theme.colors.textMuted,
-		marginBottom: 5,
-		marginTop: 10,
+		...Theme.typography.labelMedium,
+		color: Theme.colors.textSecondary,
+		marginBottom: Theme.spacing.xs,
+		marginTop: Theme.spacing.sm,
 	},
 	row: {
 		flexDirection: 'row',
-		marginTop: 5,
+		marginTop: Theme.spacing.xs,
 	},
 	planSelector: {
 		flexDirection: 'row',
 		backgroundColor: Theme.colors.border,
-		borderRadius: Theme.radius.md,
-		padding: 3,
+		borderRadius: Theme.radius.sm,
+		padding: Theme.spacing.xs,
 	},
 	planOption: {
 		flex: 1,
-		paddingVertical: 10,
+		paddingVertical: Theme.spacing.sm,
 		alignItems: 'center',
 		borderRadius: Theme.radius.sm,
 	},
 	planOptionSelected: {
 		backgroundColor: Theme.colors.surface,
-		...Theme.shadows.soft,
+		borderWidth: 1,
+		borderColor: Theme.colors.border,
 	},
 	planOptionText: {
 		...Theme.typography.label,
-		fontSize: 12,
-		color: Theme.colors.textMuted,
+		color: Theme.colors.textSecondary,
 	},
 	planOptionTextSelected: {
 		color: Theme.colors.primary,
 	},
-	saveBtn: {
-		backgroundColor: Theme.colors.primary,
-		paddingVertical: 15,
-		borderRadius: Theme.radius.md,
-		alignItems: 'center',
-		marginTop: 20,
-	},
-	saveBtnText: {
-		color: Theme.colors.textInverted,
-		fontSize: 16,
-		fontWeight: 'bold',
-	},
 	name: {
-		...Theme.typography.subheading,
+		...Theme.typography.labelMedium,
 		fontSize: 22,
-		color: Theme.colors.text,
+		color: Theme.colors.textPrimary,
 	},
 	details: {
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		alignItems: 'center',
-		marginTop: 8,
+		marginTop: Theme.spacing.sm,
 	},
 	plan: {
-		...Theme.typography.bodyBold,
-		fontSize: 16,
+		...Theme.typography.labelMedium,
 		color: Theme.colors.primary,
 	},
 	phone: {
-		...Theme.typography.body,
-		color: Theme.colors.textMuted,
+		...Theme.typography.labelMedium,
+		color: Theme.colors.textSecondary,
 	},
 	dates: {
-		...Theme.typography.caption,
-		color: Theme.colors.textDimmed,
+		...Theme.typography.detail,
+		color: Theme.colors.textMuted,
 	},
 	statusBadge: {
 		flexDirection: 'row',
 		alignItems: 'center',
 	},
 	paid: {
-		...Theme.typography.bodyBold,
-		fontSize: 14,
+		...Theme.typography.labelMedium,
 		color: Theme.colors.primary,
 	},
 	daysRemaining: {
-		marginTop: 10,
-		...Theme.typography.bodyBold,
-		fontSize: 14,
-		color: Theme.colors.textMuted,
+		marginTop: Theme.spacing.sm,
+		...Theme.typography.labelMedium,
+		color: Theme.colors.textSecondary,
 	},
 	textRed: {
 		color: Theme.colors.danger,
 	},
 	textOrange: {
-		color: '#ef6c00',
+		color: Theme.colors.warning,
 	},
 	empty: {
 		textAlign: 'center',
-		...Theme.typography.body,
-		color: Theme.colors.textDimmed,
-		marginTop: 40,
+		...Theme.typography.labelMedium,
+		color: Theme.colors.textMuted,
+		marginTop: Theme.spacing.massive,
 	},
 	notes: {
-		...Theme.typography.caption,
+		...Theme.typography.detail,
 		fontStyle: 'italic',
-		marginTop: 8,
-		paddingTop: 8,
+		marginTop: Theme.spacing.sm,
+		paddingTop: Theme.spacing.sm,
 		borderTopWidth: 1,
 		borderTopColor: Theme.colors.border,
 	},
@@ -676,39 +635,37 @@ const styles = StyleSheet.create({
 	},
 	deleteBtnText: {
 		color: Theme.colors.danger,
-		...Theme.typography.label,
-		fontSize: 12,
+		...Theme.typography.detailBold,
 	},
 	weekBtn: {
-		marginTop: 12, paddingVertical: 10, paddingHorizontal: 16,
+		marginTop: Theme.spacing.md, paddingVertical: Theme.spacing.sm, paddingHorizontal: Theme.spacing.lg,
 		backgroundColor: '#e8f5e9', borderRadius: Theme.radius.md, alignSelf: 'flex-start',
 	},
 	weekBtnActive: { backgroundColor: '#ffebee' },
-	weekBtnText: { ...Theme.typography.caption, fontWeight: '800', color: Theme.colors.primary, fontSize: 13 },
-	btnContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-	chipContent: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+	weekBtnText: { ...Theme.typography.detailBold, color: Theme.colors.primary },
+	btnContent: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
+	chipContent: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.xs },
 	attendancePanel: {
-		marginTop: 12, backgroundColor: Theme.colors.surfaceSecondary,
-		borderRadius: Theme.radius.lg, padding: 14,
+		marginTop: Theme.spacing.md, backgroundColor: Theme.colors.bg,
+		borderRadius: Theme.radius.md, padding: Theme.spacing.md,
 	},
-	attendanceTitle: { ...Theme.typography.label, color: Theme.colors.textDimmed, marginBottom: 12 },
+	attendanceTitle: { ...Theme.typography.detailBold, color: Theme.colors.textMuted, marginBottom: Theme.spacing.md },
 	dayRow: {
 		flexDirection: 'row', alignItems: 'center',
-		justifyContent: 'space-between', marginBottom: 8,
+		justifyContent: 'space-between', marginBottom: Theme.spacing.sm,
 	},
-	dayName: { ...Theme.typography.bodyBold, fontSize: 14, color: Theme.colors.text, width: 36 },
+	dayName: { ...Theme.typography.labelMedium, width: 36 },
 	mealToggles: { flexDirection: 'row', gap: Theme.spacing.md, flex: 1, marginLeft: 10 },
 	mealChip: {
-		flex: 1, paddingHorizontal: 12, paddingVertical: 8,
-		backgroundColor: Theme.colors.surface, borderRadius: Theme.radius.md, borderWidth: 1, borderColor: Theme.colors.borderStrong,
+		flex: 1, paddingHorizontal: Theme.spacing.md, paddingVertical: Theme.spacing.sm,
+		backgroundColor: Theme.colors.surface, borderRadius: Theme.radius.md, borderWidth: 1, borderColor: Theme.colors.border,
 	},
 	mealChipOn: { backgroundColor: '#e8f5e9', borderColor: Theme.colors.primary },
-	mealChipLabel: { ...Theme.typography.label, fontSize: 9, color: Theme.colors.textMuted },
-	mealChipDish: { ...Theme.typography.bodyBold, fontSize: 13, color: Theme.colors.text, marginTop: 1 },
+	mealChipLabel: { ...Theme.typography.detail, color: Theme.colors.textSecondary },
+	mealChipDish: { ...Theme.typography.labelMedium, fontSize: 13, color: Theme.colors.textPrimary, marginTop: 2 },
 	saveWeekBtn: {
-		marginTop: 15, backgroundColor: Theme.colors.elevated,
-		padding: 16, borderRadius: Theme.radius.lg, alignItems: 'center',
-		...Theme.shadows.soft,
+		marginTop: Theme.spacing.lg, backgroundColor: Theme.colors.surfaceElevated,
+		padding: Theme.spacing.lg, borderRadius: Theme.radius.lg, alignItems: 'center',
 	},
-	saveWeekBtnText: { color: Theme.colors.textInverted, fontWeight: '900', fontSize: 15, letterSpacing: 1 },
+	saveWeekBtnText: { ...Theme.typography.label, color: Theme.colors.textInverted, letterSpacing: 1 },
 });

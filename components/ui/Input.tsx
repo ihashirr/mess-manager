@@ -15,7 +15,7 @@ export function Input({ label, error, containerStyle, onFocus, onBlur, ...props 
 		<View style={[styles.container, containerStyle]}>
 			{label && <Text style={styles.label}>{label}</Text>}
 			<TextInput
-				placeholderTextColor={Theme.colors.textDimmed}
+				placeholderTextColor={Theme.colors.textMuted}
 				onFocus={(e) => {
 					setIsFocused(true);
 					onFocus?.(e);
@@ -42,29 +42,28 @@ const styles = StyleSheet.create({
 		marginBottom: Theme.spacing.md,
 	},
 	label: {
-		...Theme.typography.bodyBold,
-		color: Theme.colors.textMuted,
+		...Theme.typography.labelMedium,
+		color: Theme.colors.textSecondary,
 		marginBottom: Theme.spacing.xs,
 	},
 	input: {
+		...Theme.typography.labelMedium,
 		backgroundColor: Theme.colors.surface,
 		borderWidth: 1,
-		borderColor: Theme.colors.borderStrong,
+		borderColor: Theme.colors.border,
 		borderRadius: Theme.radius.md,
 		padding: Theme.spacing.md,
-		fontSize: Theme.typography.body.size,
-		color: Theme.colors.text,
+		color: Theme.colors.textPrimary,
 	},
 	inputFocused: {
 		borderColor: Theme.colors.primary,
 		backgroundColor: Theme.colors.surface,
-		...Theme.shadows.soft,
 	},
 	inputError: {
 		borderColor: Theme.colors.danger,
 	},
 	errorText: {
-		...Theme.typography.caption,
+		...Theme.typography.detail,
 		color: Theme.colors.danger,
 		marginTop: Theme.spacing.xs,
 	}

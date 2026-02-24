@@ -1,8 +1,10 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { collection, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Card } from '../components/ui/Card';
+import { Screen } from '../components/ui/Screen';
+import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Section } from '../components/ui/Section';
 import { SETTINGS } from '../constants/Settings';
 import { Theme } from '../constants/Theme';
@@ -161,9 +163,18 @@ export default function Index() {
 	if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color="#000" /></View>;
 
 	return (
-		<View style={styles.container}>
-			<View style={styles.bgDecoration} />
-			{/* Segmented Control */}
+		<Screen withLargeHeader backgroundColor={Theme.colors.bg}>
+			<ScreenHeader
+				title="Home"
+				subtitle={todayName.toUpperCase() + ", " + todayDate}
+				rightAction={
+					<TouchableOpacity onPress={() => {/* Logic for settings */ }}>
+						<MaterialCommunityIcons name="cog-outline" size={24} color={Theme.colors.textMuted} />
+					</TouchableOpacity>
+				}
+			/>
+
+			{/* Tab Navigation */}
 			<View style={styles.tabBar}>
 				<TouchableOpacity
 					style={[styles.tab, activeTab === 'dashboard' && styles.tabActive]}
@@ -172,8 +183,8 @@ export default function Index() {
 					<View style={styles.tabItem}>
 						<MaterialCommunityIcons
 							name="view-dashboard"
-							size={16}
-							color={activeTab === 'dashboard' ? '#1a1a1a' : '#999'}
+							size={20}
+							color={activeTab === 'dashboard' ? Theme.colors.primary : Theme.colors.textMuted}
 						/>
 						<Text style={[styles.tabText, activeTab === 'dashboard' && styles.tabTextActive]}>DASHBOARD</Text>
 					</View>
@@ -184,71 +195,79 @@ export default function Index() {
 				>
 					<View style={styles.tabItem}>
 						<MaterialCommunityIcons
-							name="clipboard-text"
-							size={16}
-							color={activeTab === 'attendance' ? '#1a1a1a' : '#999'}
+							name="playlist-check"
+							size={20}
+							color={activeTab === 'attendance' ? Theme.colors.primary : Theme.colors.textMuted}
 						/>
 						<Text style={[styles.tabText, activeTab === 'attendance' && styles.tabTextActive]}>ATTENDANCE</Text>
 					</View>
 				</TouchableOpacity>
 			</View>
 
-			<ScrollView contentContainerStyle={styles.scrollContent}>
-				{activeTab === 'dashboard' ? (
-					<>
-						<Text style={styles.dateLabel}>
-							{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })}
-						</Text>
-
-						<Section
-							title="Today's Production — آج کتنا پکانا ہے"
-							style={{ paddingHorizontal: 0 }}
-							contentStyle={{ paddingHorizontal: 0 }}
-						>
-							<MealCard label="Lunch" count={stats.lunchCount} slot={todayMenu.lunch} icon="weather-sunny" iconColor="#FFD700" />
-							<MealCard label="Dinner" count={stats.dinnerCount} slot={todayMenu.dinner} icon="weather-night" iconColor="#5C6BC0" />
-
-							<View style={styles.totalRow}>
-								<Text style={styles.totalLabel}>Total Meals Today</Text>
-								<Text style={styles.totalCount}>{stats.lunchCount + stats.dinnerCount}</Text>
+			{activeTab === 'dashboard' ? (
+				<View style={styles.scrollContent}>
+					<Section title="Today's Menu">
+						<View style={{ flexDirection: 'row', gap: Theme.spacing.md }}>
+							<View style={{ flex: 1 }}>
+								<MealCard
+									label="LUNCH"
+									count={stats.lunchCount}
+									slot={todayMenu.lunch}
+									icon="weather-sunny"
+									iconColor={Theme.colors.warning}
+								/>
 							</View>
-
-							<View style={styles.statsRow}>
-								<Card variant="outlined" style={styles.statCard}>
-									<Text style={styles.statValue}>{stats.activeCount}</Text>
-									<Text style={styles.statLabel}>Active{'\n'}Customers</Text>
-								</Card>
-								<Card variant="outlined" style={[styles.statCard, { borderColor: Theme.colors.danger }]}>
-									<Text style={[styles.statValue, { color: Theme.colors.danger }]}>{stats.paymentsDue}</Text>
-									<Text style={styles.statLabel}>Payments{'\n'}Due</Text>
-								</Card>
+							<View style={{ flex: 1 }}>
+								<MealCard
+									label="DINNER"
+									count={stats.dinnerCount}
+									slot={todayMenu.dinner}
+									icon="weather-night"
+									iconColor={Theme.colors.primary}
+								/>
 							</View>
-						</Section>
-					</>
-				) : (
-					<>
-						<Section
-							title="Who is eating today? — آج کون کھائے گا؟"
-							style={{ paddingHorizontal: 0 }}
-							contentStyle={{ paddingHorizontal: 0 }}
-						>
+						</View>
+					</Section>
 
-							{customers.map(c => (
+					<Section title="Overview">
+						<View style={styles.statsRow}>
+							<Card style={styles.statCard}>
+								<Text style={styles.statValue}>{stats.activeCount}</Text>
+								<Text style={styles.statLabel}>ACTIVE{"\n"}CUSTOMERS</Text>
+							</Card>
+							<Card style={styles.statCard}>
+								<Text style={styles.statValue}>{stats.paymentsDue}</Text>
+								<Text style={styles.statLabel}>PAYMENTS{"\n"}DUE</Text>
+							</Card>
+						</View>
+					</Section>
+
+					<Card style={styles.totalRow}>
+						<Text style={styles.totalLabel}>TOTAL PLATES TODAY</Text>
+						<Text style={styles.totalCount}>{stats.lunchCount + stats.dinnerCount}</Text>
+					</Card>
+				</View>
+			) : (
+				<View style={styles.scrollContent}>
+					<Section title="Customer Attendance" subtitle="Tap to toggle today's meals">
+						{customers.length === 0 ? (
+							<Text style={styles.emptyText}>No active customers found</Text>
+						) : (
+							customers.map(c => (
 								<CustomerAttendanceRow
 									key={c.id}
 									customer={c}
 									menu={todayMenu}
 									attendance={attendance[c.id]}
-									onToggle={(meal: 'lunch' | 'dinner') => toggleTodayAttendance(c.id, meal)}
 									date={todayDate}
+									onToggle={(meal: 'lunch' | 'dinner') => toggleTodayAttendance(c.id, meal)}
 								/>
-							))}
-							{customers.length === 0 && <Text style={styles.emptyText}>No active customers found.</Text>}
-						</Section>
-					</>
-				)}
-			</ScrollView>
-		</View>
+							))
+						)}
+					</Section>
+				</View>
+			)}
+		</Screen>
 	);
 }
 
@@ -280,11 +299,11 @@ const MealCard = ({ label, count, slot, icon, iconColor }: { label: string; coun
 			)}
 			<View style={styles.servingRow}>
 				<View style={styles.servingItem}>
-					<MaterialCommunityIcons name="bread-slice-outline" size={14} color={Theme.colors.textDimmed} />
+					<MaterialCommunityIcons name="bread-slice-outline" size={14} color={Theme.colors.textMuted} />
 					<Text style={styles.servingText}>{slot.roti ? "Roti" : "No Roti"}</Text>
 				</View>
 				<View style={styles.servingItem}>
-					<MaterialCommunityIcons name="rice" size={14} color={Theme.colors.textDimmed} />
+					<MaterialCommunityIcons name="rice" size={14} color={Theme.colors.textMuted} />
 					<Text style={styles.servingText}>{riceType}</Text>
 				</View>
 			</View>
@@ -331,7 +350,7 @@ const CustomerAttendanceRow = ({ customer, menu, attendance, onToggle, date }: a
 };
 
 const styles = StyleSheet.create({
-	container: { flex: 1, backgroundColor: Theme.colors.background },
+	container: { flex: 1, backgroundColor: Theme.colors.bg },
 	bgDecoration: {
 		position: 'absolute', top: 0, left: 0, right: 0, height: 400,
 		backgroundColor: Theme.colors.decoration, borderBottomLeftRadius: 80, borderBottomRightRadius: 80,
@@ -345,29 +364,30 @@ const styles = StyleSheet.create({
 		borderRadius: Theme.radius.lg,
 		margin: Theme.spacing.screen,
 		marginBottom: 0,
-		...Theme.shadows.soft
+		borderWidth: 1,
+		borderColor: Theme.colors.border,
 	},
 	tab: { flex: 1, paddingVertical: Theme.spacing.md, alignItems: 'center', borderRadius: Theme.radius.sm },
 	tabItem: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
 	tabActive: {
 		backgroundColor: Theme.colors.surface,
-		...Theme.shadows.soft
+		borderColor: Theme.colors.primary,
 	},
-	tabText: { ...Theme.typography.caption, color: Theme.colors.textDimmed, fontWeight: '800' },
-	tabTextActive: { color: Theme.colors.text },
+	tabText: { ...Theme.typography.detailBold, color: Theme.colors.textMuted },
+	tabTextActive: { color: Theme.colors.textPrimary },
 
 	scrollContent: { padding: Theme.spacing.screen, paddingBottom: 150 },
 	row: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
 	rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-	dateLabel: { ...Theme.typography.heading, fontSize: 18, color: Theme.colors.textMuted, marginBottom: Theme.spacing.lg },
-	sectionHeader: { ...Theme.typography.section, color: Theme.colors.textMuted },
+	dateLabel: { ...Theme.typography.labelMedium, color: Theme.colors.textSecondary, marginBottom: Theme.spacing.lg },
+	sectionHeader: { ...Theme.typography.label, color: Theme.colors.textSecondary },
 
 	mealCard: {
-		backgroundColor: Theme.colors.elevated, // Nested container for high contrast inside surface
+		backgroundColor: Theme.colors.surfaceElevated, // Nested container for high contrast inside surface
 		marginBottom: Theme.spacing.md
 	},
 	mealCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Theme.spacing.md },
-	mealCardTitle: { ...Theme.typography.bodyBold, color: Theme.colors.textInverted, fontWeight: '900' },
+	mealCardTitle: { ...Theme.typography.labelMedium, color: Theme.colors.textInverted },
 	plateBadge: {
 		alignItems: 'center',
 		backgroundColor: Theme.colors.primary,
@@ -375,14 +395,14 @@ const styles = StyleSheet.create({
 		paddingVertical: Theme.spacing.xs,
 		borderRadius: Theme.radius.md
 	},
-	plateCount: { ...Theme.typography.giant, fontSize: 24, color: Theme.colors.textInverted },
+	plateCount: { ...Theme.typography.answerGiant, fontSize: 24, color: Theme.colors.textInverted },
 	plateSub: { fontSize: 8, color: '#a5d6a7', fontWeight: '800' },
-	mainSalanLabel: { ...Theme.typography.label, color: Theme.colors.textMuted },
-	mainSalanValue: { ...Theme.typography.giant, fontSize: 24, color: Theme.colors.textInverted, marginVertical: Theme.spacing.xs },
-	notSetWarning: { ...Theme.typography.subheading, color: Theme.colors.danger, marginVertical: Theme.spacing.xs, fontStyle: 'italic', fontWeight: '900' },
+	mainSalanLabel: { ...Theme.typography.detailBold, color: Theme.colors.textSecondary },
+	mainSalanValue: { ...Theme.typography.answerGiant, fontSize: 24, color: Theme.colors.textInverted, marginVertical: Theme.spacing.xs },
+	notSetWarning: { ...Theme.typography.labelMedium, color: Theme.colors.danger, marginVertical: Theme.spacing.xs, fontStyle: 'italic' },
 	servingRow: { flexDirection: 'row', gap: Theme.spacing.md, marginTop: Theme.spacing.xs },
 	servingItem: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.xs },
-	servingText: { ...Theme.typography.caption, color: Theme.colors.textDimmed, fontWeight: '600' },
+	servingText: { ...Theme.typography.detailBold, color: Theme.colors.textMuted },
 
 	totalRow: {
 		flexDirection: 'row',
@@ -395,8 +415,8 @@ const styles = StyleSheet.create({
 		borderColor: Theme.colors.primary,
 		marginVertical: Theme.spacing.sm
 	},
-	totalLabel: { ...Theme.typography.bodyBold, color: Theme.colors.primary },
-	totalCount: { ...Theme.typography.giant, color: Theme.colors.primary },
+	totalLabel: { ...Theme.typography.labelMedium, color: Theme.colors.primary },
+	totalCount: { ...Theme.typography.answerGiant, color: Theme.colors.primary },
 
 	statsRow: { flexDirection: 'row', gap: Theme.spacing.lg, marginTop: Theme.spacing.md },
 	statCard: {
@@ -404,29 +424,28 @@ const styles = StyleSheet.create({
 		padding: Theme.spacing.lg,
 		alignItems: 'center'
 	},
-	statValue: { ...Theme.typography.giant, fontSize: 32, color: Theme.colors.text },
-	statLabel: { ...Theme.typography.label, fontSize: 12, color: Theme.colors.textMuted, marginTop: Theme.spacing.xs, textAlign: 'center' },
+	statValue: { ...Theme.typography.answerGiant, fontSize: 32, color: Theme.colors.textPrimary },
+	statLabel: { ...Theme.typography.detailBold, fontSize: 12, color: Theme.colors.textSecondary, marginTop: Theme.spacing.xs, textAlign: 'center' },
 
 	customerRow: { backgroundColor: Theme.colors.surface, borderBottomWidth: 1, borderBottomColor: Theme.colors.border, paddingVertical: Theme.spacing.xl },
 	customerInfo: { marginBottom: Theme.spacing.md },
-	customerName: { ...Theme.typography.bodyBold, color: Theme.colors.text },
+	customerName: { ...Theme.typography.labelMedium, color: Theme.colors.textPrimary },
 	toggleGroup: { flexDirection: 'row', gap: Theme.spacing.md },
 	toggleBtn: {
 		flex: 1,
 		paddingHorizontal: Theme.spacing.lg,
 		paddingVertical: Theme.spacing.md,
 		borderRadius: Theme.radius.xl,
-		backgroundColor: Theme.colors.surfaceSecondary,
+		backgroundColor: Theme.colors.bg,
 		borderWidth: 1,
 		borderColor: Theme.colors.border
 	},
 	toggleBtnOn: {
 		backgroundColor: '#e8f5e9',
 		borderColor: Theme.colors.primary,
-		...Theme.shadows.soft
 	},
-	lockedBadge: { ...Theme.typography.label, color: Theme.colors.textMuted, marginTop: 2 },
-	toggleBtnLabel: { ...Theme.typography.label, color: Theme.colors.textMuted },
-	toggleBtnDish: { ...Theme.typography.bodyBold, fontSize: 14, color: Theme.colors.text, marginTop: 2 },
-	emptyText: { textAlign: 'center', color: Theme.colors.textDimmed, marginTop: 40, fontSize: 16 },
+	lockedBadge: { ...Theme.typography.detailBold, color: Theme.colors.textSecondary, marginTop: Theme.spacing.xs },
+	toggleBtnLabel: { ...Theme.typography.detailBold, color: Theme.colors.textSecondary },
+	toggleBtnDish: { ...Theme.typography.labelMedium, fontSize: 14, color: Theme.colors.textPrimary, marginTop: Theme.spacing.xs },
+	emptyText: { textAlign: 'center', color: Theme.colors.textMuted, marginTop: Theme.spacing.massive, fontSize: 16 },
 });

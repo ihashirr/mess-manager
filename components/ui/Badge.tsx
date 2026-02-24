@@ -21,13 +21,13 @@ export function Badge({ label, variant = 'neutral', style, textStyle }: BadgePro
 
 const styles = StyleSheet.create({
 	container: {
-		paddingHorizontal: 8,
-		paddingVertical: 3,
+		paddingHorizontal: Theme.spacing.sm,
+		paddingVertical: Theme.spacing.xs,
 		borderRadius: Theme.radius.sm,
 		alignSelf: 'flex-start',
 	},
 	text: {
-		...Theme.typography.label,
+		...Theme.typography.detailBold,
 	}
 });
 
@@ -45,7 +45,7 @@ const variantStyles = {
 		text: { color: Theme.colors.danger },
 	}),
 	neutral: StyleSheet.create({
-		container: { backgroundColor: Theme.colors.surfaceSecondary },
-		text: { color: Theme.colors.textMuted },
+		container: { backgroundColor: Theme.colors.bg },
+		text: { color: Theme.colors.textSecondary },
 	}),
 };

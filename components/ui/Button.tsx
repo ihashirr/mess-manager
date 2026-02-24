@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
 		borderRadius: Theme.radius.lg,
 	},
 	textBase: {
-		...Theme.typography.bodyBold,
+		...Theme.typography.labelMedium,
 		textAlign: 'center',
 	},
 	iconLeft: {
@@ -148,15 +148,15 @@ const iconSizes = {
 
 const variantStyles = {
 	primary: StyleSheet.create({
-		container: { backgroundColor: Theme.colors.primary, ...Theme.shadows.soft },
+		container: { backgroundColor: Theme.colors.primary },
 		text: { color: Theme.colors.textInverted },
 	}),
 	secondary: StyleSheet.create({
-		container: { backgroundColor: Theme.colors.secondary, ...Theme.shadows.soft },
+		container: { backgroundColor: Theme.colors.primary },
 		text: { color: Theme.colors.textInverted },
 	}),
 	danger: StyleSheet.create({
-		container: { backgroundColor: Theme.colors.danger, ...Theme.shadows.soft },
+		container: { backgroundColor: Theme.colors.danger },
 		text: { color: Theme.colors.textInverted },
 	}),
 	ghost: StyleSheet.create({
@@ -164,7 +164,7 @@ const variantStyles = {
 		text: { color: Theme.colors.primary },
 	}),
 	outline: StyleSheet.create({
-		container: { backgroundColor: 'transparent', borderWidth: 1, borderColor: Theme.colors.borderStrong },
-		text: { color: Theme.colors.text },
+		container: { backgroundColor: 'transparent', borderWidth: 1, borderColor: Theme.colors.border },
+		text: { color: Theme.colors.textPrimary },
 	}),
 };

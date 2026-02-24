@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { Screen } from '../components/ui/Screen';
+import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { SETTINGS } from '../constants/Settings';
 import { Theme } from '../constants/Theme';
 import { db } from '../firebase/config';
@@ -257,49 +259,36 @@ export default function MenuScreen() {
 	if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color="#000" /></View>;
 
 	return (
-		<View style={styles.container}>
-			<View style={styles.bgDecoration} />
-			<View style={styles.header}>
-				<View>
-					<Text style={styles.title}>Weekly Plan</Text>
-					<Text style={styles.weekLabel}>Operational Master Plan • Week {weekId}</Text>
-				</View>
-				<View style={styles.headerBtns}>
-					<Button
-						variant="outline"
-						size="sm"
-						title="TODAY"
-						iconLeft="calendar-today"
-						onPress={scrollToToday}
-					/>
-
-					{saveBatch.size > 0 && (
-						<Button
-							variant="primary"
-							size="sm"
-							title={`SAVE (${saveBatch.size})`}
-							iconLeft="content-save-check"
-							onPress={handleSave}
-						/>
-					)}
-
-					<TouchableOpacity style={styles.headerBtn} onPress={() => { }}>
-						<MaterialCommunityIcons name="history" size={24} color="#666" />
-					</TouchableOpacity>
-
+		<Screen scrollable={false}>
+			<ScreenHeader
+				title="Weekly Menu"
+				subtitle={`OPERATIONAL PLAN • WEEK ${weekId}`}
+				rightAction={
 					<TouchableOpacity onPress={() => setIsEditing(!isEditing)}>
 						<MaterialCommunityIcons
 							name={isEditing ? "close-circle" : "cog"}
-							size={32}
-							color={isEditing ? "#d32f2f" : "#666"}
+							size={28}
+							color={isEditing ? Theme.colors.danger : Theme.colors.textMuted}
 						/>
 					</TouchableOpacity>
+				}
+			/>
+
+			{saveBatch.size > 0 && (
+				<View style={styles.floatingAction}>
+					<Button
+						variant="primary"
+						title={`SAVE CHANGES (${saveBatch.size})`}
+						iconLeft="content-save-check"
+						onPress={handleSave}
+						fullWidth
+					/>
 				</View>
-			</View>
+			)}
 
 			<ScrollView
 				ref={scrollRef}
-				contentContainerStyle={styles.content}
+				contentContainerStyle={styles.scrollContent}
 				showsVerticalScrollIndicator={false}
 			>
 				{DAYS.map((day: DayName) => {
@@ -524,75 +513,38 @@ export default function MenuScreen() {
 					</View>
 				</View>
 			)}
-
-		</View>
+		</Screen>
 	);
 }
 
 const styles = StyleSheet.create({
-	container: { flex: 1, backgroundColor: Theme.colors.background },
-	bgDecoration: {
-		position: 'absolute', top: 0, left: 0, right: 0, height: 400,
-		backgroundColor: Theme.colors.decoration, borderBottomLeftRadius: 80, borderBottomRightRadius: 80,
-		zIndex: -1
-	},
-	content: { padding: Theme.spacing.screen, paddingBottom: 150 },
-	header: {
-		flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-		paddingHorizontal: 25, paddingTop: 60, paddingBottom: Theme.spacing.xl,
-		backgroundColor: Theme.colors.surface, ...Theme.shadows.soft,
-	},
+	container: { flex: 1, backgroundColor: Theme.colors.bg },
+	scrollContent: { padding: Theme.spacing.screen, paddingBottom: 150 },
 	headerBtns: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.md },
-	title: { ...Theme.typography.heading, color: Theme.colors.text },
-	weekLabel: { ...Theme.typography.label, fontSize: 13, color: Theme.colors.textDimmed, marginTop: 2, textTransform: 'uppercase' },
-	jumpBtn: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		gap: Theme.spacing.sm,
-		backgroundColor: '#e8f5e9',
-		paddingHorizontal: Theme.spacing.md,
-		paddingVertical: Theme.spacing.sm,
-		borderRadius: Theme.radius.lg,
-		borderWidth: 1,
-		borderColor: '#a5d6a7'
-	},
-	jumpBtnText: { ...Theme.typography.label, fontSize: 12, color: Theme.colors.primary },
-
-	headerSaveBtn: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		gap: Theme.spacing.sm,
-		backgroundColor: Theme.colors.success,
-		paddingHorizontal: Theme.spacing.md,
-		paddingVertical: Theme.spacing.sm,
-		borderRadius: Theme.radius.lg,
-		...Theme.shadows.soft
-	},
-	headerSaveText: { ...Theme.typography.label, fontSize: 11, color: Theme.colors.textInverted },
-	headerBtn: { padding: Theme.spacing.xs },
+	title: { ...Theme.typography.answer, color: Theme.colors.textPrimary },
+	weekLabel: { ...Theme.typography.detailBold, color: Theme.colors.textMuted, marginTop: Theme.spacing.xs, textTransform: 'uppercase' },
 
 	dayCard: {
 		backgroundColor: Theme.colors.surface,
-		borderRadius: Theme.radius.huge,
-		padding: Theme.spacing.xxl,
-		marginBottom: Theme.spacing.xl,
+		borderRadius: Theme.radius.xl,
+		padding: Theme.spacing.lg,
+		marginBottom: Theme.spacing.lg,
 		borderWidth: 1,
 		borderColor: Theme.colors.border,
-		...Theme.shadows.medium,
 	},
 	dayCardToday: {
-		backgroundColor: Theme.colors.elevated,
+		backgroundColor: Theme.colors.surfaceElevated,
 		borderColor: Theme.colors.success,
 		borderWidth: 2,
-		...Theme.shadows.strong,
 	},
 	dayCardExpanded: {
 		borderColor: Theme.colors.success,
 	},
-	dayHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 5 },
+	dayHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Theme.spacing.sm },
+	dayRow: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.md },
 	dayHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
-	dayTitle: { ...Theme.typography.heading, fontSize: 24, color: Theme.colors.text },
-	forecastLabel: { ...Theme.typography.label, fontSize: 13, color: Theme.colors.textDimmed, marginTop: 2 },
+	dayTitle: { ...Theme.typography.answer, fontSize: 24, color: Theme.colors.textPrimary },
+	forecastLabel: { ...Theme.typography.detailBold, color: Theme.colors.textMuted, marginTop: Theme.spacing.xs },
 	demandHigh: { color: Theme.colors.warning, fontWeight: '900' },
 	todayBadge: {
 		backgroundColor: Theme.colors.success,
@@ -601,7 +553,7 @@ const styles = StyleSheet.create({
 		paddingVertical: Theme.spacing.xs,
 		borderRadius: Theme.radius.sm,
 		fontSize: 10,
-		fontWeight: '900',
+		fontWeight: '800',
 		overflow: 'hidden'
 	},
 
@@ -609,75 +561,38 @@ const styles = StyleSheet.create({
 		marginTop: Theme.spacing.sm,
 		paddingTop: Theme.spacing.md,
 		borderTopWidth: 1,
-		borderTopColor: 'rgba(0,0,0,0.05)',
+		borderTopColor: Theme.colors.border,
 		flexDirection: 'row',
 		gap: Theme.spacing.lg
 	},
 	summaryMeal: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
-	summaryText: { ...Theme.typography.caption, fontSize: 14, color: Theme.colors.textMuted },
+	summaryText: { ...Theme.typography.detail, color: Theme.colors.textSecondary },
 
 	cardExpandedContent: { marginTop: Theme.spacing.lg },
-	copyTodayBtn: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		justifyContent: 'center',
-		gap: Theme.spacing.sm,
-		backgroundColor: Theme.colors.primary,
-		paddingVertical: Theme.spacing.md,
-		borderRadius: Theme.radius.lg,
-		marginBottom: Theme.spacing.xl
-	},
-	copyTodayText: { ...Theme.typography.label, color: Theme.colors.textInverted, fontSize: 11 },
 
 	mealsRow: { flexDirection: 'row', gap: Theme.spacing.xl },
 	mealColumn: { flex: 1 },
-	mealLabel: { ...Theme.typography.label, fontSize: 11, color: Theme.colors.danger, marginBottom: Theme.spacing.sm },
+	mealLabel: { ...Theme.typography.detailBold, color: Theme.colors.danger, marginBottom: Theme.spacing.xs },
 	mealLabelToday: { color: Theme.colors.danger },
 
 	// View Mode
 	viewCard: { minHeight: 40 },
-	mainValue: { ...Theme.typography.subheading, fontSize: 20, color: Theme.colors.text, lineHeight: 26 },
+	mainValue: { ...Theme.typography.labelMedium, color: Theme.colors.textPrimary },
 	notSetContainer: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
-	notSetWarning: { ...Theme.typography.bodyBold, fontSize: 18, color: Theme.colors.danger, fontStyle: 'italic' },
+	notSetWarning: { ...Theme.typography.labelMedium, color: Theme.colors.danger, fontStyle: 'italic' },
 	servingInfo: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm, marginTop: Theme.spacing.xs },
-	servingText: { ...Theme.typography.bodyBold, fontSize: 14, color: Theme.colors.textMuted },
-	extraText: { ...Theme.typography.caption, fontSize: 13, color: '#444', fontStyle: 'italic' },
+	servingText: { ...Theme.typography.labelMedium, fontSize: 14, color: Theme.colors.textSecondary },
+	extraText: { ...Theme.typography.detail, color: Theme.colors.textSecondary, fontStyle: 'italic' },
 
 	// Edit Mode
 	editCard: { gap: Theme.spacing.md, marginTop: Theme.spacing.md },
-	input: {
-		...Theme.typography.body,
-		borderWidth: 1,
-		borderColor: Theme.colors.borderStrong,
-		borderRadius: Theme.radius.lg,
-		padding: Theme.spacing.md,
-		backgroundColor: '#fcfcfc'
-	},
-	inputSmall: {
-		fontSize: 14,
-		borderWidth: 1,
-		borderColor: Theme.colors.border,
-		borderRadius: Theme.radius.md,
-		padding: Theme.spacing.md,
-		backgroundColor: Theme.colors.surface
-	},
-	inputExtra: {
-		fontSize: 14,
-		color: Theme.colors.text,
-		borderWidth: 1,
-		borderColor: Theme.colors.border,
-		borderRadius: Theme.radius.md,
-		padding: Theme.spacing.md,
-		backgroundColor: Theme.colors.surface
-	},
-	row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 2 },
-	label: { ...Theme.typography.bodyBold, fontSize: 15, color: '#444' },
+	row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Theme.spacing.xs },
+	label: { ...Theme.typography.labelMedium, color: Theme.colors.textSecondary },
 
 	// Helpers
 	textWhite: { color: Theme.colors.textInverted },
-	textMutedDark: { color: Theme.colors.textDimmed },
-	inputDark: { backgroundColor: '#2a2a2a', color: Theme.colors.textInverted, borderColor: '#444' },
-	centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Theme.colors.surface },
+	textMutedDark: { color: Theme.colors.textMuted },
+	centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Theme.colors.bg },
 
 	// Modal
 	modalOverlay: {
@@ -690,12 +605,13 @@ const styles = StyleSheet.create({
 	modalContent: {
 		backgroundColor: Theme.colors.surface,
 		width: '85%',
-		borderRadius: Theme.radius.huge,
-		padding: Theme.spacing.huge,
-		...Theme.shadows.strong
+		borderRadius: Theme.radius.xl,
+		padding: Theme.spacing.xl,
+		borderWidth: 1,
+		borderColor: Theme.colors.border,
 	},
-	modalTitle: { ...Theme.typography.subheading, fontSize: 20, color: Theme.colors.text },
-	modalSub: { ...Theme.typography.caption, color: Theme.colors.textMuted, marginTop: 4, marginBottom: Theme.spacing.xl },
+	modalTitle: { ...Theme.typography.labelMedium, fontSize: 20, color: Theme.colors.textPrimary },
+	modalSub: { ...Theme.typography.detail, color: Theme.colors.textSecondary, marginTop: Theme.spacing.xs, marginBottom: Theme.spacing.xl },
 	dayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Theme.spacing.md, marginBottom: Theme.spacing.xl },
 	dayChip: {
 		flexDirection: 'row',
@@ -703,23 +619,21 @@ const styles = StyleSheet.create({
 		gap: Theme.spacing.sm,
 		paddingHorizontal: Theme.spacing.lg,
 		paddingVertical: Theme.spacing.md,
-		backgroundColor: Theme.colors.surfaceSecondary,
+		backgroundColor: Theme.colors.bg,
 		borderRadius: Theme.radius.lg,
 		borderWidth: 1,
 		borderColor: Theme.colors.border
 	},
 	dayChipActive: { backgroundColor: Theme.colors.primary, borderColor: Theme.colors.primary },
-	dayChipText: { ...Theme.typography.bodyBold, fontSize: 14, color: '#444' },
+	dayChipText: { ...Theme.typography.labelMedium, fontSize: 14, color: Theme.colors.textPrimary },
 	modalFooter: { flexDirection: 'row', justifyContent: 'flex-end', gap: Theme.spacing.md },
-	modalCancel: { paddingHorizontal: Theme.spacing.xl, paddingVertical: Theme.spacing.md },
-	modalCancelText: { ...Theme.typography.caption, color: Theme.colors.textDimmed },
-	modalApply: {
-		backgroundColor: Theme.colors.elevated,
-		paddingHorizontal: Theme.spacing.xl,
-		paddingVertical: Theme.spacing.md,
-		borderRadius: Theme.radius.md
+	floatingAction: {
+		position: 'absolute',
+		bottom: 100,
+		left: Theme.spacing.screen,
+		right: Theme.spacing.screen,
+		zIndex: 10,
 	},
-	modalApplyText: { ...Theme.typography.label, fontSize: 13, color: Theme.colors.textInverted },
 });
 
 
