@@ -178,6 +178,6 @@ const styles = StyleSheet.create({
 	emptyContainer: { alignItems: 'center', marginTop: Theme.spacing.massive, gap: Theme.spacing.lg },
 	empty: { textAlign: 'center', ...Theme.typography.labelMedium, color: Theme.colors.primary },
 	summaryRow: { alignItems: 'center', justifyContent: 'center' },
-	summaryValue: { ...Theme.typography.answerGiant, color: Theme.colors.textInverted },
-	summaryLabel: { ...Theme.typography.label, color: Theme.colors.textInverted, opacity: 0.6, marginTop: Theme.spacing.xs },
+	summaryValue: { ...Theme.typography.answerGiant, color: Theme.colors.textPrimary },
+	summaryLabel: { ...Theme.typography.label, color: Theme.colors.textPrimary, opacity: 0.6, marginTop: Theme.spacing.xs },
 });

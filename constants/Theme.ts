@@ -1,24 +1,24 @@
 export const Theme = {
 	colors: {
 		// Functional
-		primary: '#2E7D32',
-		success: '#4CAF50',
-		danger: '#FF5252',
-		warning: '#FF9800',
+		primary: '#0F766E',    // Dark Aqua
+		success: '#1E8E6E',    // Emerald
+		danger: '#B45353',     // Muted Red
+		warning: '#D48C45',    // Muted Amber
 
 		// Structural
-		bg: '#F4F7F6',
-		surface: '#FFFFFF',
-		surfaceElevated: '#1A1A1A',
-		border: '#EEEEEE',
-		textPrimary: '#1A1A1A',
-		textSecondary: '#666666',
-		textMuted: '#999999',
-		textInverted: '#FFFFFF',
+		bg: '#0F1416',         // Deep Charcoal Blue
+		surface: '#151C1F',    // Dark Slate
+		surfaceElevated: '#1C2428', // Medium Slate
+		border: '#2A3338',     // Slate Border
+		textPrimary: '#E6F0EF',   // Light Aqua Grey
+		textSecondary: '#9FB3B0', // Muted Aqua Grey
+		textMuted: '#6B7C7A',     // Deep Muted Aqua
+		textInverted: '#0F1416',
 
 		// Utilities
-		overlay: 'rgba(0,0,0,0.6)',
-		decoration: 'rgba(0,0,0,0.03)',
+		overlay: 'rgba(15, 20, 22, 0.8)',
+		decoration: '#1C2428', // Background shape tint
 	},
 
 	spacing: {

@@ -132,25 +132,25 @@ export default function FinanceScreen() {
 				</View>
 
 				<View style={styles.grid}>
-					<Card style={[styles.card, { borderLeftColor: '#4caf50' }]}>
+					<Card style={[styles.card, { borderLeftColor: Theme.colors.success }]}>
 						<Text style={styles.label}>EXPECTED</Text>
 						<Text style={styles.value}>DHS {metrics.expected}</Text>
 						<Text style={styles.cardSubText}>Monthly Goal</Text>
 					</Card>
 
-					<Card style={[styles.card, { borderLeftColor: '#2196f3' }]}>
+					<Card style={[styles.card, { borderLeftColor: Theme.colors.primary }]}>
 						<Text style={styles.label}>COLLECTED</Text>
 						<Text style={styles.value}>DHS {metrics.collected}</Text>
 						<Text style={styles.cardSubText}>Received So Far</Text>
 					</Card>
 
-					<Card style={[styles.card, { borderLeftColor: '#f44336' }]}>
+					<Card style={[styles.card, { borderLeftColor: Theme.colors.danger }]}>
 						<Text style={styles.label}>OUTSTANDING</Text>
 						<Text style={styles.value}>DHS {metrics.outstanding}</Text>
 						<Text style={styles.cardSubText}>To Be Collected</Text>
 					</Card>
 
-					<Card style={[styles.card, { borderLeftColor: '#9c27b0' }]}>
+					<Card style={[styles.card, { borderLeftColor: Theme.colors.warning }]}>
 						<Text style={styles.label}>ACTIVE SUBS</Text>
 						<Text style={styles.value}>{metrics.activeCount}</Text>
 						<Text style={styles.cardSubText}>Paying Members</Text>
@@ -192,7 +192,7 @@ export default function FinanceScreen() {
 									<MaterialCommunityIcons
 										name={tx.method === 'bank' ? 'bank' : 'cash-multiple'}
 										size={20}
-										color={tx.isOrphan ? "#999" : "#2196f3"}
+										color={tx.isOrphan ? Theme.colors.textMuted : Theme.colors.primary}
 									/>
 								</View>
 								<View style={{ flex: 1, marginLeft: 12 }}>
@@ -208,7 +208,7 @@ export default function FinanceScreen() {
 										onPress={() => handleDeleteTransaction(tx.id)}
 										style={styles.txDelete}
 									>
-										<MaterialCommunityIcons name="delete-outline" size={16} color="#d32f2f" />
+										<MaterialCommunityIcons name="delete-outline" size={16} color={Theme.colors.danger} />
 									</TouchableOpacity>
 								</View>
 							</Card>
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
 		borderBottomWidth: 1,
 		borderBottomColor: 'rgba(255,255,255,0.1)',
 	},
-	title: { ...Theme.typography.answer, color: Theme.colors.textInverted, letterSpacing: 1 },
+	title: { ...Theme.typography.answer, color: Theme.colors.textPrimary, letterSpacing: 1 },
 	subtitle: { ...Theme.typography.detailBold, color: Theme.colors.textMuted, textTransform: 'uppercase' },
 	grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: Theme.spacing.screen, marginTop: -Theme.spacing.xxl },
 	card: {
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
 	historySection: { marginTop: Theme.spacing.xl, paddingHorizontal: Theme.spacing.screen },
 	countBadge: {
 		backgroundColor: Theme.colors.surfaceElevated,
-		color: Theme.colors.textInverted,
+		color: Theme.colors.textPrimary,
 		paddingHorizontal: Theme.spacing.md,
 		paddingVertical: Theme.spacing.xs,
 		borderRadius: Theme.radius.md,

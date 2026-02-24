@@ -156,10 +156,11 @@ Text is categorized into 3 functional tiers:
 - **Tier C (Detail)**: Metadata and auxiliary labels (`12px`).
 
 ### 3. Flat Modern Aesthetic (Elevation)
-The app uses **Aesthetic Option A: Flat Modern**.
+The app uses **Aesthetic Option A: Flat Modern** + **Deep Aqua Dark Mode**.
 - **Shadows**: 0% usage. No `shadowColor` or `elevation` in the codebase.
-- **Depth**: Conveyed via 1px `borderWidth`, `surfaceContrast`, and background decorations.
-- **Visual Compression**: "Surface Stacking" is minimized by using borderless rows for list items instead of heavy individual cards.
+- **Depth**: Conveyed via 1px `borderWidth` and surface layering.
+- **Deep Aqua Foundation**: Backgrounds use **Deep Charcoal Blue** (#0F1416) for high focus.
+- **Functional Accents**: Accents use **Dark Aqua** (#0F766E) for a mature, operational feel.
 
 ---
 

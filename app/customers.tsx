@@ -290,7 +290,7 @@ export default function CustomersScreen() {
 							<MaterialCommunityIcons
 								name={isAdding ? "close" : "account-plus"}
 								size={24}
-								color="#fff"
+								color={Theme.colors.textInverted}
 							/>
 						</TouchableOpacity>
 					</View>
@@ -373,7 +373,7 @@ export default function CustomersScreen() {
 					/>
 
 					<View style={styles.formFooter}>
-						<MaterialCommunityIcons name="information-outline" size={14} color="#999" />
+						<MaterialCommunityIcons name="information-outline" size={14} color={Theme.colors.textMuted} />
 						<Text style={styles.formInfo}>Save from header when ready</Text>
 					</View>
 				</View>
@@ -446,7 +446,7 @@ export default function CustomersScreen() {
 								<MaterialCommunityIcons
 									name={expandedId === item.id ? "close" : "calendar-edit"}
 									size={16}
-									color={expandedId === item.id ? "#d32f2f" : "#2e7d32"}
+									color={expandedId === item.id ? Theme.colors.danger : Theme.colors.primary}
 								/>
 								<Text style={[styles.weekBtnText, expandedId === item.id && styles.textRed]}>
 									{expandedId === item.id ? 'CLOSE' : 'SET WEEK'}
@@ -644,7 +644,7 @@ const styles = StyleSheet.create({
 		borderTopColor: Theme.colors.border,
 	},
 	deleteBtn: {
-		backgroundColor: '#ffebee',
+		backgroundColor: 'rgba(180, 83, 83, 0.15)', // Palette-aligned muted danger
 		paddingHorizontal: Theme.spacing.md,
 		paddingVertical: Theme.spacing.xs,
 		borderRadius: Theme.radius.sm,
@@ -655,9 +655,9 @@ const styles = StyleSheet.create({
 	},
 	weekBtn: {
 		marginTop: Theme.spacing.sm, paddingVertical: Theme.spacing.sm, paddingHorizontal: Theme.spacing.lg,
-		backgroundColor: '#e8f5e9', borderRadius: Theme.radius.md, alignSelf: 'flex-start',
+		backgroundColor: Theme.colors.decoration, borderRadius: Theme.radius.md, alignSelf: 'flex-start',
 	},
-	weekBtnActive: { backgroundColor: '#ffebee' },
+	weekBtnActive: { backgroundColor: 'rgba(180, 83, 83, 0.2)' },
 	weekBtnText: { ...Theme.typography.detailBold, color: Theme.colors.primary },
 	badgeRow: { flexDirection: 'row', gap: Theme.spacing.xs },
 	metadataBrief: { ...Theme.typography.detailBold, color: Theme.colors.textMuted },
@@ -699,7 +699,7 @@ const styles = StyleSheet.create({
 		flex: 1, paddingHorizontal: Theme.spacing.md, paddingVertical: Theme.spacing.sm,
 		backgroundColor: Theme.colors.surface, borderRadius: Theme.radius.md, borderWidth: 1, borderColor: Theme.colors.border,
 	},
-	mealChipOn: { backgroundColor: '#e8f5e9', borderColor: Theme.colors.primary },
+	mealChipOn: { backgroundColor: Theme.colors.decoration, borderColor: Theme.colors.primary },
 	mealChipLabel: { ...Theme.typography.detail, color: Theme.colors.textSecondary },
 	mealChipDish: { ...Theme.typography.label, color: Theme.colors.textPrimary, marginTop: Theme.spacing.xs },
 	saveWeekBtn: {

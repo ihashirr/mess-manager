@@ -160,7 +160,7 @@ export default function Index() {
 		}
 	};
 
-	if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color="#000" /></View>;
+	if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={Theme.colors.primary} /></View>;
 
 	return (
 		<Screen withLargeHeader backgroundColor={Theme.colors.bg}>
@@ -383,7 +383,7 @@ const styles = StyleSheet.create({
 		marginBottom: Theme.spacing.sm
 	},
 	mealCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Theme.spacing.md },
-	mealCardTitle: { ...Theme.typography.labelMedium, color: Theme.colors.textInverted },
+	mealCardTitle: { ...Theme.typography.labelMedium, color: Theme.colors.textPrimary },
 	plateBadge: {
 		alignItems: 'center',
 		backgroundColor: Theme.colors.primary,
@@ -391,10 +391,10 @@ const styles = StyleSheet.create({
 		paddingVertical: Theme.spacing.xs,
 		borderRadius: Theme.radius.md
 	},
-	plateCount: { ...Theme.typography.answer, color: Theme.colors.textInverted },
-	plateSub: { ...Theme.typography.detailBold, color: '#a5d6a7' },
+	plateCount: { ...Theme.typography.answer, color: Theme.colors.textPrimary },
+	plateSub: { ...Theme.typography.detailBold, color: Theme.colors.success },
 	mainSalanLabel: { ...Theme.typography.detailBold, color: Theme.colors.textSecondary },
-	mainSalanValue: { ...Theme.typography.answer, color: Theme.colors.textInverted, marginVertical: Theme.spacing.xs },
+	mainSalanValue: { ...Theme.typography.answer, color: Theme.colors.textPrimary, marginVertical: Theme.spacing.xs },
 	notSetWarning: { ...Theme.typography.labelMedium, color: Theme.colors.danger, marginVertical: Theme.spacing.xs, fontStyle: 'italic' },
 	servingRow: { flexDirection: 'row', gap: Theme.spacing.md, marginTop: Theme.spacing.xs },
 	servingItem: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.xs },
@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		alignItems: 'center',
-		backgroundColor: '#f0f9f0',
+		backgroundColor: Theme.colors.decoration,
 		borderRadius: Theme.radius.xl,
 		padding: Theme.spacing.xl,
 		borderWidth: 2,
@@ -437,7 +437,7 @@ const styles = StyleSheet.create({
 		borderColor: Theme.colors.border
 	},
 	toggleBtnOn: {
-		backgroundColor: '#e8f5e9',
+		backgroundColor: Theme.colors.decoration,
 		borderColor: Theme.colors.primary,
 	},
 	lockedBadge: { ...Theme.typography.detailBold, color: Theme.colors.textSecondary, marginTop: Theme.spacing.xs },

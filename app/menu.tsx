@@ -256,7 +256,7 @@ export default function MenuScreen() {
 		}
 	};
 
-	if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color="#000" /></View>;
+	if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={Theme.colors.primary} /></View>;
 
 	return (
 		<Screen scrollable={false}>
@@ -325,7 +325,7 @@ export default function MenuScreen() {
 									<MaterialCommunityIcons
 										name={isExpanded ? "chevron-up" : "chevron-down"}
 										size={24}
-										color={isToday ? "#fff" : "#999"}
+										color={isToday ? Theme.colors.textInverted : Theme.colors.textMuted}
 									/>
 								</View>
 							</TouchableOpacity>
@@ -366,7 +366,7 @@ export default function MenuScreen() {
 																<Switch
 																	value={slot.roti}
 																	onValueChange={(v) => updateMeal(day, meal, 'roti', v)}
-																	trackColor={{ false: '#767577', true: '#81b0ff' }}
+																	trackColor={{ false: Theme.colors.border, true: Theme.colors.primary }}
 																/>
 															</View>
 															<View style={styles.row}>
@@ -374,7 +374,7 @@ export default function MenuScreen() {
 																<Switch
 																	value={slot.rice.enabled}
 																	onValueChange={(v) => updateRice(day, meal, 'enabled', v)}
-																	trackColor={{ false: '#767577', true: '#81b0ff' }}
+																	trackColor={{ false: Theme.colors.border, true: Theme.colors.primary }}
 																/>
 															</View>
 															{slot.rice.enabled && (
@@ -403,7 +403,7 @@ export default function MenuScreen() {
 																</Text>
 															) : (
 																<View style={styles.notSetContainer}>
-																	<MaterialCommunityIcons name="alert-circle-outline" size={18} color="#d32f2f" />
+																	<MaterialCommunityIcons name="alert-circle-outline" size={18} color={Theme.colors.danger} />
 																	<Text style={styles.notSetWarning}>Not Set</Text>
 																</View>
 															)}
@@ -432,13 +432,13 @@ export default function MenuScreen() {
 							) : (
 								<View style={styles.summaryRow}>
 									<View style={styles.summaryMeal}>
-										<MaterialCommunityIcons name="weather-sunny" size={12} color={isToday ? "#ff5252" : "#888"} />
+										<MaterialCommunityIcons name="weather-sunny" size={12} color={isToday ? Theme.colors.textInverted : Theme.colors.textMuted} />
 										<Text style={[styles.summaryText, isToday && styles.textWhite]} numberOfLines={1}>
 											{dayData.lunch.main || '---'}
 										</Text>
 									</View>
 									<View style={styles.summaryMeal}>
-										<MaterialCommunityIcons name="weather-night" size={12} color={isToday ? "#ff5252" : "#888"} />
+										<MaterialCommunityIcons name="weather-night" size={12} color={isToday ? Theme.colors.textInverted : Theme.colors.textMuted} />
 										<Text style={[styles.summaryText, isToday && styles.textWhite]} numberOfLines={1}>
 											{dayData.dinner.main || '---'}
 										</Text>
@@ -475,7 +475,7 @@ export default function MenuScreen() {
 										}}
 									>
 										<Text style={[styles.dayChipText, isSel && styles.textWhite]}>{d}</Text>
-										{isSel && <MaterialCommunityIcons name="check-circle" size={14} color="#fff" />}
+										{isSel && <MaterialCommunityIcons name="check-circle" size={14} color={Theme.colors.textInverted} />}
 									</TouchableOpacity>
 								);
 							})}
@@ -532,7 +532,7 @@ const styles = StyleSheet.create({
 	demandHigh: { color: Theme.colors.warning, fontWeight: '900' },
 	todayBadge: {
 		backgroundColor: Theme.colors.success,
-		color: Theme.colors.textInverted,
+		color: Theme.colors.textInverted, // Stay dark on light status badge
 		paddingHorizontal: Theme.spacing.md,
 		paddingVertical: Theme.spacing.xs,
 		borderRadius: Theme.radius.sm,
@@ -573,7 +573,7 @@ const styles = StyleSheet.create({
 	label: { ...Theme.typography.labelMedium, color: Theme.colors.textSecondary },
 
 	// Helpers
-	textWhite: { color: Theme.colors.textInverted },
+	textWhite: { color: Theme.colors.textPrimary },
 	textMutedDark: { color: Theme.colors.textMuted },
 	centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Theme.colors.bg },
 

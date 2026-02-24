@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
 		paddingBottom: Theme.spacing.md,
 		paddingTop: Theme.spacing.sm,
 		borderWidth: 1,
-		borderColor: '#333333',
+		borderColor: 'rgba(255,255,255,0.1)',
 	},
 	tabLabel: {
 		...Theme.typography.detailBold,
