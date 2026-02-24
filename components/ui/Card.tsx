@@ -9,9 +9,10 @@ interface CardProps {
 	variant?: CardVariant;
 	style?: ViewStyle | ViewStyle[];
 	onPress?: () => void;
+	borderless?: boolean;
 }
 
-export function Card({ children, variant = 'elevated', style, onPress }: CardProps) {
+export function Card({ children, variant = 'elevated', style, onPress, borderless = false }: CardProps) {
 	const scale = useRef(new Animated.Value(1)).current;
 
 	const handlePressIn = () => {
@@ -33,7 +34,12 @@ export function Card({ children, variant = 'elevated', style, onPress }: CardPro
 	};
 
 	const cardContent = (
-		<View style={[styles.base, variantStyles[variant], style]}>
+		<View style={[
+			styles.base,
+			variantStyles[variant],
+			borderless && styles.borderless,
+			style
+		]}>
 			{children}
 		</View>
 	);
@@ -56,6 +62,12 @@ const styles = StyleSheet.create({
 		padding: Theme.spacing.screen,
 		borderRadius: Theme.radius.lg,
 		backgroundColor: Theme.colors.surface,
+	},
+	borderless: {
+		borderWidth: 0,
+		borderColor: 'transparent',
+		backgroundColor: 'transparent',
+		paddingHorizontal: 0, // Let container padding handle it if borderless
 	},
 });
 

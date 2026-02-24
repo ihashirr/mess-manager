@@ -1,4 +1,3 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { addDoc, collection, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
@@ -119,9 +118,7 @@ export default function PaymentsScreen() {
 			<ScreenHeader
 				title="Payments"
 				subtitle="Collection Ledger"
-				rightAction={
-					<MaterialCommunityIcons name="currency-usd" size={28} color={Theme.colors.primary} />
-				}
+				rightAction={null}
 			/>
 
 			<View style={{ paddingHorizontal: Theme.spacing.screenPadding }}>
@@ -136,10 +133,10 @@ export default function PaymentsScreen() {
 			<FlatList
 				data={payments}
 				keyExtractor={(item) => item.id}
-				contentContainerStyle={styles.content}
+				contentContainerStyle={{ paddingHorizontal: Theme.spacing.screenPadding, paddingBottom: 150 }}
 				showsVerticalScrollIndicator={false}
 				renderItem={({ item }) => (
-					<Card variant="elevated" style={{ marginBottom: Theme.spacing.lg }}>
+					<Card borderless style={{ marginBottom: Theme.spacing.sm, borderBottomWidth: 1, borderBottomColor: Theme.colors.border }}>
 						<View style={styles.info}>
 							<View>
 								<Text style={styles.name}>{item.name}</Text>
@@ -156,7 +153,6 @@ export default function PaymentsScreen() {
 				)}
 				ListEmptyComponent={
 					<View style={styles.emptyContainer}>
-						<MaterialCommunityIcons name="check-circle" size={32} color={Theme.colors.success} />
 						<Text style={styles.empty}>All payments received!</Text>
 					</View>
 				}
@@ -175,7 +171,7 @@ const styles = StyleSheet.create({
 	title: { ...Theme.typography.answer, color: Theme.colors.textPrimary },
 	subtitle: { ...Theme.typography.label, color: Theme.colors.textMuted, textTransform: 'uppercase' },
 	content: { padding: Theme.spacing.screen, paddingBottom: 150 },
-	info: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Theme.spacing.lg },
+	info: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Theme.spacing.md },
 	name: { ...Theme.typography.labelMedium, color: Theme.colors.textPrimary },
 	subText: { ...Theme.typography.detail, color: Theme.colors.textSecondary, marginTop: Theme.spacing.xs },
 	amount: { ...Theme.typography.labelMedium, color: Theme.colors.danger },

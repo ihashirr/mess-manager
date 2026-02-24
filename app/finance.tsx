@@ -129,7 +129,6 @@ export default function FinanceScreen() {
 						<Text style={styles.title}>Finance Panel</Text>
 						<Text style={styles.subtitle}>{new Date().toLocaleString('default', { month: 'long', year: 'numeric' })} Summary</Text>
 					</View>
-					<MaterialCommunityIcons name="chart-line" size={32} color="#4caf50" />
 				</View>
 
 				<View style={styles.grid}>
@@ -171,7 +170,6 @@ export default function FinanceScreen() {
 					</View>
 					{metrics.collected > metrics.expected && (
 						<View style={styles.surplusContainer}>
-							<MaterialCommunityIcons name="star" size={16} color="#2e7d32" />
 							<Text style={styles.surplusText}>Surplus: DHS {metrics.collected - metrics.expected}</Text>
 						</View>
 					)}
@@ -189,7 +187,7 @@ export default function FinanceScreen() {
 						</View>
 					) : (
 						transactions.map((tx) => (
-							<Card key={tx.id} style={[styles.transactionCard, tx.isOrphan && styles.orphanCard]}>
+							<Card borderless key={tx.id} style={[styles.transactionCard, tx.isOrphan && styles.orphanCard]}>
 								<View style={styles.txIconContainer}>
 									<MaterialCommunityIcons
 										name={tx.method === 'bank' ? 'bank' : 'cash-multiple'}
@@ -259,28 +257,30 @@ const styles = StyleSheet.create({
 		borderRadius: Theme.radius.xl,
 		marginTop: Theme.spacing.xs,
 	},
-	rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Theme.spacing.md },
+	rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Theme.spacing.sm },
 	sectionTitle: { ...Theme.typography.labelMedium, color: Theme.colors.textPrimary },
 	percentageText: { ...Theme.typography.labelMedium, color: Theme.colors.success },
 	progressBarBg: { height: 12, backgroundColor: Theme.colors.border, borderRadius: Theme.radius.sm, overflow: 'hidden' },
 	progressBarFill: { height: '100%', backgroundColor: Theme.colors.success, borderRadius: Theme.radius.sm },
-	surplusContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Theme.spacing.sm, marginTop: Theme.spacing.sm },
-	surplusText: { ...Theme.typography.labelMedium, fontSize: 13, color: Theme.colors.primary },
-	historySection: { marginTop: Theme.spacing.xxl, paddingHorizontal: Theme.spacing.screen },
+	surplusContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Theme.spacing.sm, marginTop: Theme.spacing.xs },
+	surplusText: { ...Theme.typography.label, color: Theme.colors.primary },
+	historySection: { marginTop: Theme.spacing.xl, paddingHorizontal: Theme.spacing.screen },
 	countBadge: {
 		backgroundColor: Theme.colors.surfaceElevated,
 		color: Theme.colors.textInverted,
 		paddingHorizontal: Theme.spacing.md,
 		paddingVertical: Theme.spacing.xs,
 		borderRadius: Theme.radius.md,
-		fontSize: 12,
-		fontWeight: '800',
+		...Theme.typography.detailBold,
 		overflow: 'hidden'
 	},
 	transactionCard: {
 		flexDirection: 'row',
 		alignItems: 'center',
-		marginBottom: Theme.spacing.sm,
+		marginBottom: Theme.spacing.xs,
+		borderBottomWidth: 1,
+		borderBottomColor: Theme.colors.border,
+		paddingVertical: Theme.spacing.sm,
 	},
 	txIconContainer: {
 		width: 40,
@@ -297,5 +297,20 @@ const styles = StyleSheet.create({
 	txAmount: { ...Theme.typography.labelMedium, color: Theme.colors.primary },
 	txDelete: { marginTop: 4 },
 	emptyCard: { backgroundColor: Theme.colors.surface, padding: Theme.spacing.massive, borderRadius: Theme.radius.xl, alignItems: 'center', borderWidth: 1, borderColor: Theme.colors.border },
-	emptyText: { ...Theme.typography.labelMedium, color: Theme.colors.textMuted, fontStyle: 'italic', fontSize: 14 }
+	emptyText: { ...Theme.typography.label, color: Theme.colors.textMuted, fontStyle: 'italic' },
+	statsRowFinance: {
+		flexDirection: 'row',
+		marginHorizontal: Theme.spacing.screen,
+		backgroundColor: Theme.colors.surface,
+		borderRadius: Theme.radius.xl,
+		padding: Theme.spacing.xl,
+		marginTop: -Theme.spacing.xxl,
+		alignItems: 'center',
+		borderWidth: 1,
+		borderColor: Theme.colors.border,
+	},
+	statItemFinance: { flex: 1, alignItems: 'center' },
+	statLabelFinance: { ...Theme.typography.detailBold, color: Theme.colors.textSecondary, marginBottom: Theme.spacing.xs },
+	statValueFinance: { ...Theme.typography.labelMedium, color: Theme.colors.textPrimary },
+	separatorFinance: { width: 1, height: '60%', backgroundColor: Theme.colors.border },
 });

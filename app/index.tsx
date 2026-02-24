@@ -231,21 +231,21 @@ export default function Index() {
 
 					<Section title="Overview">
 						<View style={styles.statsRow}>
-							<Card style={styles.statCard}>
+							<View style={styles.statCard}>
 								<Text style={styles.statValue}>{stats.activeCount}</Text>
 								<Text style={styles.statLabel}>ACTIVE{"\n"}CUSTOMERS</Text>
-							</Card>
-							<Card style={styles.statCard}>
+							</View>
+							<View style={styles.statCard}>
 								<Text style={styles.statValue}>{stats.paymentsDue}</Text>
 								<Text style={styles.statLabel}>PAYMENTS{"\n"}DUE</Text>
-							</Card>
+							</View>
 						</View>
 					</Section>
 
-					<Card style={styles.totalRow}>
+					<View style={styles.totalRow}>
 						<Text style={styles.totalLabel}>TOTAL PLATES TODAY</Text>
 						<Text style={styles.totalCount}>{stats.lunchCount + stats.dinnerCount}</Text>
-					</Card>
+					</View>
 				</View>
 			) : (
 				<View style={styles.scrollContent}>
@@ -277,7 +277,6 @@ const MealCard = ({ label, count, slot, icon, iconColor }: { label: string; coun
 		<Card variant="elevated" style={styles.mealCard}>
 			<View style={styles.mealCardHeader}>
 				<View style={styles.row}>
-					<MaterialCommunityIcons name={icon} size={20} color={iconColor} />
 					<Text style={styles.mealCardTitle}>{label}</Text>
 				</View>
 				<View style={styles.plateBadge}>
@@ -286,7 +285,6 @@ const MealCard = ({ label, count, slot, icon, iconColor }: { label: string; coun
 				</View>
 			</View>
 			<View style={styles.row}>
-				<MaterialCommunityIcons name="pot-steam" size={14} color={Theme.colors.textMuted} />
 				<Text style={styles.mainSalanLabel}>MAIN SALAN</Text>
 			</View>
 			{slot.main ? (
@@ -299,11 +297,9 @@ const MealCard = ({ label, count, slot, icon, iconColor }: { label: string; coun
 			)}
 			<View style={styles.servingRow}>
 				<View style={styles.servingItem}>
-					<MaterialCommunityIcons name="bread-slice-outline" size={14} color={Theme.colors.textMuted} />
 					<Text style={styles.servingText}>{slot.roti ? "Roti" : "No Roti"}</Text>
 				</View>
 				<View style={styles.servingItem}>
-					<MaterialCommunityIcons name="rice" size={14} color={Theme.colors.textMuted} />
 					<Text style={styles.servingText}>{riceType}</Text>
 				</View>
 			</View>
@@ -379,12 +375,12 @@ const styles = StyleSheet.create({
 	scrollContent: { padding: Theme.spacing.screen, paddingBottom: 150 },
 	row: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
 	rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-	dateLabel: { ...Theme.typography.labelMedium, color: Theme.colors.textSecondary, marginBottom: Theme.spacing.lg },
+	dateLabel: { ...Theme.typography.labelMedium, color: Theme.colors.textSecondary, marginBottom: Theme.spacing.sm },
 	sectionHeader: { ...Theme.typography.label, color: Theme.colors.textSecondary },
 
 	mealCard: {
-		backgroundColor: Theme.colors.surfaceElevated, // Nested container for high contrast inside surface
-		marginBottom: Theme.spacing.md
+		backgroundColor: Theme.colors.surfaceElevated,
+		marginBottom: Theme.spacing.sm
 	},
 	mealCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Theme.spacing.md },
 	mealCardTitle: { ...Theme.typography.labelMedium, color: Theme.colors.textInverted },
@@ -395,10 +391,10 @@ const styles = StyleSheet.create({
 		paddingVertical: Theme.spacing.xs,
 		borderRadius: Theme.radius.md
 	},
-	plateCount: { ...Theme.typography.answerGiant, fontSize: 24, color: Theme.colors.textInverted },
-	plateSub: { fontSize: 8, color: '#a5d6a7', fontWeight: '800' },
+	plateCount: { ...Theme.typography.answer, color: Theme.colors.textInverted },
+	plateSub: { ...Theme.typography.detailBold, color: '#a5d6a7' },
 	mainSalanLabel: { ...Theme.typography.detailBold, color: Theme.colors.textSecondary },
-	mainSalanValue: { ...Theme.typography.answerGiant, fontSize: 24, color: Theme.colors.textInverted, marginVertical: Theme.spacing.xs },
+	mainSalanValue: { ...Theme.typography.answer, color: Theme.colors.textInverted, marginVertical: Theme.spacing.xs },
 	notSetWarning: { ...Theme.typography.labelMedium, color: Theme.colors.danger, marginVertical: Theme.spacing.xs, fontStyle: 'italic' },
 	servingRow: { flexDirection: 'row', gap: Theme.spacing.md, marginTop: Theme.spacing.xs },
 	servingItem: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.xs },
@@ -413,22 +409,22 @@ const styles = StyleSheet.create({
 		padding: Theme.spacing.xl,
 		borderWidth: 2,
 		borderColor: Theme.colors.primary,
-		marginVertical: Theme.spacing.sm
+		marginVertical: Theme.spacing.xs
 	},
 	totalLabel: { ...Theme.typography.labelMedium, color: Theme.colors.primary },
 	totalCount: { ...Theme.typography.answerGiant, color: Theme.colors.primary },
 
-	statsRow: { flexDirection: 'row', gap: Theme.spacing.lg, marginTop: Theme.spacing.md },
+	statsRow: { flexDirection: 'row', gap: Theme.spacing.lg, marginTop: Theme.spacing.sm },
 	statCard: {
 		flex: 1,
 		padding: Theme.spacing.lg,
 		alignItems: 'center'
 	},
-	statValue: { ...Theme.typography.answerGiant, fontSize: 32, color: Theme.colors.textPrimary },
-	statLabel: { ...Theme.typography.detailBold, fontSize: 12, color: Theme.colors.textSecondary, marginTop: Theme.spacing.xs, textAlign: 'center' },
+	statValue: { ...Theme.typography.answerGiant, color: Theme.colors.textPrimary },
+	statLabel: { ...Theme.typography.detailBold, color: Theme.colors.textSecondary, marginTop: Theme.spacing.xs, textAlign: 'center' },
 
-	customerRow: { backgroundColor: Theme.colors.surface, borderBottomWidth: 1, borderBottomColor: Theme.colors.border, paddingVertical: Theme.spacing.xl },
-	customerInfo: { marginBottom: Theme.spacing.md },
+	customerRow: { backgroundColor: 'transparent', borderBottomWidth: 1, borderBottomColor: Theme.colors.border, paddingVertical: Theme.spacing.md },
+	customerInfo: { marginBottom: Theme.spacing.sm },
 	customerName: { ...Theme.typography.labelMedium, color: Theme.colors.textPrimary },
 	toggleGroup: { flexDirection: 'row', gap: Theme.spacing.md },
 	toggleBtn: {
@@ -446,6 +442,6 @@ const styles = StyleSheet.create({
 	},
 	lockedBadge: { ...Theme.typography.detailBold, color: Theme.colors.textSecondary, marginTop: Theme.spacing.xs },
 	toggleBtnLabel: { ...Theme.typography.detailBold, color: Theme.colors.textSecondary },
-	toggleBtnDish: { ...Theme.typography.labelMedium, fontSize: 14, color: Theme.colors.textPrimary, marginTop: Theme.spacing.xs },
-	emptyText: { textAlign: 'center', color: Theme.colors.textMuted, marginTop: Theme.spacing.massive, fontSize: 16 },
+	toggleBtnDish: { ...Theme.typography.labelMedium, color: Theme.colors.textPrimary, marginTop: Theme.spacing.xs },
+	emptyText: { textAlign: 'center', color: Theme.colors.textMuted, marginTop: Theme.spacing.massive, ...Theme.typography.labelMedium },
 });

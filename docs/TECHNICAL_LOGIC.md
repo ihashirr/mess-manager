@@ -127,11 +127,46 @@ This document covers the architecture, data model, and screen-by-screen logic fo
 
 ---
 
+## 🏗️ UI Architecture (Layout Engine)
+
+The application follows a formal Layout Engine model where screens are composed of a limited set of **UI Primitives** found in `components/ui/`.
+
+| Priority | Primitive | Description |
+| :--- | :--- | :--- |
+| **Frame** | `Screen` | Handles safe-area, global padding, and scroll state. |
+| **Surface** | `Card` | The primary content container. Supports `variant="elevated"` or `borderless`. |
+| **Grouping** | `PrimaryPanel` | High-contrast container for top-of-screen summaries. |
+| **Structure** | `Section` | Logical grouping for list content with Label tier headers. |
+| **Actions** | `Button` | Standardized interaction point with Urdu/English support. |
+| **Inputs** | `Input` | Floating-label compatible high-readability text fields. |
+
+---
+
+## 🎨 Visual Token System
+
+### 1. Spacing Rhythm (Strict 4.0)
+All vertical and horizontal gaps are derived from a 4-unit base.
+- `xs: 4`, `sm: 8`, `md: 12`, `lg: 16`, `xl: 24`, `xxl: 32`, `massive: 40`.
+- **Goal**: Predictable rhythm that eliminates "soft" or "floating" layouts.
+
+### 2. Typography tiers
+Text is categorized into 3 functional tiers:
+- **Tier A (Answer)**: High-impact stats (`28px`-`40px`).
+- **Tier B (Label)**: Structural headers and inputs (`14px`-`16px`).
+- **Tier C (Detail)**: Metadata and auxiliary labels (`12px`).
+
+### 3. Flat Modern Aesthetic (Elevation)
+The app uses **Aesthetic Option A: Flat Modern**.
+- **Shadows**: 0% usage. No `shadowColor` or `elevation` in the codebase.
+- **Depth**: Conveyed via 1px `borderWidth`, `surfaceContrast`, and background decorations.
+- **Visual Compression**: "Surface Stacking" is minimized by using borderless rows for list items instead of heavy individual cards.
+
+---
+
 ## 🎨 UI Philosophy
 
-- **Floating UI**: Bottom navigation is a decoupled, floating dock with rounded corners and high elevation, providing a modern, premium feel.
-- **Icon Intelligence**: Navigation uses a dedicated `MaterialCommunityIcons` set with active/inactive state visual logic for instant cognitive recognition.
-- **Large fonts**: Cards and stats optimized for readability at arm's length.
-- **Color language**: Red `#d32f2f` = warning/due. Green `#2e7d32` = success/paid.
-- **Urdu labels**: Primary action buttons use Urdu text for native-language accessibility.
+- **The Silent Interface**: Reduced cognitive load by removing decorative icons and collapsing secondary information (Progressive Disclosure).
 - **One-tap actions**: Primary tasks (mark paid, add customer) require minimal inputs.
+- **Floating UI**: Bottom navigation is a decoupled, floating dock with rounded corners, providing a modern, premium feel.
+- **Icon Intelligence**: Icons are reserved strictly for **Actions** or to prevent **Text Ambiguity**.
+- **Urdu labels**: Primary action buttons use Urdu text for native-language accessibility.

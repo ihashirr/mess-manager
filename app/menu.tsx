@@ -303,7 +303,7 @@ export default function MenuScreen() {
 							style={[
 								styles.dayCard,
 								isToday && styles.dayCardToday,
-								isExpanded && styles.dayCardExpanded
+								!isToday && styles.dayCardQuiet
 							]}
 							onLayout={(e) => {
 								layoutMap.current[day] = e.nativeEvent.layout.y;
@@ -317,11 +317,7 @@ export default function MenuScreen() {
 								<View>
 									<Text style={[styles.dayTitle, isToday && styles.textWhite]}>{day}</Text>
 									<Text style={[styles.forecastLabel, isToday ? styles.textMutedDark : (forecast.total > 10 ? styles.demandHigh : null)]}>
-										DEMAND:{" "}
-										<MaterialCommunityIcons name="weather-sunny" size={12} color={isToday ? "#777" : "#666"} />
-										{" "}{forecast.lunch} |{" "}
-										<MaterialCommunityIcons name="weather-night" size={12} color={isToday ? "#777" : "#666"} />
-										{" "}{forecast.dinner}
+										DEMAND: LUN {forecast.lunch} | DIN {forecast.dinner}
 									</Text>
 								</View>
 								<View style={styles.dayHeaderRight}>
@@ -354,17 +350,7 @@ export default function MenuScreen() {
 											return (
 												<View key={meal} style={styles.mealColumn}>
 													<Text style={[styles.mealLabel, isToday && styles.mealLabelToday]}>
-														{meal === 'lunch' ? (
-															<>
-																<MaterialCommunityIcons name="weather-sunny" size={12} color={isToday ? "#ff5252" : "#d32f2f"} />
-																{" LUNCH"}
-															</>
-														) : (
-															<>
-																<MaterialCommunityIcons name="weather-night" size={12} color={isToday ? "#ff5252" : "#d32f2f"} />
-																{" DINNER"}
-															</>
-														)}
+														{meal === 'lunch' ? "LUNCH" : "DINNER"}
 													</Text>
 
 													{isEditing ? (
@@ -422,20 +408,17 @@ export default function MenuScreen() {
 																</View>
 															)}
 															<View style={styles.servingInfo}>
-																<MaterialCommunityIcons name="bread-slice-outline" size={14} color={isToday ? "#777" : "#666"} />
 																<Text style={[styles.servingText, isToday && styles.textMutedDark]}>
 																	{slot.roti ? "Roti" : "No Roti"}
 																</Text>
 															</View>
 															<View style={styles.servingInfo}>
-																<MaterialCommunityIcons name="rice" size={14} color={isToday ? "#777" : "#666"} />
 																<Text style={[styles.servingText, isToday && styles.textMutedDark]}>
 																	{slot.rice.enabled ? (slot.rice.type || "Rice") : "No Rice"}
 																</Text>
 															</View>
 															{slot.extra ? (
 																<View style={styles.servingInfo}>
-																	<MaterialCommunityIcons name="leaf" size={14} color={isToday ? "#fff" : "#444"} />
 																	<Text style={[styles.extraText, isToday && styles.textWhite]}>{slot.extra}</Text>
 																</View>
 															) : null}
@@ -525,25 +508,26 @@ const styles = StyleSheet.create({
 	weekLabel: { ...Theme.typography.detailBold, color: Theme.colors.textMuted, marginTop: Theme.spacing.xs, textTransform: 'uppercase' },
 
 	dayCard: {
-		backgroundColor: Theme.colors.surface,
-		borderRadius: Theme.radius.xl,
 		padding: Theme.spacing.lg,
-		marginBottom: Theme.spacing.lg,
-		borderWidth: 1,
-		borderColor: Theme.colors.border,
+		marginBottom: Theme.spacing.sm,
+		borderBottomWidth: 1,
+		borderBottomColor: Theme.colors.border,
+	},
+	dayCardQuiet: {
+		backgroundColor: 'transparent',
+		borderWidth: 0,
 	},
 	dayCardToday: {
 		backgroundColor: Theme.colors.surfaceElevated,
 		borderColor: Theme.colors.success,
 		borderWidth: 2,
-	},
-	dayCardExpanded: {
-		borderColor: Theme.colors.success,
+		borderRadius: Theme.radius.xl,
+		marginBottom: Theme.spacing.lg,
 	},
 	dayHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Theme.spacing.sm },
 	dayRow: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.md },
 	dayHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
-	dayTitle: { ...Theme.typography.answer, fontSize: 24, color: Theme.colors.textPrimary },
+	dayTitle: { ...Theme.typography.answer, color: Theme.colors.textPrimary },
 	forecastLabel: { ...Theme.typography.detailBold, color: Theme.colors.textMuted, marginTop: Theme.spacing.xs },
 	demandHigh: { color: Theme.colors.warning, fontWeight: '900' },
 	todayBadge: {
@@ -552,14 +536,13 @@ const styles = StyleSheet.create({
 		paddingHorizontal: Theme.spacing.md,
 		paddingVertical: Theme.spacing.xs,
 		borderRadius: Theme.radius.sm,
-		fontSize: 10,
-		fontWeight: '800',
+		...Theme.typography.detailBold,
 		overflow: 'hidden'
 	},
 
 	summaryRow: {
 		marginTop: Theme.spacing.sm,
-		paddingTop: Theme.spacing.md,
+		paddingTop: Theme.spacing.sm,
 		borderTopWidth: 1,
 		borderTopColor: Theme.colors.border,
 		flexDirection: 'row',
@@ -568,7 +551,7 @@ const styles = StyleSheet.create({
 	summaryMeal: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
 	summaryText: { ...Theme.typography.detail, color: Theme.colors.textSecondary },
 
-	cardExpandedContent: { marginTop: Theme.spacing.lg },
+	cardExpandedContent: { marginTop: Theme.spacing.md },
 
 	mealsRow: { flexDirection: 'row', gap: Theme.spacing.xl },
 	mealColumn: { flex: 1 },
@@ -581,11 +564,11 @@ const styles = StyleSheet.create({
 	notSetContainer: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
 	notSetWarning: { ...Theme.typography.labelMedium, color: Theme.colors.danger, fontStyle: 'italic' },
 	servingInfo: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm, marginTop: Theme.spacing.xs },
-	servingText: { ...Theme.typography.labelMedium, fontSize: 14, color: Theme.colors.textSecondary },
+	servingText: { ...Theme.typography.labelMedium, color: Theme.colors.textSecondary },
 	extraText: { ...Theme.typography.detail, color: Theme.colors.textSecondary, fontStyle: 'italic' },
 
 	// Edit Mode
-	editCard: { gap: Theme.spacing.md, marginTop: Theme.spacing.md },
+	editCard: { gap: Theme.spacing.md, marginTop: Theme.spacing.sm },
 	row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Theme.spacing.xs },
 	label: { ...Theme.typography.labelMedium, color: Theme.colors.textSecondary },
 
@@ -610,7 +593,7 @@ const styles = StyleSheet.create({
 		borderWidth: 1,
 		borderColor: Theme.colors.border,
 	},
-	modalTitle: { ...Theme.typography.labelMedium, fontSize: 20, color: Theme.colors.textPrimary },
+	modalTitle: { ...Theme.typography.labelMedium, color: Theme.colors.textPrimary },
 	modalSub: { ...Theme.typography.detail, color: Theme.colors.textSecondary, marginTop: Theme.spacing.xs, marginBottom: Theme.spacing.xl },
 	dayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Theme.spacing.md, marginBottom: Theme.spacing.xl },
 	dayChip: {
@@ -625,7 +608,7 @@ const styles = StyleSheet.create({
 		borderColor: Theme.colors.border
 	},
 	dayChipActive: { backgroundColor: Theme.colors.primary, borderColor: Theme.colors.primary },
-	dayChipText: { ...Theme.typography.labelMedium, fontSize: 14, color: Theme.colors.textPrimary },
+	dayChipText: { ...Theme.typography.labelMedium, color: Theme.colors.textPrimary },
 	modalFooter: { flexDirection: 'row', justifyContent: 'flex-end', gap: Theme.spacing.md },
 	floatingAction: {
 		position: 'absolute',

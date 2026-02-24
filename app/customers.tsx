@@ -382,50 +382,61 @@ export default function CustomersScreen() {
 			<FlatList
 				data={customers}
 				keyExtractor={(item) => item.id}
-				contentContainerStyle={{ padding: Theme.spacing.screen, paddingBottom: 150 }}
+				contentContainerStyle={{ paddingHorizontal: Theme.spacing.screenPadding, paddingBottom: 150 }}
 				renderItem={({ item }) => (
-					<Card style={{ marginBottom: Theme.spacing.lg }}>
-						<Text style={styles.name}>
-							{item.name}
-							{getCustomerStatus(toDate(item.endDate)) === 'expired' && " (EXPIRED)"}
-							{getCustomerStatus(toDate(item.endDate)) === 'expiring-soon' && " (EXPIRING)"}
-							{getDueAmount(item.pricePerMonth, item.totalPaid) > 0 && " (DUE)"}
-						</Text>
-						<View style={styles.details}>
-							<Text style={styles.plan}>
-								{item.mealsPerDay
-									? [item.mealsPerDay.lunch && "Lunch", item.mealsPerDay.dinner && "Dinner"].filter(Boolean).join(" + ")
-									: (item.plan || "Old Plan")}
-								{" | DHS "}{item.pricePerMonth}
-							</Text>
-							<Text style={styles.phone}>{item.phone}</Text>
-						</View>
-						<View style={[styles.details, { marginTop: 5 }]}>
-							<Text style={styles.dates}>
-								{toDate(item.startDate).toLocaleDateString()} to {toDate(item.endDate).toLocaleDateString()}
-							</Text>
-							<View style={styles.statusBadge}>
-								{getCustomerStatus(toDate(item.endDate)) === 'expired' && <Badge label="EXPIRED" variant="danger" style={{ marginRight: 6 }} />}
-								{getCustomerStatus(toDate(item.endDate)) === 'expiring-soon' && <Badge label="EXPIRING SOON" variant="warning" style={{ marginRight: 6 }} />}
-								<Text style={styles.paid}>Paid: {item.totalPaid}</Text>
+					<Card borderless style={{ marginBottom: Theme.spacing.md, borderBottomWidth: 1, borderBottomColor: Theme.colors.border }}>
+						<View style={styles.rowBetween}>
+							<Text style={styles.name}>{item.name}</Text>
+							<View style={styles.badgeRow}>
+								{getCustomerStatus(toDate(item.endDate)) === 'expired' && <Badge label="EXPIRED" variant="danger" />}
+								{getCustomerStatus(toDate(item.endDate)) === 'expiring-soon' && <Badge label="EXPIRING" variant="warning" />}
+								{getDueAmount(item.pricePerMonth, item.totalPaid) > 0 && <Badge label="DUE" variant="warning" />}
 							</View>
 						</View>
-						<View style={[styles.details, { marginTop: 10 }]}>
+
+						<View style={[styles.details, { marginTop: Theme.spacing.xs }]}>
 							<Text style={[
 								styles.daysRemaining,
 								getCustomerStatus(toDate(item.endDate)) === 'expired' && styles.textRed,
-								getCustomerStatus(toDate(item.endDate)) === 'expiring-soon' && styles.textOrange
+								getCustomerStatus(toDate(item.endDate)) === 'expiring-soon' && styles.textOrange,
+								{ marginTop: 0 }
 							]}>
 								{getDaysLeft(toDate(item.endDate))} days left
 							</Text>
-							<TouchableOpacity
-								style={styles.deleteBtn}
-								onPress={() => handleDeleteCustomer(item.id)}
-							>
-								<Text style={styles.deleteBtnText}>DELETE</Text>
-							</TouchableOpacity>
+							<Text style={styles.metadataBrief}>
+								{item.mealsPerDay
+									? [item.mealsPerDay.lunch && "L", item.mealsPerDay.dinner && "D"].filter(Boolean).join("+")
+									: "?? "}
+								{" • "}DHS {item.pricePerMonth}
+							</Text>
 						</View>
-						{item.notes ? <Text style={styles.notes}>Note: {item.notes}</Text> : null}
+
+						{expandedId === item.id && (
+							<View style={styles.expandedMetadata}>
+								<View style={styles.metaGrid}>
+									<View style={styles.metaItem}>
+										<Text style={styles.metaText}>{item.phone}</Text>
+									</View>
+									<View style={styles.metaItem}>
+										<Text style={styles.metaText}>{toDate(item.startDate).toLocaleDateString()} - {toDate(item.endDate).toLocaleDateString()}</Text>
+									</View>
+									<View style={styles.metaItem}>
+										<Text style={styles.metaText}>Paid cumulative: DHS {item.totalPaid}</Text>
+									</View>
+								</View>
+								{item.notes ? (
+									<View style={styles.notesContainer}>
+										<Text style={styles.notesText}>Note: {item.notes}</Text>
+									</View>
+								) : null}
+								<TouchableOpacity
+									style={styles.inlineDeleteBtn}
+									onPress={() => handleDeleteCustomer(item.id)}
+								>
+									<Text style={styles.deleteBtnText}>REMOVE CUSTOMER</Text>
+								</TouchableOpacity>
+							</View>
+						)}
 
 						<TouchableOpacity
 							style={[styles.weekBtn, expandedId === item.id && styles.weekBtnActive]}
@@ -531,9 +542,10 @@ const styles = StyleSheet.create({
 	},
 	form: {
 		padding: Theme.spacing.xxl,
-		backgroundColor: Theme.colors.surface,
+		backgroundColor: 'transparent',
 		borderBottomWidth: 1,
 		borderBottomColor: Theme.colors.border,
+		marginBottom: Theme.spacing.xl,
 	},
 	formFooter: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.xs, marginTop: Theme.spacing.xl, alignSelf: 'center' },
 	formInfo: { ...Theme.typography.detail, color: Theme.colors.textMuted, fontStyle: 'italic' },
@@ -546,6 +558,11 @@ const styles = StyleSheet.create({
 	row: {
 		flexDirection: 'row',
 		marginTop: Theme.spacing.xs,
+	},
+	rowBetween: {
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		alignItems: 'center',
 	},
 	planSelector: {
 		flexDirection: 'row',
@@ -572,8 +589,7 @@ const styles = StyleSheet.create({
 		color: Theme.colors.primary,
 	},
 	name: {
-		...Theme.typography.labelMedium,
-		fontSize: 22,
+		...Theme.typography.answer,
 		color: Theme.colors.textPrimary,
 	},
 	details: {
@@ -603,7 +619,7 @@ const styles = StyleSheet.create({
 		color: Theme.colors.primary,
 	},
 	daysRemaining: {
-		marginTop: Theme.spacing.sm,
+		marginTop: Theme.spacing.xs,
 		...Theme.typography.labelMedium,
 		color: Theme.colors.textSecondary,
 	},
@@ -638,15 +654,38 @@ const styles = StyleSheet.create({
 		...Theme.typography.detailBold,
 	},
 	weekBtn: {
-		marginTop: Theme.spacing.md, paddingVertical: Theme.spacing.sm, paddingHorizontal: Theme.spacing.lg,
+		marginTop: Theme.spacing.sm, paddingVertical: Theme.spacing.sm, paddingHorizontal: Theme.spacing.lg,
 		backgroundColor: '#e8f5e9', borderRadius: Theme.radius.md, alignSelf: 'flex-start',
 	},
 	weekBtnActive: { backgroundColor: '#ffebee' },
 	weekBtnText: { ...Theme.typography.detailBold, color: Theme.colors.primary },
+	badgeRow: { flexDirection: 'row', gap: Theme.spacing.xs },
+	metadataBrief: { ...Theme.typography.detailBold, color: Theme.colors.textMuted },
+	expandedMetadata: {
+		marginTop: Theme.spacing.sm,
+		padding: Theme.spacing.md,
+		backgroundColor: Theme.colors.bg,
+		borderRadius: Theme.radius.md,
+	},
+	metaGrid: { gap: Theme.spacing.xs },
+	metaItem: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
+	metaText: { ...Theme.typography.detail, color: Theme.colors.textSecondary },
+	notesContainer: {
+		marginTop: Theme.spacing.sm,
+		paddingTop: Theme.spacing.sm,
+		borderTopWidth: 1,
+		borderTopColor: Theme.colors.border,
+	},
+	notesText: { ...Theme.typography.detail, fontStyle: 'italic', color: Theme.colors.textMuted },
+	inlineDeleteBtn: {
+		marginTop: Theme.spacing.md,
+		alignItems: 'center',
+		paddingVertical: Theme.spacing.sm,
+	},
 	btnContent: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
 	chipContent: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.xs },
 	attendancePanel: {
-		marginTop: Theme.spacing.md, backgroundColor: Theme.colors.bg,
+		marginTop: Theme.spacing.sm, backgroundColor: Theme.colors.bg,
 		borderRadius: Theme.radius.md, padding: Theme.spacing.md,
 	},
 	attendanceTitle: { ...Theme.typography.detailBold, color: Theme.colors.textMuted, marginBottom: Theme.spacing.md },
@@ -662,7 +701,7 @@ const styles = StyleSheet.create({
 	},
 	mealChipOn: { backgroundColor: '#e8f5e9', borderColor: Theme.colors.primary },
 	mealChipLabel: { ...Theme.typography.detail, color: Theme.colors.textSecondary },
-	mealChipDish: { ...Theme.typography.labelMedium, fontSize: 13, color: Theme.colors.textPrimary, marginTop: 2 },
+	mealChipDish: { ...Theme.typography.label, color: Theme.colors.textPrimary, marginTop: Theme.spacing.xs },
 	saveWeekBtn: {
 		marginTop: Theme.spacing.lg, backgroundColor: Theme.colors.surfaceElevated,
 		padding: Theme.spacing.lg, borderRadius: Theme.radius.lg, alignItems: 'center',

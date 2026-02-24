@@ -52,6 +52,16 @@ app/
   menu.tsx        — Daily menu editor
   _layout.tsx     — Tab navigation
 
+components/ui/    — Atomic Layout Engine
+  Card.tsx        — Content container
+  Button.tsx      — Functional interactions
+  Input.tsx       — High-readability fields
+  Badge.tsx       — Status indicators
+  Screen.tsx      — Layout frame
+  ScreenHeader.tsx — Contextual header
+  Section.tsx     — Structural grouping
+  PrimaryPanel.tsx — High-contrast summary
+
 firebase/
   config.ts       — Firestore initialization
 

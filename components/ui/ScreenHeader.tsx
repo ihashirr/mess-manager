@@ -61,7 +61,6 @@ const styles = StyleSheet.create({
 	},
 	title: {
 		...Theme.typography.answer,
-		fontSize: 24,
 		color: Theme.colors.textPrimary,
 	},
 	subtitle: {
