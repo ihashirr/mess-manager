@@ -116,6 +116,7 @@ export default function PaymentsScreen() {
 	return (
 		<Screen scrollable={false}>
 			<ScreenHeader
+				gutter={Theme.spacing.screen}
 				title="Payments"
 				subtitle="Collection Ledger"
 				rightAction={null}
@@ -163,11 +164,6 @@ export default function PaymentsScreen() {
 
 const styles = StyleSheet.create({
 	container: { flex: 1, backgroundColor: Theme.colors.bg },
-	bgDecoration: {
-		position: 'absolute', top: 0, left: 0, right: 0, height: 400,
-		backgroundColor: Theme.colors.decoration, borderBottomLeftRadius: 80, borderBottomRightRadius: 80,
-		zIndex: -1
-	},
 	title: { ...Theme.typography.answer, color: Theme.colors.textPrimary },
 	subtitle: { ...Theme.typography.label, color: Theme.colors.textMuted, textTransform: 'uppercase' },
 	content: { padding: Theme.spacing.screen, paddingBottom: 150 },

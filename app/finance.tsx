@@ -122,7 +122,6 @@ export default function FinanceScreen() {
 
 	return (
 		<View style={styles.container}>
-			<View style={styles.bgDecoration} />
 			<ScrollView contentContainerStyle={styles.content}>
 				<View style={styles.header}>
 					<View>
@@ -222,11 +221,6 @@ export default function FinanceScreen() {
 
 const styles = StyleSheet.create({
 	container: { flex: 1, backgroundColor: Theme.colors.bg },
-	bgDecoration: {
-		position: 'absolute', top: 0, left: 0, right: 0, height: 400,
-		backgroundColor: Theme.colors.decoration, borderBottomLeftRadius: 80, borderBottomRightRadius: 80,
-		zIndex: -1
-	},
 	content: { paddingBottom: 150 },
 	header: {
 		backgroundColor: Theme.colors.surfaceElevated,

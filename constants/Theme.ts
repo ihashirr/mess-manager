@@ -10,7 +10,7 @@ export const Theme = {
 		bg: '#0F1416',         // Deep Charcoal Blue
 		surface: '#151C1F',    // Dark Slate
 		surfaceElevated: '#1C2428', // Medium Slate
-		border: '#2A3338',     // Slate Border
+		border: '#1F2E33',     // Aqua Structural Border
 		textPrimary: '#E6F0EF',   // Light Aqua Grey
 		textSecondary: '#9FB3B0', // Muted Aqua Grey
 		textMuted: '#6B7C7A',     // Deep Muted Aqua
@@ -18,7 +18,6 @@ export const Theme = {
 
 		// Utilities
 		overlay: 'rgba(15, 20, 22, 0.8)',
-		decoration: '#1C2428', // Background shape tint
 	},
 
 	spacing: {
@@ -46,13 +45,14 @@ export const Theme = {
 	typography: {
 		// Tier A - Answer (Large, Bold, Clean)
 		answer: {
-			size: 28,
+			size: 32,
 			weight: '900' as const,
-			letterSpacing: -0.5,
+			letterSpacing: 0.8,
 		},
 		answerGiant: {
-			size: 36,
+			size: 40,
 			weight: '900' as const,
+			letterSpacing: -1,
 		},
 		// Tier B - Section Label (Medium, Slightly Muted)
 		label: {

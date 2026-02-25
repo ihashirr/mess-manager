@@ -271,6 +271,7 @@ export default function CustomersScreen() {
 	return (
 		<Screen scrollable={false}>
 			<ScreenHeader
+				gutter={Theme.spacing.screen}
 				title="Customers"
 				subtitle={`${customers.length} ACTIVE MEMBERS`}
 				rightAction={
@@ -655,7 +656,7 @@ const styles = StyleSheet.create({
 	},
 	weekBtn: {
 		marginTop: Theme.spacing.sm, paddingVertical: Theme.spacing.sm, paddingHorizontal: Theme.spacing.lg,
-		backgroundColor: Theme.colors.decoration, borderRadius: Theme.radius.md, alignSelf: 'flex-start',
+		backgroundColor: Theme.colors.surfaceElevated, borderRadius: Theme.radius.md, alignSelf: 'flex-start',
 	},
 	weekBtnActive: { backgroundColor: 'rgba(180, 83, 83, 0.2)' },
 	weekBtnText: { ...Theme.typography.detailBold, color: Theme.colors.primary },
@@ -699,7 +700,7 @@ const styles = StyleSheet.create({
 		flex: 1, paddingHorizontal: Theme.spacing.md, paddingVertical: Theme.spacing.sm,
 		backgroundColor: Theme.colors.surface, borderRadius: Theme.radius.md, borderWidth: 1, borderColor: Theme.colors.border,
 	},
-	mealChipOn: { backgroundColor: Theme.colors.decoration, borderColor: Theme.colors.primary },
+	mealChipOn: { backgroundColor: Theme.colors.surfaceElevated, borderColor: Theme.colors.primary },
 	mealChipLabel: { ...Theme.typography.detail, color: Theme.colors.textSecondary },
 	mealChipDish: { ...Theme.typography.label, color: Theme.colors.textPrimary, marginTop: Theme.spacing.xs },
 	saveWeekBtn: {

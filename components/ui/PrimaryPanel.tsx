@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
 		borderRadius: Theme.radius.xl,
 		marginVertical: Theme.spacing.lg,
 		borderWidth: 1,
-		borderColor: 'rgba(255,255,255,0.05)', // Subtle inner glow for dark panels
+		borderColor: Theme.colors.border,
 	},
 	title: {
 		...Theme.typography.label,

@@ -16,7 +16,6 @@ interface ScreenProps {
 	style?: ViewStyle;
 	contentContainerStyle?: ViewStyle;
 	scrollable?: boolean;
-	withLargeHeader?: boolean;
 	edges?: Edge[];
 	backgroundColor?: string;
 	keyboardOffset?: number;
@@ -32,7 +31,6 @@ export const Screen: React.FC<ScreenProps> = ({
 	style,
 	contentContainerStyle,
 	scrollable = true,
-	withLargeHeader = false,
 	edges = ['top', 'left', 'right'], // Navigation usually handles bottom
 	backgroundColor = Theme.colors.bg,
 	keyboardOffset = 0,
@@ -45,10 +43,6 @@ export const Screen: React.FC<ScreenProps> = ({
 			edges={edges}
 		>
 			<StatusBar barStyle="dark-content" />
-
-			{withLargeHeader && (
-				<View style={styles.bgDecoration} />
-			)}
 
 			<KeyboardAvoidingView
 				behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -80,16 +74,5 @@ const styles = StyleSheet.create({
 	scrollContent: {
 		paddingHorizontal: Theme.spacing.screenPadding,
 		paddingBottom: 100, // Extra space for bottom nav/fab
-	},
-	bgDecoration: {
-		position: 'absolute',
-		top: 0,
-		left: 0,
-		right: 0,
-		height: 400,
-		backgroundColor: Theme.colors.decoration,
-		borderBottomLeftRadius: 80,
-		borderBottomRightRadius: 80,
-		zIndex: -1,
 	},
 });

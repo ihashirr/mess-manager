@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { collection, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Card } from '../components/ui/Card';
+import { AppModal } from '../components/ui/AppModal';
 import { Screen } from '../components/ui/Screen';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Section } from '../components/ui/Section';
@@ -49,6 +49,7 @@ export default function Index() {
 	const [attendance, setAttendance] = useState<AttendanceState>({});
 	const [stats, setStats] = useState({ activeCount: 0, paymentsDue: 0, lunchCount: 0, dinnerCount: 0 });
 	const [loading, setLoading] = useState(true);
+	const [activeModal, setActiveModal] = useState<'lunch' | 'dinner' | null>(null);
 
 	useEffect(() => {
 		if (SETTINGS.USE_MOCKS) {
@@ -162,150 +163,190 @@ export default function Index() {
 
 	if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={Theme.colors.primary} /></View>;
 
+	// Derived customer lists for modals
+	const lunchCustomers = customers.filter(c => {
+		if (c.mealsPerDay?.lunch === false) return false;
+		const sel = attendance[c.id];
+		return !sel || sel.lunch !== false;
+	});
+	const dinnerCustomers = customers.filter(c => {
+		if (c.mealsPerDay?.dinner === false) return false;
+		const sel = attendance[c.id];
+		return !sel || sel.dinner !== false;
+	});
+	const modalCustomers = activeModal === 'lunch' ? lunchCustomers : dinnerCustomers;
+	const modalMealLabel = activeModal === 'lunch' ? 'LUNCH' : 'DINNER';
+	const modalDish = activeModal === 'lunch' ? todayMenu.lunch.main : todayMenu.dinner.main;
+
 	return (
-		<Screen withLargeHeader backgroundColor={Theme.colors.bg}>
-			<ScreenHeader
-				title="Home"
-				subtitle={todayName.toUpperCase() + ", " + todayDate}
-				rightAction={
-					<TouchableOpacity onPress={() => {/* Logic for settings */ }}>
-						<MaterialCommunityIcons name="cog-outline" size={24} color={Theme.colors.textMuted} />
+		<>
+			<Screen backgroundColor={Theme.colors.bg}>
+				<ScreenHeader
+					compact
+					gutter={Theme.spacing.screen}
+					title={`${todayName.charAt(0).toUpperCase() + todayName.slice(1)}, ${todayDate}`}
+					subtitle="OPERATIONAL HUB • HOME"
+					rightAction={
+						<TouchableOpacity
+							onPress={() => { /* Logic for settings */ }}
+							style={{ height: 40, width: 40, justifyContent: 'center', alignItems: 'center' }}
+						>
+							<MaterialCommunityIcons name="cog-outline" size={24} color={Theme.colors.textMuted} />
+						</TouchableOpacity>
+					}
+				/>
+
+				{/* Tab Navigation */}
+				<View style={styles.tabBar}>
+					<TouchableOpacity
+						style={[styles.tab, activeTab === 'dashboard' && styles.tabActive]}
+						onPress={() => setActiveTab('dashboard')}
+					>
+						<View style={styles.tabItem}>
+							<MaterialCommunityIcons
+								name="view-dashboard"
+								size={20}
+								color={activeTab === 'dashboard' ? Theme.colors.primary : Theme.colors.textMuted}
+							/>
+							<Text style={[styles.tabText, activeTab === 'dashboard' && styles.tabTextActive]}>DASHBOARD</Text>
+						</View>
 					</TouchableOpacity>
-				}
-			/>
+					<TouchableOpacity
+						style={[styles.tab, activeTab === 'attendance' && styles.tabActive]}
+						onPress={() => setActiveTab('attendance')}
+					>
+						<View style={styles.tabItem}>
+							<MaterialCommunityIcons
+								name="playlist-check"
+								size={20}
+								color={activeTab === 'attendance' ? Theme.colors.primary : Theme.colors.textMuted}
+							/>
+							<Text style={[styles.tabText, activeTab === 'attendance' && styles.tabTextActive]}>ATTENDANCE</Text>
+						</View>
+					</TouchableOpacity>
+				</View>
 
-			{/* Tab Navigation */}
-			<View style={styles.tabBar}>
-				<TouchableOpacity
-					style={[styles.tab, activeTab === 'dashboard' && styles.tabActive]}
-					onPress={() => setActiveTab('dashboard')}
-				>
-					<View style={styles.tabItem}>
-						<MaterialCommunityIcons
-							name="view-dashboard"
-							size={20}
-							color={activeTab === 'dashboard' ? Theme.colors.primary : Theme.colors.textMuted}
-						/>
-						<Text style={[styles.tabText, activeTab === 'dashboard' && styles.tabTextActive]}>DASHBOARD</Text>
-					</View>
-				</TouchableOpacity>
-				<TouchableOpacity
-					style={[styles.tab, activeTab === 'attendance' && styles.tabActive]}
-					onPress={() => setActiveTab('attendance')}
-				>
-					<View style={styles.tabItem}>
-						<MaterialCommunityIcons
-							name="playlist-check"
-							size={20}
-							color={activeTab === 'attendance' ? Theme.colors.primary : Theme.colors.textMuted}
-						/>
-						<Text style={[styles.tabText, activeTab === 'attendance' && styles.tabTextActive]}>ATTENDANCE</Text>
-					</View>
-				</TouchableOpacity>
-			</View>
+				{activeTab === 'dashboard' ? (
+					<View style={styles.scrollContent}>
+						{/* Production Panel */}
+						<View style={styles.productionPanel}>
+							<Text style={styles.productionTitle}>TODAY PRODUCTION</Text>
 
-			{activeTab === 'dashboard' ? (
-				<View style={styles.scrollContent}>
-					<Section title="Today's Menu">
-						<View style={{ flexDirection: 'row', gap: Theme.spacing.md }}>
-							<View style={{ flex: 1 }}>
-								<MealCard
-									label="LUNCH"
-									count={stats.lunchCount}
-									slot={todayMenu.lunch}
-									icon="weather-sunny"
-									iconColor={Theme.colors.warning}
-								/>
-							</View>
-							<View style={{ flex: 1 }}>
-								<MealCard
-									label="DINNER"
-									count={stats.dinnerCount}
-									slot={todayMenu.dinner}
-									icon="weather-night"
-									iconColor={Theme.colors.primary}
-								/>
+							{/* Lunch Row */}
+							<View style={styles.productionDivider} />
+							<TouchableOpacity
+								style={styles.productionRow}
+								onPress={() => setActiveModal('lunch')}
+								activeOpacity={0.7}
+							>
+								<View style={styles.productionMeta}>
+									<Text style={styles.productionLabel}>LUNCH</Text>
+									<Text style={styles.productionDish} numberOfLines={1}>
+										{todayMenu.lunch.main || 'Not Set'}
+									</Text>
+								</View>
+								<View style={styles.productionCountRow}>
+									<Text style={styles.productionCount}>{stats.lunchCount}</Text>
+									<MaterialCommunityIcons name="chevron-right" size={18} color={Theme.colors.textMuted} />
+								</View>
+							</TouchableOpacity>
+
+							{/* Dinner Row */}
+							<View style={styles.productionDivider} />
+							<TouchableOpacity
+								style={styles.productionRow}
+								onPress={() => setActiveModal('dinner')}
+								activeOpacity={0.7}
+							>
+								<View style={styles.productionMeta}>
+									<Text style={styles.productionLabel}>DINNER</Text>
+									<Text style={styles.productionDish} numberOfLines={1}>
+										{todayMenu.dinner.main || 'Not Set'}
+									</Text>
+								</View>
+								<View style={styles.productionCountRow}>
+									<Text style={styles.productionCount}>{stats.dinnerCount}</Text>
+									<MaterialCommunityIcons name="chevron-right" size={18} color={Theme.colors.textMuted} />
+								</View>
+							</TouchableOpacity>
+
+							{/* Total Row */}
+							<View style={styles.productionDividerThick} />
+							<View style={styles.productionRow}>
+								<Text style={styles.productionTotalLabel}>TOTAL PLATES</Text>
+								<Text style={styles.productionTotalCount}>{stats.lunchCount + stats.dinnerCount}</Text>
 							</View>
 						</View>
-					</Section>
 
-					<Section title="Overview">
-						<View style={styles.statsRow}>
-							<View style={styles.statCard}>
-								<Text style={styles.statValue}>{stats.activeCount}</Text>
-								<Text style={styles.statLabel}>ACTIVE{"\n"}CUSTOMERS</Text>
+						{/* Overview Stats */}
+						<Section title="Overview">
+							<View style={styles.statsRow}>
+								<View style={styles.statCard}>
+									<Text style={styles.statValue}>{stats.activeCount}</Text>
+									<Text style={styles.statLabel}>ACTIVE{"\n"}CUSTOMERS</Text>
+								</View>
+								<View style={styles.statCard}>
+									<Text style={styles.statValue}>{stats.paymentsDue}</Text>
+									<Text style={styles.statLabel}>PAYMENTS{"\n"}DUE</Text>
+								</View>
 							</View>
-							<View style={styles.statCard}>
-								<Text style={styles.statValue}>{stats.paymentsDue}</Text>
-								<Text style={styles.statLabel}>PAYMENTS{"\n"}DUE</Text>
-							</View>
-						</View>
-					</Section>
-
-					<View style={styles.totalRow}>
-						<Text style={styles.totalLabel}>TOTAL PLATES TODAY</Text>
-						<Text style={styles.totalCount}>{stats.lunchCount + stats.dinnerCount}</Text>
+						</Section>
 					</View>
-				</View>
-			) : (
-				<View style={styles.scrollContent}>
-					<Section title="Customer Attendance" subtitle="Tap to toggle today's meals">
-						{customers.length === 0 ? (
-							<Text style={styles.emptyText}>No active customers found</Text>
-						) : (
-							customers.map(c => (
-								<CustomerAttendanceRow
-									key={c.id}
-									customer={c}
-									menu={todayMenu}
-									attendance={attendance[c.id]}
-									date={todayDate}
-									onToggle={(meal: 'lunch' | 'dinner') => toggleTodayAttendance(c.id, meal)}
-								/>
-							))
-						)}
-					</Section>
-				</View>
-			)}
-		</Screen>
+				) : (
+					<View style={styles.scrollContent}>
+						<Section title="Customer Attendance" subtitle="Tap to toggle today's meals">
+							{customers.length === 0 ? (
+								<Text style={styles.emptyText}>No active customers found</Text>
+							) : (
+								customers.map(c => (
+									<CustomerAttendanceRow
+										key={c.id}
+										customer={c}
+										menu={todayMenu}
+										attendance={attendance[c.id]}
+										date={todayDate}
+										onToggle={(meal: 'lunch' | 'dinner') => toggleTodayAttendance(c.id, meal)}
+									/>
+								))
+							)}
+						</Section>
+					</View>
+				)}
+			</Screen>
+
+			{/* Production Drill-Down Modal */}
+			<AppModal
+				visible={activeModal !== null}
+				onClose={() => setActiveModal(null)}
+				title={`${modalMealLabel} — ${modalCustomers.length} plates`}
+				subtitle={modalDish || 'MENU NOT SET'}
+			>
+				{modalCustomers.length === 0 ? (
+					<View style={styles.modalEmpty}>
+						<MaterialCommunityIcons name="food-off-outline" size={32} color={Theme.colors.textMuted} />
+						<Text style={styles.modalEmptyText}>No customers for this meal</Text>
+					</View>
+				) : (
+					modalCustomers.map((c, i) => (
+						<View
+							key={c.id}
+							style={[
+								styles.modalRow,
+								i < modalCustomers.length - 1 && styles.modalRowBorder,
+							]}
+						>
+							<View style={styles.modalRowIndex}>
+								<Text style={styles.modalRowNumber}>{i + 1}</Text>
+							</View>
+							<Text style={styles.modalCustomerName}>{c.name}</Text>
+						</View>
+					))
+				)}
+			</AppModal>
+		</>
 	);
 }
 
-const MealCard = ({ label, count, slot, icon, iconColor }: { label: string; count: number; slot: MealSlot; icon: any; iconColor: string }) => {
-	const riceType = slot.rice.enabled ? (slot.rice.type || "Plain Rice") : "No Rice";
-	return (
-		<Card variant="elevated" style={styles.mealCard}>
-			<View style={styles.mealCardHeader}>
-				<View style={styles.row}>
-					<Text style={styles.mealCardTitle}>{label}</Text>
-				</View>
-				<View style={styles.plateBadge}>
-					<Text style={styles.plateCount}>{count}</Text>
-					<Text style={styles.plateSub}>plates</Text>
-				</View>
-			</View>
-			<View style={styles.row}>
-				<Text style={styles.mainSalanLabel}>MAIN SALAN</Text>
-			</View>
-			{slot.main ? (
-				<Text style={styles.mainSalanValue}>{slot.main}</Text>
-			) : (
-				<View style={styles.row}>
-					<MaterialCommunityIcons name="alert-circle-outline" size={20} color={Theme.colors.danger} />
-					<Text style={styles.notSetWarning}>Not Set</Text>
-				</View>
-			)}
-			<View style={styles.servingRow}>
-				<View style={styles.servingItem}>
-					<Text style={styles.servingText}>{slot.roti ? "Roti" : "No Roti"}</Text>
-				</View>
-				<View style={styles.servingItem}>
-					<Text style={styles.servingText}>{riceType}</Text>
-				</View>
-			</View>
-		</Card>
-	);
-};
 
 const CustomerAttendanceRow = ({ customer, menu, attendance, onToggle, date }: any) => {
 	const sel = attendance || { lunch: true, dinner: true };
@@ -347,11 +388,6 @@ const CustomerAttendanceRow = ({ customer, menu, attendance, onToggle, date }: a
 
 const styles = StyleSheet.create({
 	container: { flex: 1, backgroundColor: Theme.colors.bg },
-	bgDecoration: {
-		position: 'absolute', top: 0, left: 0, right: 0, height: 400,
-		backgroundColor: Theme.colors.decoration, borderBottomLeftRadius: 80, borderBottomRightRadius: 80,
-		zIndex: -1
-	},
 	centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 	tabBar: {
 		flexDirection: 'row',
@@ -378,47 +414,77 @@ const styles = StyleSheet.create({
 	dateLabel: { ...Theme.typography.labelMedium, color: Theme.colors.textSecondary, marginBottom: Theme.spacing.sm },
 	sectionHeader: { ...Theme.typography.label, color: Theme.colors.textSecondary },
 
-	mealCard: {
+	// Production Panel
+	productionPanel: {
 		backgroundColor: Theme.colors.surfaceElevated,
-		marginBottom: Theme.spacing.sm
+		borderRadius: Theme.radius.sm,
+		borderWidth: 1,
+		borderColor: Theme.colors.border,
+		padding: Theme.spacing.lg,
+		marginBottom: Theme.spacing.md,
 	},
-	mealCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Theme.spacing.md },
-	mealCardTitle: { ...Theme.typography.labelMedium, color: Theme.colors.textPrimary },
-	plateBadge: {
-		alignItems: 'center',
-		backgroundColor: Theme.colors.primary,
-		paddingHorizontal: Theme.spacing.md,
-		paddingVertical: Theme.spacing.xs,
-		borderRadius: Theme.radius.md
+	productionTitle: {
+		...Theme.typography.detailBold,
+		color: Theme.colors.textMuted,
+		textTransform: 'uppercase',
+		letterSpacing: 1.5,
+		marginBottom: Theme.spacing.xs,
 	},
-	plateCount: { ...Theme.typography.answer, color: Theme.colors.textPrimary },
-	plateSub: { ...Theme.typography.detailBold, color: Theme.colors.success },
-	mainSalanLabel: { ...Theme.typography.detailBold, color: Theme.colors.textSecondary },
-	mainSalanValue: { ...Theme.typography.answer, color: Theme.colors.textPrimary, marginVertical: Theme.spacing.xs },
-	notSetWarning: { ...Theme.typography.labelMedium, color: Theme.colors.danger, marginVertical: Theme.spacing.xs, fontStyle: 'italic' },
-	servingRow: { flexDirection: 'row', gap: Theme.spacing.md, marginTop: Theme.spacing.xs },
-	servingItem: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.xs },
-	servingText: { ...Theme.typography.detailBold, color: Theme.colors.textMuted },
-
-	totalRow: {
+	productionDivider: {
+		height: 1,
+		backgroundColor: Theme.colors.border,
+		marginVertical: Theme.spacing.sm,
+	},
+	productionDividerThick: {
+		height: 1,
+		backgroundColor: Theme.colors.border,
+		marginVertical: Theme.spacing.sm,
+		opacity: 0.6,
+	},
+	productionRow: {
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		alignItems: 'center',
-		backgroundColor: Theme.colors.decoration,
-		borderRadius: Theme.radius.xl,
-		padding: Theme.spacing.xl,
-		borderWidth: 2,
-		borderColor: Theme.colors.primary,
-		marginVertical: Theme.spacing.xs
+		paddingVertical: Theme.spacing.xs,
 	},
-	totalLabel: { ...Theme.typography.labelMedium, color: Theme.colors.primary },
-	totalCount: { ...Theme.typography.answerGiant, color: Theme.colors.primary },
+	productionMeta: { flex: 1 },
+	productionLabel: {
+		...Theme.typography.labelMedium,
+		color: Theme.colors.textSecondary,
+	},
+	productionDish: {
+		...Theme.typography.detail,
+		color: Theme.colors.textMuted,
+		marginTop: 2,
+	},
+	productionCount: {
+		...Theme.typography.answer,
+		color: Theme.colors.textPrimary,
+	},
+	productionCountRow: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: Theme.spacing.xs,
+	},
+	productionTotalLabel: {
+		...Theme.typography.labelMedium,
+		color: Theme.colors.textPrimary,
+		flex: 1,
+	},
+	productionTotalCount: {
+		...Theme.typography.answerGiant,
+		color: Theme.colors.textPrimary,
+	},
 
 	statsRow: { flexDirection: 'row', gap: Theme.spacing.lg, marginTop: Theme.spacing.sm },
 	statCard: {
 		flex: 1,
 		padding: Theme.spacing.lg,
-		alignItems: 'center'
+		alignItems: 'center',
+		backgroundColor: Theme.colors.surface,
+		borderRadius: Theme.radius.lg,
+		borderWidth: 1,
+		borderColor: Theme.colors.border,
 	},
 	statValue: { ...Theme.typography.answerGiant, color: Theme.colors.textPrimary },
 	statLabel: { ...Theme.typography.detailBold, color: Theme.colors.textSecondary, marginTop: Theme.spacing.xs, textAlign: 'center' },
@@ -437,11 +503,52 @@ const styles = StyleSheet.create({
 		borderColor: Theme.colors.border
 	},
 	toggleBtnOn: {
-		backgroundColor: Theme.colors.decoration,
+		backgroundColor: Theme.colors.surfaceElevated,
 		borderColor: Theme.colors.primary,
 	},
 	lockedBadge: { ...Theme.typography.detailBold, color: Theme.colors.textSecondary, marginTop: Theme.spacing.xs },
 	toggleBtnLabel: { ...Theme.typography.detailBold, color: Theme.colors.textSecondary },
 	toggleBtnDish: { ...Theme.typography.labelMedium, color: Theme.colors.textPrimary, marginTop: Theme.spacing.xs },
 	emptyText: { textAlign: 'center', color: Theme.colors.textMuted, marginTop: Theme.spacing.massive, ...Theme.typography.labelMedium },
+
+	// Modal styles
+	modalRow: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		paddingVertical: Theme.spacing.md,
+		gap: Theme.spacing.md,
+	},
+	modalRowBorder: {
+		borderBottomWidth: 1,
+		borderBottomColor: Theme.colors.border,
+	},
+	modalRowIndex: {
+		width: 28,
+		height: 28,
+		borderRadius: 14,
+		backgroundColor: Theme.colors.surfaceElevated,
+		borderWidth: 1,
+		borderColor: Theme.colors.border,
+		justifyContent: 'center',
+		alignItems: 'center',
+	},
+	modalRowNumber: {
+		...Theme.typography.detailBold,
+		color: Theme.colors.textMuted,
+	},
+	modalCustomerName: {
+		...Theme.typography.labelMedium,
+		color: Theme.colors.textPrimary,
+		flex: 1,
+	},
+	modalEmpty: {
+		alignItems: 'center',
+		justifyContent: 'center',
+		paddingVertical: Theme.spacing.massive,
+		gap: Theme.spacing.md,
+	},
+	modalEmptyText: {
+		...Theme.typography.labelMedium,
+		color: Theme.colors.textMuted,
+	},
 });

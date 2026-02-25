@@ -133,7 +133,7 @@ The app uses **Aesthetic Option A: Flat Modern** + **Deep Aqua Dark Mode**.
 
 ## 🎨 UI Philosophy
 
-- **The Silent Interface**: Reduced cognitive load by removing decorative icons and collapsing secondary information (Progressive Disclosure).
+- **The Silent Interface**: Reduced cognitive load by removing decorative icons and backgrounds (like the "Green Pill" badges). Data hierarchy is now driven by typography scale alone.
 - **One-tap actions**: Primary tasks (mark paid, add customer) require minimal inputs.
 - **Floating UI**: Bottom navigation is a decoupled, floating dock with rounded corners, providing a modern, premium feel.
 - **Icon Intelligence**: Icons are reserved strictly for **Actions** or to prevent **Text Ambiguity**.

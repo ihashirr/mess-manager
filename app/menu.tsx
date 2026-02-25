@@ -261,6 +261,7 @@ export default function MenuScreen() {
 	return (
 		<Screen scrollable={false}>
 			<ScreenHeader
+				gutter={Theme.spacing.screen}
 				title="Weekly Menu"
 				subtitle={`OPERATIONAL PLAN • WEEK ${weekId}`}
 				rightAction={
