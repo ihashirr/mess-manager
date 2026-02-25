@@ -10,7 +10,6 @@ interface ScreenHeaderProps {
 	style?: ViewStyle;
 	edgeToEdge?: boolean;
 	gutter?: number;
-	compact?: boolean;
 }
 
 export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
@@ -20,7 +19,6 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
 	style,
 	edgeToEdge = true,
 	gutter = Theme.spacing.screen,
-	compact = false,
 }) => {
 	const insets = useSafeAreaInsets();
 
@@ -28,17 +26,18 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
 		<View
 			style={[
 				styles.container,
-				edgeToEdge && { marginHorizontal: -gutter, paddingHorizontal: gutter },
 				{
-					paddingTop: insets.top + (compact ? Theme.spacing.sm : Theme.spacing.md),
-					paddingBottom: compact ? Theme.spacing.sm : Theme.spacing.md,
+					paddingTop: insets.top + Theme.spacing.sm,
+					paddingBottom: Theme.spacing.sm,
+					paddingHorizontal: gutter,
 				},
+				edgeToEdge && { marginHorizontal: -gutter },
 				style,
 			]}
 		>
 			<View style={styles.content}>
 				<View style={styles.textContainer}>
-					<Text style={[styles.title, compact && styles.titleCompact]} numberOfLines={1}>
+					<Text style={styles.title} numberOfLines={1}>
 						{title}
 					</Text>
 					{!!subtitle && (
@@ -70,11 +69,9 @@ const styles = StyleSheet.create({
 	},
 	title: {
 		...Theme.typography.answer,
-		color: Theme.colors.textPrimary,
-	},
-	titleCompact: {
-		fontSize: 22,
+		fontSize: 24, // Override to enforce uniform size across all screens
 		letterSpacing: 0.2,
+		color: Theme.colors.textPrimary,
 	},
 	subtitle: {
 		...Theme.typography.detailBold,

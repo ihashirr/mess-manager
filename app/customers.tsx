@@ -285,7 +285,7 @@ export default function CustomersScreen() {
 	return (
 		<Screen scrollable={false}>
 			<ScreenHeader
-				gutter={Theme.spacing.screen}
+				edgeToEdge={false}
 				title="Customers"
 				subtitle={`${customers.length} ACTIVE MEMBERS`}
 				rightAction={
@@ -416,7 +416,7 @@ export default function CustomersScreen() {
 			<FlatList
 				data={customers}
 				keyExtractor={(item) => item.id}
-				contentContainerStyle={{ paddingHorizontal: Theme.spacing.screenPadding, paddingBottom: 150 }}
+				contentContainerStyle={{ paddingHorizontal: Theme.spacing.screen, paddingBottom: 150 }}
 				renderItem={({ item }) => (
 					<Card borderless style={{ marginBottom: Theme.spacing.md, borderBottomWidth: 1, borderBottomColor: Theme.colors.border }}>
 						<View style={styles.rowBetween}>

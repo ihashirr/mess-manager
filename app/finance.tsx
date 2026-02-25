@@ -3,6 +3,7 @@ import { collection, deleteDoc, doc, onSnapshot, query, where } from 'firebase/f
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Card } from '../components/ui/Card';
+import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { SETTINGS } from '../constants/Settings';
 import { Theme } from '../constants/Theme';
 import { db } from '../firebase/config';
@@ -122,13 +123,12 @@ export default function FinanceScreen() {
 
 	return (
 		<View style={styles.container}>
+			<ScreenHeader
+				edgeToEdge={false}
+				title="Finance Panel"
+				subtitle={`${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })} Summary`}
+			/>
 			<ScrollView contentContainerStyle={styles.content}>
-				<View style={styles.header}>
-					<View>
-						<Text style={styles.title}>Finance Panel</Text>
-						<Text style={styles.subtitle}>{new Date().toLocaleString('default', { month: 'long', year: 'numeric' })} Summary</Text>
-					</View>
-				</View>
 
 				<View style={styles.grid}>
 					<Card style={[styles.card, { borderLeftColor: Theme.colors.success }]}>
@@ -222,22 +222,7 @@ export default function FinanceScreen() {
 const styles = StyleSheet.create({
 	container: { flex: 1, backgroundColor: Theme.colors.bg },
 	content: { paddingBottom: 150 },
-	header: {
-		backgroundColor: Theme.colors.surfaceElevated,
-		paddingHorizontal: Theme.spacing.xxl,
-		paddingTop: 60,
-		paddingBottom: Theme.spacing.massive,
-		flexDirection: 'row',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-		borderBottomLeftRadius: Theme.radius.xl,
-		borderBottomRightRadius: Theme.radius.xl,
-		borderBottomWidth: 1,
-		borderBottomColor: 'rgba(255,255,255,0.1)',
-	},
-	title: { ...Theme.typography.answer, color: Theme.colors.textPrimary, letterSpacing: 1 },
-	subtitle: { ...Theme.typography.detailBold, color: Theme.colors.textMuted, textTransform: 'uppercase' },
-	grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: Theme.spacing.screen, marginTop: -Theme.spacing.xxl },
+	grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', paddingHorizontal: Theme.spacing.screen, marginTop: Theme.spacing.md },
 	card: {
 		width: '48%',
 		marginBottom: Theme.spacing.lg,

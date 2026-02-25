@@ -116,13 +116,13 @@ export default function PaymentsScreen() {
 	return (
 		<Screen scrollable={false}>
 			<ScreenHeader
-				gutter={Theme.spacing.screen}
+				edgeToEdge={false}
 				title="Payments"
 				subtitle="Collection Ledger"
 				rightAction={null}
 			/>
 
-			<View style={{ paddingHorizontal: Theme.spacing.screenPadding }}>
+			<View style={{ paddingHorizontal: Theme.spacing.screen }}>
 				<PrimaryPanel title="Pending Revenue">
 					<View style={styles.summaryRow}>
 						<Text style={styles.summaryValue}>DHS {totalDue}</Text>
@@ -134,7 +134,7 @@ export default function PaymentsScreen() {
 			<FlatList
 				data={payments}
 				keyExtractor={(item) => item.id}
-				contentContainerStyle={{ paddingHorizontal: Theme.spacing.screenPadding, paddingBottom: 150 }}
+				contentContainerStyle={{ paddingHorizontal: Theme.spacing.screen, paddingBottom: 150 }}
 				showsVerticalScrollIndicator={false}
 				renderItem={({ item }) => (
 					<Card borderless style={{ marginBottom: Theme.spacing.sm, borderBottomWidth: 1, borderBottomColor: Theme.colors.border }}>

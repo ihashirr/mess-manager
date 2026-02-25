@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
 	header: {
 		flexDirection: 'row',
 		alignItems: 'center',
-		paddingHorizontal: Theme.spacing.screenPadding,
+		paddingHorizontal: Theme.spacing.screen,
 		paddingVertical: Theme.spacing.md,
 	},
 	headerText: { flex: 1 },
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
 		flex: 1,
 	},
 	contentInner: {
-		paddingHorizontal: Theme.spacing.screenPadding,
+		paddingHorizontal: Theme.spacing.screen,
 		paddingTop: Theme.spacing.sm,
 		paddingBottom: Theme.spacing.md,
 	},

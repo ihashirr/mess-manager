@@ -252,7 +252,6 @@ export default function Index() {
 		<>
 			<Screen backgroundColor={Theme.colors.bg}>
 				<ScreenHeader
-					compact
 					gutter={Theme.spacing.screen}
 					title={`${todayName.charAt(0).toUpperCase() + todayName.slice(1)}, ${todayDate}`}
 					subtitle="SERVINGS DASHBOARD • HOME"

@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
 		flex: 1,
 	},
 	scrollContent: {
-		paddingHorizontal: Theme.spacing.screenPadding,
+		paddingHorizontal: Theme.spacing.screen,
 		paddingBottom: 100, // Extra space for bottom nav/fab
 	},
 });

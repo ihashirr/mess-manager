@@ -34,7 +34,6 @@ export const Theme = {
 		huge: 32,
 		massive: 40,
 		screen: 20, // Standard screen padding
-		screenPadding: 16, // Horizontal padding for all screens
 	},
 
 	radius: {
@@ -50,39 +49,39 @@ export const Theme = {
 	typography: {
 		// Tier A - Answer (Large, Bold, Clean)
 		answer: {
-			size: 32,
-			weight: '900' as const,
+			fontSize: 32,
+			fontWeight: '900' as const,
 			letterSpacing: 0.8,
 		},
 		answerGiant: {
-			size: 40,
-			weight: '900' as const,
+			fontSize: 40,
+			fontWeight: '900' as const,
 			letterSpacing: -1,
 		},
 		// Tier B - Section Label (Medium, Slightly Muted)
 		label: {
-			size: 14,
-			weight: '800' as const,
+			fontSize: 14,
+			fontWeight: '800' as const,
 			letterSpacing: 0.5,
 		},
 		labelMedium: {
-			size: 16,
-			weight: '700' as const,
+			fontSize: 16,
+			fontWeight: '700' as const,
 		},
 		// Tier C - Details (Small, Muted)
 		detail: {
-			size: 12,
-			weight: '600' as const,
+			fontSize: 12,
+			fontWeight: '600' as const,
 		},
 		detailBold: {
-			size: 12,
-			weight: '800' as const,
+			fontSize: 12,
+			fontWeight: '800' as const,
 			letterSpacing: 0.5,
 		},
 		// Specialized
 		urdu: {
-			size: 18,
-			weight: 'bold' as const,
+			fontSize: 18,
+			fontWeight: 'bold' as const,
 		},
 	},
 
