@@ -1,12 +1,16 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { collection, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import Animated, { FadeInDown, FadeInUp, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInUp, useAnimatedStyle, useSharedValue, withRepeat, withSpring, withTiming } from 'react-native-reanimated';
 import { AppModal } from '../components/ui/AppModal';
+import { CenterModal } from '../components/ui/CenterModal';
+import { CustomerIntelligenceDetail } from '../components/ui/CustomerIntelligenceDetail';
 import { Screen } from '../components/ui/Screen';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Section } from '../components/ui/Section';
+import { UserIdentity } from '../components/ui/UserIdentity';
 import { SETTINGS } from '../constants/Settings';
 import { Theme } from '../constants/Theme';
 import { db } from '../firebase/config';
@@ -32,6 +36,10 @@ const normalizeMeal = (raw: any): MealSlot => ({
 type Customer = {
 	id: string;
 	name: string;
+	address?: {
+		location: string;
+		flat: string;
+	};
 	mealsPerDay?: { lunch: boolean; dinner: boolean };
 	pricePerMonth: number;
 	totalPaid: number;
@@ -41,6 +49,7 @@ type Customer = {
 type AttendanceState = Record<string, { lunch: boolean; dinner: boolean }>;
 
 export default function Index() {
+	const router = useRouter();
 	const todayDate = formatISO(new Date());
 	const todayName = getTodayName();
 
@@ -48,15 +57,31 @@ export default function Index() {
 	const [todayMenu, setTodayMenu] = useState<DayMenu>({ lunch: { ...EMPTY_MEAL }, dinner: { ...EMPTY_MEAL } });
 	const [customers, setCustomers] = useState<Customer[]>([]);
 	const [attendance, setAttendance] = useState<AttendanceState>({});
-	const [stats, setStats] = useState({ activeCount: 0, paymentsDue: 0, lunchCount: 0, dinnerCount: 0 });
+	const [stats, setStats] = useState({ activeCount: 0, paymentsDue: 0, lunchCount: 0, dinnerCount: 0, dailyCapacity: 0 });
+	const [tomorrowExpected, setTomorrowExpected] = useState(0);
+	const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 	const [loading, setLoading] = useState(true);
 	// Modal State
 	const [activeModal, setActiveModal] = useState<'lunch' | 'dinner' | 'total' | null>(null);
+	const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
 	// Interaction States
 	const totalScale = useSharedValue(1);
 	const totalAnimatedStyle = useAnimatedStyle(() => ({
 		transform: [{ scale: totalScale.value }]
+	}));
+
+	const iconPulse = useSharedValue(1);
+	useEffect(() => {
+		iconPulse.value = withRepeat(
+			withTiming(1.15, { duration: 1500 }),
+			-1,
+			true
+		);
+	}, []);
+
+	const iconAnimatedStyle = useAnimatedStyle(() => ({
+		transform: [{ scale: iconPulse.value }]
 	}));
 
 	useEffect(() => {
@@ -128,22 +153,38 @@ export default function Index() {
 	// Calculate Derived Production Counts (Hardened Logic)
 	useEffect(() => {
 		let lCount = 0, dCount = 0;
+		let capacity = 0;
 		customers.forEach(c => {
 			const selection = attendance[c.id];
 			const subscribedLunch = c.mealsPerDay?.lunch !== false;
 			const subscribedDinner = c.mealsPerDay?.dinner !== false;
 
-			// Logic Integrity: Only count if SUBSCRIBED AND (Selected YES or NO Record)
 			if (subscribedLunch) {
 				if (!selection || selection.lunch !== false) lCount++;
+				capacity++;
 			}
-
 			if (subscribedDinner) {
 				if (!selection || selection.dinner !== false) dCount++;
+				capacity++;
 			}
 		});
-		setStats(prev => ({ ...prev, lunchCount: lCount, dinnerCount: dCount }));
+		setStats(prev => ({ ...prev, lunchCount: lCount, dinnerCount: dCount, dailyCapacity: capacity }));
+		setTomorrowExpected(capacity); // Based on current subscriptions
+		setLastUpdated(new Date());
 	}, [customers, attendance]);
+
+	// Relative time logic for "Last Updated"
+	const [timeAgo, setTimeAgo] = useState('just now');
+	useEffect(() => {
+		const updateTimer = () => {
+			if (!lastUpdated) return;
+			const diff = Math.floor((new Date().getTime() - lastUpdated.getTime()) / 60000);
+			setTimeAgo(diff === 0 ? 'just now' : `${diff} min ago`);
+		};
+		updateTimer();
+		const interval = setInterval(updateTimer, 30000);
+		return () => clearInterval(interval);
+	}, [lastUpdated]);
 
 	const toggleTodayAttendance = async (customerId: string, meal: 'lunch' | 'dinner') => {
 		const current = attendance[customerId] || { lunch: true, dinner: true };
@@ -173,7 +214,8 @@ export default function Index() {
 
 	// derive intelligence signals
 	const missingMeals = [!todayMenu.lunch.main, !todayMenu.dinner.main].filter(Boolean).length;
-	const systemStatus = missingMeals === 0 ? "All meals configured" : `⚠ ${missingMeals} meal${missingMeals > 1 ? 's' : ''} not set`;
+	const systemStatus = missingMeals === 0 ? "System Readiness: 100%" : `⚠ Attention Required`;
+	const statusDetail = missingMeals === 0 ? "All meals configured" : `${missingMeals} meal${missingMeals > 1 ? 's' : ''} not set`;
 
 	// Derived customer lists for modals
 	const lunchCustomers = customers.filter(c => {
@@ -266,23 +308,38 @@ export default function Index() {
 						>
 							{/* Hero Section */}
 							<Animated.View style={totalAnimatedStyle}>
-								<TouchableOpacity
-									style={styles.heroSection}
-									onPress={() => setActiveModal('total')}
-									onPressIn={() => { totalScale.value = withSpring(0.97); }}
-									onPressOut={() => { totalScale.value = withSpring(1); }}
-									activeOpacity={1}
-								>
-									<Text style={styles.heroCount}>{stats.lunchCount + stats.dinnerCount}</Text>
-									<Text style={styles.heroStatus}>{systemStatus}</Text>
-									<View style={styles.heroLabelContainer}>
-										<Text style={styles.heroLabel}>TOTAL SERVINGS TODAY</Text>
-										<MaterialCommunityIcons name="chevron-right" size={18} color={Theme.colors.textMuted} />
+								<View style={styles.heroSection}>
+									<View style={styles.heroCountContainer}>
+										<Text style={styles.heroCount}>{stats.lunchCount + stats.dinnerCount}</Text>
+										<Text style={styles.heroCapacity}>/ {stats.dailyCapacity} capacity</Text>
 									</View>
-								</TouchableOpacity>
-							</Animated.View>
 
-							<View style={styles.panelDivider} />
+									<View style={styles.heroIntelligence}>
+										<Text style={styles.heroStatus}>{systemStatus}</Text>
+										<View style={styles.heroStatusRow}>
+											<Text style={styles.heroStatusDetail}>{statusDetail}</Text>
+											{missingMeals > 0 && (
+												<TouchableOpacity onPress={() => router.push('/menu')}>
+													<Text style={styles.heroAction}>Set Now →</Text>
+												</TouchableOpacity>
+											)}
+										</View>
+									</View>
+
+									<TouchableOpacity
+										style={styles.heroLabelWrapper}
+										onPress={() => setActiveModal('total')}
+										onPressIn={() => { totalScale.value = withSpring(0.97); }}
+										onPressOut={() => { totalScale.value = withSpring(1); }}
+										activeOpacity={1}
+									>
+										<View style={styles.heroLabelContainer}>
+											<Text style={styles.heroLabel}>TOTAL SERVINGS TODAY</Text>
+											<MaterialCommunityIcons name="chevron-right" size={18} color={Theme.colors.textMuted} />
+										</View>
+									</TouchableOpacity>
+								</View>
+							</Animated.View>
 
 							{/* Lunch Row */}
 							<TouchableOpacity
@@ -290,8 +347,16 @@ export default function Index() {
 								onPress={() => setActiveModal('lunch')}
 								activeOpacity={0.7}
 							>
+								<View style={[styles.tieredAccent, styles.tieredAccentLunch]} />
 								<View style={styles.tieredMeta}>
-									<View style={[styles.servingIndicator, styles.servingIndicatorLunch]} />
+									<Animated.View style={iconAnimatedStyle}>
+										<MaterialCommunityIcons
+											name="weather-sunny"
+											size={20}
+											color="#FF8E3C"
+											style={[styles.microIcon, { textShadowColor: '#FF8E3C', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 6 }]}
+										/>
+									</Animated.View>
 									<Text style={styles.tieredLabel}>Lunch</Text>
 								</View>
 								<Text style={styles.tieredValue}>{stats.lunchCount}</Text>
@@ -300,16 +365,22 @@ export default function Index() {
 								</Text>
 							</TouchableOpacity>
 
-							<View style={styles.panelDivider} />
-
 							{/* Dinner Row */}
 							<TouchableOpacity
 								style={styles.tieredRow}
 								onPress={() => setActiveModal('dinner')}
 								activeOpacity={0.7}
 							>
+								<View style={[styles.tieredAccent, styles.tieredAccentDinner]} />
 								<View style={styles.tieredMeta}>
-									<View style={[styles.servingIndicator, styles.servingIndicatorDinner]} />
+									<Animated.View style={iconAnimatedStyle}>
+										<MaterialCommunityIcons
+											name="weather-night"
+											size={20}
+											color="#3BC9DB"
+											style={[styles.microIcon, { textShadowColor: '#3BC9DB', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 6 }]}
+										/>
+									</Animated.View>
 									<Text style={styles.tieredLabel}>Dinner</Text>
 								</View>
 								<Text style={styles.tieredValue}>{stats.dinnerCount}</Text>
@@ -318,7 +389,12 @@ export default function Index() {
 								</Text>
 							</TouchableOpacity>
 
-							<View style={styles.panelDivider} />
+							{/* Tomorrow Preview */}
+							<View style={styles.tomorrowRow}>
+								<Text style={styles.tomorrowText}>
+									Tomorrow: <Text style={{ color: Theme.colors.textPrimary }}>{tomorrowExpected}</Text> servings expected
+								</Text>
+							</View>
 
 							{/* Footer Meta */}
 							<View style={[styles.panelFooter, stats.paymentsDue > 0 && styles.panelFooterUrgent]}>
@@ -333,6 +409,7 @@ export default function Index() {
 										<>Due: <Text style={{ color: Theme.colors.textPrimary }}>0</Text></>
 									)}
 								</Text>
+								<Text style={styles.lastUpdatedText}>Updated {timeAgo}</Text>
 							</View>
 						</Animated.View>
 					</Animated.View>
@@ -354,6 +431,7 @@ export default function Index() {
 										attendance={attendance[c.id]}
 										date={todayDate}
 										onToggle={(meal: 'lunch' | 'dinner') => toggleTodayAttendance(c.id, meal)}
+										onAvatarPress={(cust: any) => setSelectedCustomer(cust)}
 									/>
 								))
 							)}
@@ -383,11 +461,13 @@ export default function Index() {
 								i < modalServings.length - 1 && styles.modalRowBorder,
 							]}
 						>
-							<View style={styles.modalRowIndex}>
-								<Text style={styles.modalRowNumber}>{i + 1}</Text>
-							</View>
+							<UserIdentity
+								name={s.customer.name}
+								onPress={() => setSelectedCustomer(s.customer)}
+								size={32}
+								fontSize={12}
+							/>
 							<View style={styles.modalCustomerInfo}>
-								<Text style={styles.modalCustomerName}>{s.customer.name}</Text>
 								{activeModal === 'total' && (
 									<View style={styles.mealBadge}>
 										<View style={[
@@ -402,12 +482,32 @@ export default function Index() {
 					))
 				)}
 			</AppModal>
+
+			{/* Customer Intelligence Modal */}
+			<CenterModal
+				visible={selectedCustomer !== null}
+				onClose={() => setSelectedCustomer(null)}
+				title="Intelligence Hub — انٹیلی جنس مرکز"
+			>
+				{selectedCustomer && (
+					<CustomerIntelligenceDetail
+						customer={selectedCustomer}
+						daysLeft={getDaysLeft(toDate(selectedCustomer.endDate))}
+						dueAmount={getDueAmount(selectedCustomer.pricePerMonth, selectedCustomer.totalPaid || 0)}
+						onAction={(type) => {
+							console.log("Intelligence Action:", type, selectedCustomer.id);
+							// Future: Wire real actions here
+							setSelectedCustomer(null);
+						}}
+					/>
+				)}
+			</CenterModal>
 		</>
 	);
 }
 
 
-const CustomerAttendanceRow = ({ customer, menu, attendance, onToggle, date }: any) => {
+const CustomerAttendanceRow = ({ customer, menu, attendance, onToggle, date, onAvatarPress }: any) => {
 	const sel = attendance || { lunch: true, dinner: true };
 	const subLunch = customer.mealsPerDay?.lunch !== false;
 	const subDinner = customer.mealsPerDay?.dinner !== false;
@@ -415,7 +515,12 @@ const CustomerAttendanceRow = ({ customer, menu, attendance, onToggle, date }: a
 	return (
 		<View style={styles.customerRow}>
 			<View style={styles.customerInfo}>
-				<Text style={styles.customerName}>{customer.name}</Text>
+				<UserIdentity
+					name={customer.name}
+					onPress={() => onAvatarPress(customer)}
+					size={32}
+					fontSize={12}
+				/>
 			</View>
 			<View style={styles.toggleGroup}>
 				{subLunch && (
@@ -490,14 +595,47 @@ const styles = StyleSheet.create({
 		...Theme.typography.answerGiant,
 		fontSize: 64,
 		color: Theme.colors.primary,
-		lineHeight: 64,
+	},
+	heroCountContainer: {
+		flexDirection: 'row',
+		alignItems: 'baseline',
+		gap: 8,
+	},
+	heroCapacity: {
+		...Theme.typography.detailBold,
+		color: Theme.colors.textMuted,
+		fontSize: 16,
+		opacity: 0.5,
+	},
+	heroIntelligence: {
+		alignItems: 'center',
+		marginTop: 8,
+		marginBottom: 16,
 	},
 	heroStatus: {
 		...Theme.typography.labelMedium,
 		color: Theme.colors.textSecondary,
 		fontSize: 13,
-		marginTop: 8,
-		marginBottom: 16,
+		fontWeight: '800',
+	},
+	heroStatusRow: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 8,
+		marginTop: 2,
+	},
+	heroStatusDetail: {
+		...Theme.typography.detailBold,
+		color: Theme.colors.textMuted,
+		fontSize: 12,
+	},
+	heroAction: {
+		...Theme.typography.detailBold,
+		color: Theme.colors.primary,
+		fontSize: 12,
+	},
+	heroLabelWrapper: {
+		marginTop: 4,
 	},
 	heroLabelContainer: {
 		flexDirection: 'row',
@@ -520,8 +658,31 @@ const styles = StyleSheet.create({
 	tieredRow: {
 		flexDirection: 'row',
 		alignItems: 'center',
-		padding: Theme.spacing.lg,
+		paddingVertical: Theme.spacing.lg,
+		paddingRight: Theme.spacing.lg,
+		paddingLeft: Theme.spacing.lg,
 		gap: Theme.spacing.md,
+		backgroundColor: 'rgba(255, 255, 255, 0.03)',
+		overflow: 'hidden',
+	},
+	tieredAccent: {
+		position: 'absolute',
+		left: 0,
+		top: 0,
+		bottom: 0,
+		width: 4,
+	},
+	tieredAccentLunch: {
+		backgroundColor: Theme.colors.mealLunch,
+		opacity: 0.6,
+	},
+	tieredAccentDinner: {
+		backgroundColor: Theme.colors.mealDinner,
+		opacity: 0.6,
+	},
+	microIcon: {
+		opacity: 1,
+		marginLeft: 4,
 	},
 	tieredMeta: {
 		flexDirection: 'row',
@@ -548,6 +709,15 @@ const styles = StyleSheet.create({
 		fontSize: 13,
 		textAlign: 'right',
 	},
+	tomorrowRow: {
+		padding: Theme.spacing.lg,
+		alignItems: 'center',
+	},
+	tomorrowText: {
+		...Theme.typography.detailBold,
+		color: Theme.colors.textMuted,
+		fontSize: 13,
+	},
 	panelFooter: {
 		backgroundColor: Theme.colors.surfaceElevated,
 		paddingVertical: Theme.spacing.md,
@@ -563,6 +733,13 @@ const styles = StyleSheet.create({
 		...Theme.typography.detailBold,
 		color: Theme.colors.textMuted,
 		letterSpacing: 1,
+	},
+	lastUpdatedText: {
+		...Theme.typography.detailBold,
+		color: Theme.colors.textMuted,
+		fontSize: 10,
+		opacity: 0.4,
+		marginTop: 4,
 	},
 
 	servingIndicator: {

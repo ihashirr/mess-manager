@@ -4,9 +4,12 @@ import { useEffect, useState } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Badge } from '../components/ui/Badge';
 import { Card } from '../components/ui/Card';
+import { CenterModal } from '../components/ui/CenterModal';
+import { CustomerIntelligenceDetail } from '../components/ui/CustomerIntelligenceDetail';
 import { Input } from '../components/ui/Input';
 import { Screen } from '../components/ui/Screen';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
+import { UserIdentity } from '../components/ui/UserIdentity';
 import { SETTINGS } from '../constants/Settings';
 import { Theme } from '../constants/Theme';
 import { db } from '../firebase/config';
@@ -32,6 +35,10 @@ type Customer = {
 	id: string;
 	name: string;
 	phone: string;
+	address?: {
+		location: string;
+		flat: string;
+	};
 	mealsPerDay: { lunch: boolean; dinner: boolean };
 	plan?: string; // Legacy fallback
 	pricePerMonth: number;
@@ -47,6 +54,7 @@ export default function CustomersScreen() {
 	const [loading, setLoading] = useState(true);
 	const [isAdding, setIsAdding] = useState(false);
 	const [expandedId, setExpandedId] = useState<string | null>(null);
+	const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 	const [weekAttendance, setWeekAttendance] = useState<Record<DayName, { lunch: boolean; dinner: boolean }>>(emptyWeekAttendance());
 	const [weekMenu, setWeekMenu] = useState<WeekMenu>({});
 	const weekId = getWeekId();
@@ -54,6 +62,8 @@ export default function CustomersScreen() {
 	// Form State
 	const [newName, setNewName] = useState("");
 	const [newPhone, setNewPhone] = useState("");
+	const [newLocation, setNewLocation] = useState("");
+	const [newFlat, setNewFlat] = useState("");
 	const [isLunch, setIsLunch] = useState(true);
 	const [isDinner, setIsDinner] = useState(false);
 	const [newPrice, setNewPrice] = useState("2500");
@@ -153,6 +163,7 @@ export default function CustomersScreen() {
 				await addDoc(collection(db, "customers"), {
 					name: newName,
 					phone: newPhone,
+					address: { location: newLocation, flat: newFlat },
 					mealsPerDay: { lunch: isLunch, dinner: isDinner },
 					pricePerMonth: parseInt(newPrice) || 0,
 					startDate: new Date(newStartDate),
@@ -167,6 +178,7 @@ export default function CustomersScreen() {
 					id: `mock - ${Date.now()} `,
 					name: newName,
 					phone: newPhone,
+					address: { location: newLocation, flat: newFlat },
 					mealsPerDay: { lunch: isLunch, dinner: isDinner },
 					pricePerMonth: parseInt(newPrice) || 0,
 					startDate: new Date(newStartDate).toISOString(),
@@ -180,6 +192,8 @@ export default function CustomersScreen() {
 			// Reset form
 			setNewName("");
 			setNewPhone("");
+			setNewLocation("");
+			setNewFlat("");
 			setNewNotes("");
 			setIsAdding(false);
 		} catch (error) {
@@ -317,6 +331,25 @@ export default function CustomersScreen() {
 
 					<View style={styles.row}>
 						<View style={{ flex: 1, marginRight: 10 }}>
+							<Text style={styles.label}>Location - مقام</Text>
+							<Input
+								value={newLocation}
+								onChangeText={setNewLocation}
+								placeholder="Building or Area"
+							/>
+						</View>
+						<View style={{ flex: 1 }}>
+							<Text style={styles.label}>Flat/Villa - فلیٹ</Text>
+							<Input
+								value={newFlat}
+								onChangeText={setNewFlat}
+								placeholder="Apt 2B"
+							/>
+						</View>
+					</View>
+
+					<View style={styles.row}>
+						<View style={{ flex: 1, marginRight: 10 }}>
 							<Text style={styles.label}>Meals - کھانا</Text>
 							<View style={styles.planSelector}>
 								<TouchableOpacity
@@ -387,7 +420,13 @@ export default function CustomersScreen() {
 				renderItem={({ item }) => (
 					<Card borderless style={{ marginBottom: Theme.spacing.md, borderBottomWidth: 1, borderBottomColor: Theme.colors.border }}>
 						<View style={styles.rowBetween}>
-							<Text style={styles.name}>{item.name}</Text>
+							<UserIdentity
+								name={item.name}
+								onPress={() => setSelectedCustomer(item)}
+								size={40}
+								fontSize={16}
+								nameSize={18}
+							/>
 							<View style={styles.badgeRow}>
 								{getCustomerStatus(toDate(item.endDate)) === 'expired' && <Badge label="EXPIRED" variant="danger" />}
 								{getCustomerStatus(toDate(item.endDate)) === 'expiring-soon' && <Badge label="EXPIRING" variant="warning" />}
@@ -513,6 +552,26 @@ export default function CustomersScreen() {
 				)}
 				ListEmptyComponent={!isAdding ? <Text style={styles.empty}>No active customers</Text> : null}
 			/>
+
+			{/* Customer Intelligence Modal */}
+			<CenterModal
+				visible={selectedCustomer !== null}
+				onClose={() => setSelectedCustomer(null)}
+				title="Intelligence Hub — انٹیلی جنس مرکز"
+			>
+				{selectedCustomer && (
+					<CustomerIntelligenceDetail
+						customer={selectedCustomer}
+						daysLeft={getDaysLeft(toDate(selectedCustomer.endDate))}
+						dueAmount={getDueAmount(selectedCustomer.pricePerMonth, selectedCustomer.totalPaid || 0)}
+						onAction={(type) => {
+							console.log("Intelligence Action:", type, selectedCustomer.id);
+							// Future: Wire real actions here
+							setSelectedCustomer(null);
+						}}
+					/>
+				)}
+			</CenterModal>
 		</Screen>
 	);
 }
@@ -598,6 +657,12 @@ const styles = StyleSheet.create({
 		justifyContent: 'space-between',
 		alignItems: 'center',
 		marginTop: Theme.spacing.sm,
+	},
+	headerInfo: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: Theme.spacing.md,
+		flex: 1,
 	},
 	plan: {
 		...Theme.typography.labelMedium,

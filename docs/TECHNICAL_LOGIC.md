@@ -23,6 +23,10 @@ This document covers the architecture, data model, and screen-by-screen logic fo
 
 ### 1. Home Screen (`index.tsx`)
 **Purpose**: Operational command center and daily production overview.
+- **Living Intelligence**:
+  - **Dynamic Capacity**: Real-time ratio of actual vs possible servings (total meals / active subs) instead of hardcoded max capacities.
+  - **Interactive Profiles**: All customer mentions (`UserAvatar`) are unified into tactile `UserIdentity` bundles triggering a 360-degree popup modal.
+  - **Operative Beacons**: Glowing, pulsing sun/moon icons reflect real-time production status.
 - **Segmented View**:
   - **DASHBOARD**: Shows totals (Derived from active customers + attendance overrides).
   - **ATTENDANCE**: Single-tap list to toggle who's eating today. Toggles show actual dish names.
@@ -37,8 +41,9 @@ This document covers the architecture, data model, and screen-by-screen logic fo
 - Queries Firestore for `isActive == true` customers in real-time.
 - **Add Customer**:
   - Requires non-empty name (validated on submit).
+  - Captures extended profile data: Phone, Location, Flat/Villa layout.
   - Auto-prices: 350 DHS (one meal), 650 DHS (both).
-  - Saves `mealsPerDay: { lunch, dinner }`, `startDate`, `endDate`, `totalPaid: 0`.
+  - Saves `address: { location, flat }`, `mealsPerDay: { lunch, dinner }`, `startDate`, `endDate`, `totalPaid: 0`.
 - **Delete Customer**: `handleDeleteCustomer` calls `deleteDoc`. Removed from list immediately via `onSnapshot` reaction.
 - Status badges: EXPIRED (red), EXPIRING SOON (orange), days remaining label.
 
@@ -131,12 +136,14 @@ The app uses **Aesthetic Option A: Flat Modern** + **Deep Aqua Dark Mode**.
 
 ---
 
-## 🎨 UI Philosophy
+## 🎨 UI Philosophy & Living System
 
-- **The Silent Interface**: Reduced cognitive load by removing decorative icons and backgrounds (like the "Green Pill" badges). Data hierarchy is now driven by typography scale alone.
+- **The Silent Interface**: Reduced cognitive load by removing decorative icons. Data hierarchy is driven by typography scale alone.
+- **Living Operative Signals**: Use of subtle scaling animations and luminous text-shadows (`#FF8E3C` / `#3BC9DB`) on critical status indicators like weather icons and avatars.
+- **Collective Clickability**: Avatars and names are bundled into tactile blocks (`UserIdentity`) with a Scale-on-Press feedback to provide immediate physical affordance.
 - **One-tap actions**: Primary tasks (mark paid, add customer) require minimal inputs.
+- **Focused Hubs**: Avoiding deep navigation stacks in favor of centered, high-density popups (`CenterModal`) for detailed views.
 - **Floating UI**: Bottom navigation is a decoupled, floating dock with rounded corners, providing a modern, premium feel.
-- **Icon Intelligence**: Icons are reserved strictly for **Actions** or to prevent **Text Ambiguity**.
 - **Urdu labels**: Primary action buttons use Urdu text for native-language accessibility.
 
 ---

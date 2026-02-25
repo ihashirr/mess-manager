@@ -22,6 +22,7 @@ This document defines the structure, data types, and relationships for the Mess 
 | :--- | :--- | :--- |
 | `name` | string | Customer's full name. |
 | `phone` | string | Contact number. |
+| `address` | object | `{ location: string, flat: string }` — delivery details. |
 | `pricePerMonth` | number | Calculated fee based on meal subscription (350 or 650). |
 | `totalPaid` | number | Cumulative amount paid by the customer (cached total). |
 | `startDate` | Timestamp | Date the subscription first started. |

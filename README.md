@@ -8,11 +8,16 @@ A focused, high-readability mobile app for home-based meal service operators. Bu
 
 | Tab | Purpose |
 | :--- | :--- |
-| **Home** | Glanceable dashboard: active customers, payments due, meal counts |
-| **Customers** | Enroll customers, set subscription dates & meal plans, delete records |
+| **Home** | Living Intelligence Hub: dynamic utilization, breathing operatives, real-time demand |
+| **Customers** | Enroll customers, track location/flat addresses, manage subscriptions |
 | **Payments** | One-tap "Mark Paid" flow with subscription renewal logic |
 | **Finance** | Monthly income ledger with expected vs. collected tracking |
 | **Menu** | Weekly Control Panel with live demand forecasts |
+
+### 🧠 Intelligence Suite
+- **Interactive Identity**: Every customer mention (`UserIdentity`) is a tactile, scale-on-press gateway.
+- **CenterModal Hub**: Tapping a user opens a 360-degree popup with identity, delivery address, financial summary, and action grid.
+- **Dynamic Capacity**: Real-time ratio of actual vs. possible servings based on active subscriptions.
 
 ---
 
@@ -61,6 +66,11 @@ components/ui/    — Atomic Layout Engine
   ScreenHeader.tsx — Contextual header
   Section.tsx     — Structural grouping
   PrimaryPanel.tsx — High-contrast summary
+  AppModal.tsx    — Slide-up sheet logic
+  CenterModal.tsx — 360-degree popup logic
+  UserAvatar.tsx  — Luminous identity initial
+  UserIdentity.tsx — Tactile identity bundle
+  CustomerIntelligenceDetail.tsx — High-density data grid
 
 firebase/
   config.ts       — Firestore initialization
