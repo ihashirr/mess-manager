@@ -175,13 +175,16 @@ export default function Index() {
 		const sel = attendance[c.id];
 		return !sel || sel.dinner !== false;
 	});
-	// Derived Modal Data
-	const modalCustomers = activeModal === 'lunch'
-		? lunchCustomers
+	// Derived Modal Data (Servings based)
+	const lunchServings = lunchCustomers.map(c => ({ customer: c, meal: 'LUNCH' as const }));
+	const dinnerServings = dinnerCustomers.map(c => ({ customer: c, meal: 'DINNER' as const }));
+
+	const modalServings = activeModal === 'lunch'
+		? lunchServings
 		: activeModal === 'dinner'
-			? dinnerCustomers
+			? dinnerServings
 			: activeModal === 'total'
-				? Array.from(new Set([...lunchCustomers, ...dinnerCustomers])).sort((a, b) => a.name.localeCompare(b.name))
+				? [...lunchServings, ...dinnerServings].sort((a, b) => a.customer.name.localeCompare(b.customer.name))
 				: [];
 
 	const modalMealLabel = activeModal === 'lunch' ? 'LUNCH' : activeModal === 'dinner' ? 'DINNER' : 'DAILY TOTAL';
@@ -358,27 +361,37 @@ export default function Index() {
 			<AppModal
 				visible={activeModal !== null}
 				onClose={() => setActiveModal(null)}
-				title={`${modalMealLabel} — ${modalCustomers.length} servings`}
+				title={`${modalMealLabel} — ${modalServings.length} servings`}
 				subtitle={modalDish || 'MENU NOT SET'}
 			>
-				{modalCustomers.length === 0 ? (
+				{modalServings.length === 0 ? (
 					<View style={styles.modalEmpty}>
 						<MaterialCommunityIcons name="food-off-outline" size={32} color={Theme.colors.textMuted} />
 						<Text style={styles.modalEmptyText}>No customers for this meal</Text>
 					</View>
 				) : (
-					modalCustomers.map((c, i) => (
+					modalServings.map((s, i) => (
 						<View
-							key={c.id}
+							key={`${s.customer.id}_${s.meal}`}
 							style={[
 								styles.modalRow,
-								i < modalCustomers.length - 1 && styles.modalRowBorder,
+								i < modalServings.length - 1 && styles.modalRowBorder,
 							]}
 						>
 							<View style={styles.modalRowIndex}>
 								<Text style={styles.modalRowNumber}>{i + 1}</Text>
 							</View>
-							<Text style={styles.modalCustomerName}>{c.name}</Text>
+							<View style={styles.modalCustomerInfo}>
+								<Text style={styles.modalCustomerName}>{s.customer.name}</Text>
+								{activeModal === 'total' && (
+									<View style={[
+										styles.mealBadge,
+										s.meal === 'LUNCH' ? styles.badgeLunch : styles.badgeDinner
+									]}>
+										<Text style={styles.mealBadgeText}>{s.meal}</Text>
+									</View>
+								)}
+							</View>
 						</View>
 					))
 				)}
@@ -623,5 +636,28 @@ const styles = StyleSheet.create({
 	modalEmptyText: {
 		...Theme.typography.labelMedium,
 		color: Theme.colors.textMuted,
+	},
+	modalCustomerInfo: {
+		flex: 1,
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'space-between',
+	},
+	mealBadge: {
+		paddingHorizontal: 8,
+		paddingVertical: 2,
+		borderRadius: 4,
+	},
+	badgeLunch: {
+		backgroundColor: 'rgba(30, 142, 110, 0.15)',
+	},
+	badgeDinner: {
+		backgroundColor: 'rgba(180, 83, 83, 0.15)',
+	},
+	mealBadgeText: {
+		fontSize: 10,
+		fontWeight: '800',
+		color: Theme.colors.textSecondary,
+		letterSpacing: 0.5,
 	},
 });
