@@ -84,4 +84,4 @@ PRODUCTION_CLEANUP.md — Steps to ship to production
 
 ---
 
-*Built for simplicity. See [TECHNICAL_LOGIC.md](file:///c:/Users/ihash/Desktop/Hm/docs/TECHNICAL_LOGIC.md) for architecture and [DATABASE_SCHEMA.md](file:///c:/Users/ihash/Desktop/Hm/docs/DATABASE_SCHEMA.md) for data specs.*
+*Built for simplicity. See [TECHNICAL_LOGIC.md](./docs/TECHNICAL_LOGIC.md) for architecture and [DATABASE_SCHEMA.md](./docs/DATABASE_SCHEMA.md) for data specs.*

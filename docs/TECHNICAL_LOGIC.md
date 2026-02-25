@@ -141,4 +141,4 @@ The app uses **Aesthetic Option A: Flat Modern** + **Deep Aqua Dark Mode**.
 
 ---
 
-*For detailed data structures, see [DATABASE_SCHEMA.md](file:///c:/Users/ihash/Desktop/Hm/docs/DATABASE_SCHEMA.md).*
+*For detailed data structures, see [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md).*
