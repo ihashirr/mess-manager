@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { collection, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import Animated, { FadeIn, FadeInLeft, FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInUp, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { AppModal } from '../components/ui/AppModal';
 import { Screen } from '../components/ui/Screen';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
@@ -50,7 +50,14 @@ export default function Index() {
 	const [attendance, setAttendance] = useState<AttendanceState>({});
 	const [stats, setStats] = useState({ activeCount: 0, paymentsDue: 0, lunchCount: 0, dinnerCount: 0 });
 	const [loading, setLoading] = useState(true);
+	// Modal State
 	const [activeModal, setActiveModal] = useState<'lunch' | 'dinner' | 'total' | null>(null);
+
+	// Interaction States
+	const totalScale = useSharedValue(1);
+	const totalAnimatedStyle = useAnimatedStyle(() => ({
+		transform: [{ scale: totalScale.value }]
+	}));
 
 	useEffect(() => {
 		if (SETTINGS.USE_MOCKS) {
@@ -164,6 +171,10 @@ export default function Index() {
 
 	if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={Theme.colors.primary} /></View>;
 
+	// derive intelligence signals
+	const missingMeals = [!todayMenu.lunch.main, !todayMenu.dinner.main].filter(Boolean).length;
+	const systemStatus = missingMeals === 0 ? "All meals configured" : `⚠ ${missingMeals} meal${missingMeals > 1 ? 's' : ''} not set`;
+
 	// Derived customer lists for modals
 	const lunchCustomers = customers.filter(c => {
 		if (c.mealsPerDay?.lunch === false) return false;
@@ -193,6 +204,7 @@ export default function Index() {
 		: activeModal === 'dinner'
 			? todayMenu.dinner.main
 			: `${todayMenu.lunch.main || '...'} + ${todayMenu.dinner.main || '...'}`;
+
 
 	return (
 		<>
@@ -248,88 +260,81 @@ export default function Index() {
 						entering={FadeInUp.duration(220)}
 						style={styles.scrollContent}
 					>
-						<View style={styles.productionPanel}>
-							<Text style={styles.productionTitle}>TODAY'S PRODUCTION</Text>
-
-							<View style={styles.servingsGrid}>
-								{/* Lunch Panel */}
-								<Animated.View
-									entering={FadeInLeft.delay(80).springify().damping(20)}
-									style={styles.servingCard}
-								>
-									<TouchableOpacity
-										style={styles.servingAction}
-										onPress={() => setActiveModal('lunch')}
-										activeOpacity={0.7}
-									>
-										<View style={styles.servingInfo}>
-											<Text style={styles.servingLabel}>LUNCH</Text>
-											<Text style={styles.servingDish} numberOfLines={1}>
-												{todayMenu.lunch.main || 'NOT SET'}
-											</Text>
-										</View>
-										<View style={styles.servingCountPill}>
-											<Text style={styles.servingCountValue}>{stats.lunchCount}</Text>
-											<MaterialCommunityIcons name="chevron-right" size={16} color={Theme.colors.textMuted} />
-										</View>
-									</TouchableOpacity>
-								</Animated.View>
-
-								{/* Dinner Panel */}
-								<Animated.View
-									entering={FadeInLeft.delay(180).springify().damping(20)}
-									style={styles.servingCard}
-								>
-									<TouchableOpacity
-										style={styles.servingAction}
-										onPress={() => setActiveModal('dinner')}
-										activeOpacity={0.7}
-									>
-										<View style={styles.servingInfo}>
-											<Text style={styles.servingLabel}>DINNER</Text>
-											<Text style={styles.servingDish} numberOfLines={1}>
-												{todayMenu.dinner.main || 'NOT SET'}
-											</Text>
-										</View>
-										<View style={styles.servingCountPill}>
-											<Text style={styles.servingCountValue}>{stats.dinnerCount}</Text>
-											<MaterialCommunityIcons name="chevron-right" size={16} color={Theme.colors.textMuted} />
-										</View>
-									</TouchableOpacity>
-								</Animated.View>
-							</View>
-
-							{/* Master Total Bar */}
-							<Animated.View
-								entering={FadeIn.delay(280).duration(300)}
-								style={styles.totalBar}
-							>
+						<Animated.View
+							entering={FadeInDown.delay(100).duration(400).springify().damping(20)}
+							style={styles.productionPanel}
+						>
+							{/* Hero Section */}
+							<Animated.View style={totalAnimatedStyle}>
 								<TouchableOpacity
-									style={styles.totalBarAction}
+									style={styles.heroSection}
 									onPress={() => setActiveModal('total')}
-									activeOpacity={0.7}
+									onPressIn={() => { totalScale.value = withSpring(0.97); }}
+									onPressOut={() => { totalScale.value = withSpring(1); }}
+									activeOpacity={1}
 								>
-									<Text style={styles.totalBarLabel}>TOTAL DAILY SERVINGS</Text>
-									<View style={styles.totalBarValueContainer}>
-										<Text style={styles.totalBarValue}>{stats.lunchCount + stats.dinnerCount}</Text>
+									<Text style={styles.heroCount}>{stats.lunchCount + stats.dinnerCount}</Text>
+									<Text style={styles.heroStatus}>{systemStatus}</Text>
+									<View style={styles.heroLabelContainer}>
+										<Text style={styles.heroLabel}>TOTAL SERVINGS TODAY</Text>
+										<MaterialCommunityIcons name="chevron-right" size={18} color={Theme.colors.textMuted} />
 									</View>
 								</TouchableOpacity>
 							</Animated.View>
-						</View>
 
-						{/* Overview Stats */}
-						<Section title="Overview">
-							<View style={styles.statsRow}>
-								<View style={styles.statCard}>
-									<Text style={styles.statValue}>{stats.activeCount}</Text>
-									<Text style={styles.statLabel}>ACTIVE{"\n"}CUSTOMERS</Text>
+							<View style={styles.panelDivider} />
+
+							{/* Lunch Row */}
+							<TouchableOpacity
+								style={styles.tieredRow}
+								onPress={() => setActiveModal('lunch')}
+								activeOpacity={0.7}
+							>
+								<View style={styles.tieredMeta}>
+									<View style={[styles.servingIndicator, styles.servingIndicatorLunch]} />
+									<Text style={styles.tieredLabel}>Lunch</Text>
 								</View>
-								<View style={styles.statCard}>
-									<Text style={styles.statValue}>{stats.paymentsDue}</Text>
-									<Text style={styles.statLabel}>PAYMENTS{"\n"}DUE</Text>
+								<Text style={styles.tieredValue}>{stats.lunchCount}</Text>
+								<Text style={styles.tieredDish} numberOfLines={1}>
+									{todayMenu.lunch.main || 'NOT SET'}
+								</Text>
+							</TouchableOpacity>
+
+							<View style={styles.panelDivider} />
+
+							{/* Dinner Row */}
+							<TouchableOpacity
+								style={styles.tieredRow}
+								onPress={() => setActiveModal('dinner')}
+								activeOpacity={0.7}
+							>
+								<View style={styles.tieredMeta}>
+									<View style={[styles.servingIndicator, styles.servingIndicatorDinner]} />
+									<Text style={styles.tieredLabel}>Dinner</Text>
 								</View>
+								<Text style={styles.tieredValue}>{stats.dinnerCount}</Text>
+								<Text style={styles.tieredDish} numberOfLines={1}>
+									{todayMenu.dinner.main || 'NOT SET'}
+								</Text>
+							</TouchableOpacity>
+
+							<View style={styles.panelDivider} />
+
+							{/* Footer Meta */}
+							<View style={[styles.panelFooter, stats.paymentsDue > 0 && styles.panelFooterUrgent]}>
+								<Text style={styles.panelFooterText}>
+									Active: <Text style={{ color: Theme.colors.textPrimary }}>{stats.activeCount}</Text>
+									{"  "}•{"  "}
+									{stats.paymentsDue > 0 ? (
+										<Text style={{ color: Theme.colors.mealLunch }}>
+											⚠ {stats.paymentsDue} Payment{stats.paymentsDue > 1 ? 's' : ''} Due
+										</Text>
+									) : (
+										<>Due: <Text style={{ color: Theme.colors.textPrimary }}>0</Text></>
+									)}
+								</Text>
 							</View>
-						</Section>
+						</Animated.View>
 					</Animated.View>
 				) : (
 					<Animated.View
@@ -384,10 +389,11 @@ export default function Index() {
 							<View style={styles.modalCustomerInfo}>
 								<Text style={styles.modalCustomerName}>{s.customer.name}</Text>
 								{activeModal === 'total' && (
-									<View style={[
-										styles.mealBadge,
-										s.meal === 'LUNCH' ? styles.badgeLunch : styles.badgeDinner
-									]}>
+									<View style={styles.mealBadge}>
+										<View style={[
+											styles.badgeDot,
+											s.meal === 'LUNCH' ? styles.badgeDotLunch : styles.badgeDotDinner
+										]} />
 										<Text style={styles.mealBadgeText}>{s.meal}</Text>
 									</View>
 								)}
@@ -469,111 +475,107 @@ const styles = StyleSheet.create({
 
 	// Production Panel
 	productionPanel: {
-		backgroundColor: Theme.colors.surfaceElevated,
-		borderRadius: Theme.radius.sm,
-		borderWidth: 1,
-		borderColor: Theme.colors.border,
-		padding: Theme.spacing.lg,
-		marginBottom: Theme.spacing.md,
-	},
-	productionTitle: {
-		...Theme.typography.detailBold,
-		color: Theme.colors.textMuted,
-		textTransform: 'uppercase',
-		letterSpacing: 1.5,
-		marginBottom: Theme.spacing.md,
-	},
-	servingsGrid: {
-		gap: Theme.spacing.md,
-	},
-	servingCard: {
-		backgroundColor: Theme.colors.surface,
-		borderRadius: Theme.radius.md,
-		borderWidth: 1,
-		borderColor: Theme.colors.border,
-		overflow: 'hidden',
-	},
-	servingAction: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		padding: Theme.spacing.md,
-		paddingRight: Theme.spacing.sm,
-	},
-	servingInfo: {
-		flex: 1,
-	},
-	servingLabel: {
-		...Theme.typography.detailBold,
-		color: Theme.colors.textSecondary,
-		letterSpacing: 1,
-	},
-	servingDish: {
-		...Theme.typography.labelMedium,
-		color: Theme.colors.textPrimary,
-		marginTop: 2,
-	},
-	servingCountPill: {
-		backgroundColor: Theme.colors.surfaceElevated,
-		paddingHorizontal: Theme.spacing.md,
-		paddingVertical: Theme.spacing.sm,
-		borderRadius: Theme.radius.sm,
-		flexDirection: 'row',
-		alignItems: 'center',
-		gap: Theme.spacing.xs,
-		borderWidth: 1,
-		borderColor: Theme.colors.border,
-	},
-	servingCountValue: {
-		...Theme.typography.answerGiant,
-		color: Theme.colors.primary,
-		lineHeight: 48,
-	},
-	totalBar: {
-		marginTop: Theme.spacing.lg,
-		backgroundColor: Theme.colors.primary,
-		borderRadius: Theme.radius.md,
-		shadowColor: Theme.colors.primary,
-		shadowOffset: { width: 0, height: 4 },
-		shadowOpacity: 0.3,
-		shadowRadius: 8,
-		elevation: 4,
-		overflow: 'hidden',
-	},
-	totalBarAction: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		justifyContent: 'space-between',
-		padding: Theme.spacing.lg,
-	},
-	totalBarLabel: {
-		...Theme.typography.labelMedium,
-		color: '#FFFFFF',
-		letterSpacing: 1.2,
-	},
-	totalBarValueContainer: {
-		backgroundColor: 'rgba(255,255,255,0.2)',
-		paddingHorizontal: Theme.spacing.lg,
-		paddingVertical: Theme.spacing.xs,
-		borderRadius: Theme.radius.pill,
-	},
-	totalBarValue: {
-		...Theme.typography.answerGiant,
-		color: '#FFFFFF',
-		lineHeight: 42,
-	},
-
-	statsRow: { flexDirection: 'row', gap: Theme.spacing.lg, marginTop: Theme.spacing.sm },
-	statCard: {
-		flex: 1,
-		padding: Theme.spacing.lg,
-		alignItems: 'center',
 		backgroundColor: Theme.colors.surface,
 		borderRadius: Theme.radius.lg,
 		borderWidth: 1,
 		borderColor: Theme.colors.border,
+		overflow: 'hidden',
+		marginTop: Theme.spacing.md,
 	},
-	statValue: { ...Theme.typography.answerGiant, color: Theme.colors.textPrimary },
-	statLabel: { ...Theme.typography.detailBold, color: Theme.colors.textSecondary, marginTop: Theme.spacing.xs, textAlign: 'center' },
+	heroSection: {
+		alignItems: 'center',
+		paddingVertical: Theme.spacing.massive,
+	},
+	heroCount: {
+		...Theme.typography.answerGiant,
+		fontSize: 64,
+		color: Theme.colors.primary,
+		lineHeight: 64,
+	},
+	heroStatus: {
+		...Theme.typography.labelMedium,
+		color: Theme.colors.textSecondary,
+		fontSize: 13,
+		marginTop: 8,
+		marginBottom: 16,
+	},
+	heroLabelContainer: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: Theme.spacing.xs,
+		marginTop: -4,
+	},
+	heroLabel: {
+		...Theme.typography.detailBold,
+		color: Theme.colors.textMuted,
+		letterSpacing: 2,
+		opacity: 0.65,
+	},
+	panelDivider: {
+		height: 1,
+		backgroundColor: Theme.colors.border,
+		marginHorizontal: Theme.spacing.lg,
+		opacity: 0.5,
+	},
+	tieredRow: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		padding: Theme.spacing.lg,
+		gap: Theme.spacing.md,
+	},
+	tieredMeta: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 8,
+		width: 80,
+	},
+	tieredLabel: {
+		...Theme.typography.labelMedium,
+		color: Theme.colors.textPrimary,
+	},
+	tieredValue: {
+		...Theme.typography.answerGiant,
+		color: Theme.colors.textPrimary,
+		fontSize: 22,
+		fontWeight: '800',
+		marginRight: Theme.spacing.md,
+		lineHeight: 28,
+	},
+	tieredDish: {
+		...Theme.typography.detailBold,
+		color: Theme.colors.textMuted,
+		flex: 1,
+		fontSize: 13,
+		textAlign: 'right',
+	},
+	panelFooter: {
+		backgroundColor: Theme.colors.surfaceElevated,
+		paddingVertical: Theme.spacing.md,
+		alignItems: 'center',
+		borderTopWidth: 1,
+		borderTopColor: Theme.colors.border,
+	},
+	panelFooterUrgent: {
+		backgroundColor: 'rgba(162, 74, 74, 0.05)',
+		borderTopColor: 'rgba(162, 74, 74, 0.15)',
+	},
+	panelFooterText: {
+		...Theme.typography.detailBold,
+		color: Theme.colors.textMuted,
+		letterSpacing: 1,
+	},
+
+	servingIndicator: {
+		width: 8,
+		height: 8,
+		borderRadius: 4,
+	},
+	servingIndicatorLunch: {
+		backgroundColor: Theme.colors.mealLunch,
+	},
+	servingIndicatorDinner: {
+		backgroundColor: Theme.colors.mealDinner,
+	},
 
 	customerRow: { backgroundColor: 'transparent', borderBottomWidth: 1, borderBottomColor: Theme.colors.border, paddingVertical: Theme.spacing.md },
 	customerInfo: { marginBottom: Theme.spacing.sm },
@@ -645,18 +647,29 @@ const styles = StyleSheet.create({
 	},
 	mealBadge: {
 		paddingHorizontal: 8,
-		paddingVertical: 2,
-		borderRadius: 4,
+		paddingVertical: 4,
+		borderRadius: Theme.radius.xs,
+		backgroundColor: Theme.colors.surfaceElevated,
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 6,
+		borderWidth: 1,
+		borderColor: Theme.colors.border,
 	},
-	badgeLunch: {
-		backgroundColor: 'rgba(30, 142, 110, 0.15)',
+	badgeDot: {
+		width: 6,
+		height: 6,
+		borderRadius: 3,
 	},
-	badgeDinner: {
-		backgroundColor: 'rgba(180, 83, 83, 0.15)',
+	badgeDotLunch: {
+		backgroundColor: Theme.colors.mealLunch,
+	},
+	badgeDotDinner: {
+		backgroundColor: Theme.colors.mealDinner,
 	},
 	mealBadgeText: {
 		fontSize: 10,
-		fontWeight: '800',
+		fontWeight: '900',
 		color: Theme.colors.textSecondary,
 		letterSpacing: 0.5,
 	},

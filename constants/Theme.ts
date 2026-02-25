@@ -16,6 +16,10 @@ export const Theme = {
 		textMuted: '#6B7C7A',     // Deep Muted Aqua
 		textInverted: '#0F1416',
 
+		// Meal Semantics
+		mealLunch: '#A24A4A',  // Desaturated Rust
+		mealDinner: '#2E5E82', // Desaturated Steel Blue
+
 		// Utilities
 		overlay: 'rgba(15, 20, 22, 0.8)',
 	},
