@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Animated, { FadeIn, FadeInLeft, FadeInUp } from 'react-native-reanimated';
 import { collection, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -227,55 +228,71 @@ export default function Index() {
 				</View>
 
 				{activeTab === 'dashboard' ? (
-					<View style={styles.scrollContent}>
+					<Animated.View
+					key="dashboard"
+					entering={FadeInUp.duration(220)}
+					style={styles.scrollContent}
+				>
 						{/* Production Panel */}
 						<View style={styles.productionPanel}>
 							<Text style={styles.productionTitle}>TODAY PRODUCTION</Text>
 
 							{/* Lunch Row */}
-							<View style={styles.productionDivider} />
-							<TouchableOpacity
-								style={styles.productionRow}
-								onPress={() => setActiveModal('lunch')}
-								activeOpacity={0.7}
-							>
-								<View style={styles.productionMeta}>
-									<Text style={styles.productionLabel}>LUNCH</Text>
-									<Text style={styles.productionDish} numberOfLines={1}>
-										{todayMenu.lunch.main || 'Not Set'}
-									</Text>
-								</View>
-								<View style={styles.productionCountRow}>
-									<Text style={styles.productionCount}>{stats.lunchCount}</Text>
-									<MaterialCommunityIcons name="chevron-right" size={18} color={Theme.colors.textMuted} />
-								</View>
-							</TouchableOpacity>
+							<Animated.View
+							entering={FadeInLeft.delay(80).springify().damping(20)}
+						>
+								<View style={styles.productionDivider} />
+								<TouchableOpacity
+									style={styles.productionRow}
+									onPress={() => setActiveModal('lunch')}
+									activeOpacity={0.7}
+								>
+									<View style={styles.productionMeta}>
+										<Text style={styles.productionLabel}>LUNCH</Text>
+										<Text style={styles.productionDish} numberOfLines={1}>
+											{todayMenu.lunch.main || 'Not Set'}
+										</Text>
+									</View>
+									<View style={styles.productionCountRow}>
+										<Text style={styles.productionCount}>{stats.lunchCount}</Text>
+										<MaterialCommunityIcons name="chevron-right" size={18} color={Theme.colors.textMuted} />
+									</View>
+								</TouchableOpacity>
+							</Animated.View>
 
 							{/* Dinner Row */}
-							<View style={styles.productionDivider} />
-							<TouchableOpacity
-								style={styles.productionRow}
-								onPress={() => setActiveModal('dinner')}
-								activeOpacity={0.7}
-							>
-								<View style={styles.productionMeta}>
-									<Text style={styles.productionLabel}>DINNER</Text>
-									<Text style={styles.productionDish} numberOfLines={1}>
-										{todayMenu.dinner.main || 'Not Set'}
-									</Text>
-								</View>
-								<View style={styles.productionCountRow}>
-									<Text style={styles.productionCount}>{stats.dinnerCount}</Text>
-									<MaterialCommunityIcons name="chevron-right" size={18} color={Theme.colors.textMuted} />
-								</View>
-							</TouchableOpacity>
+							<Animated.View
+							entering={FadeInLeft.delay(180).springify().damping(20)}
+						>
+								<View style={styles.productionDivider} />
+								<TouchableOpacity
+									style={styles.productionRow}
+									onPress={() => setActiveModal('dinner')}
+									activeOpacity={0.7}
+								>
+									<View style={styles.productionMeta}>
+										<Text style={styles.productionLabel}>DINNER</Text>
+										<Text style={styles.productionDish} numberOfLines={1}>
+											{todayMenu.dinner.main || 'Not Set'}
+										</Text>
+									</View>
+									<View style={styles.productionCountRow}>
+										<Text style={styles.productionCount}>{stats.dinnerCount}</Text>
+										<MaterialCommunityIcons name="chevron-right" size={18} color={Theme.colors.textMuted} />
+									</View>
+								</TouchableOpacity>
+							</Animated.View>
 
 							{/* Total Row */}
-							<View style={styles.productionDividerThick} />
-							<View style={styles.productionRow}>
-								<Text style={styles.productionTotalLabel}>TOTAL PLATES</Text>
-								<Text style={styles.productionTotalCount}>{stats.lunchCount + stats.dinnerCount}</Text>
-							</View>
+							<Animated.View
+							entering={FadeIn.delay(280).duration(300)}
+						>
+								<View style={styles.productionDividerThick} />
+								<View style={styles.productionRow}>
+									<Text style={styles.productionTotalLabel}>TOTAL PLATES</Text>
+									<Text style={styles.productionTotalCount}>{stats.lunchCount + stats.dinnerCount}</Text>
+								</View>
+							</Animated.View>
 						</View>
 
 						{/* Overview Stats */}
@@ -291,9 +308,13 @@ export default function Index() {
 								</View>
 							</View>
 						</Section>
-					</View>
+					</Animated.View>
 				) : (
-					<View style={styles.scrollContent}>
+					<Animated.View
+					key="attendance"
+					entering={FadeInUp.duration(220)}
+					style={styles.scrollContent}
+				>
 						<Section title="Customer Attendance" subtitle="Tap to toggle today's meals">
 							{customers.length === 0 ? (
 								<Text style={styles.emptyText}>No active customers found</Text>
@@ -310,7 +331,7 @@ export default function Index() {
 								))
 							)}
 						</Section>
-					</View>
+					</Animated.View>
 				)}
 			</Screen>
 

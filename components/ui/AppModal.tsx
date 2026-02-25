@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
 	Modal,
 	Pressable,
@@ -9,6 +9,14 @@ import {
 	TouchableOpacity,
 	View,
 } from 'react-native';
+import Animated, {
+	interpolate,
+	runOnJS,
+	useAnimatedStyle,
+	useSharedValue,
+	withSpring,
+	withTiming,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Theme } from '../../constants/Theme';
 
@@ -20,6 +28,12 @@ interface AppModalProps {
 	children: React.ReactNode;
 }
 
+const SPRING_CONFIG = {
+	damping: 22,
+	stiffness: 280,
+	mass: 0.8,
+};
+
 export const AppModal: React.FC<AppModalProps> = ({
 	visible,
 	onClose,
@@ -28,52 +42,102 @@ export const AppModal: React.FC<AppModalProps> = ({
 	children,
 }) => {
 	const insets = useSafeAreaInsets();
+	const [renderModal, setRenderModal] = useState(visible);
+	const anim = useSharedValue(0);
+
+	// "Freeze" content during exit animation to prevent ghosting/jumps
+	const [stableContent, setStableContent] = useState({ title, subtitle, children });
+
+	useEffect(() => {
+		if (visible) {
+			setStableContent({ title, subtitle, children });
+			setRenderModal(true);
+			anim.value = withSpring(1, SPRING_CONFIG);
+		} else {
+			anim.value = withTiming(0, { duration: 250 }, (finished) => {
+				if (finished) {
+					runOnJS(setRenderModal)(false);
+				}
+			});
+		}
+	}, [visible]);
+
+	// Update stable content only when visible
+	useEffect(() => {
+		if (visible) {
+			setStableContent({ title, subtitle, children });
+		}
+	}, [title, subtitle, children, visible]);
+
+	const backdropStyle = useAnimatedStyle(() => ({
+		opacity: anim.value,
+	}));
+
+	const sheetStyle = useAnimatedStyle(() => ({
+		transform: [
+			{
+				translateY: interpolate(anim.value, [0, 1], [400, 0]),
+			},
+		],
+	}));
+
+	if (!renderModal) return null;
+
+	const { title: dTitle, subtitle: dSubtitle, children: dChildren } = stableContent;
 
 	return (
 		<Modal
-			visible={visible}
+			visible={true}
 			transparent
-			animationType="slide"
+			animationType="none"
 			onRequestClose={onClose}
 			statusBarTranslucent
 		>
-			{/* Backdrop */}
-			<Pressable style={styles.backdrop} onPress={onClose}>
-				<View style={styles.backdropInner} />
-			</Pressable>
+			<View style={StyleSheet.absoluteFill}>
+				{/* Backdrop */}
+				<Animated.View style={[styles.backdrop, backdropStyle]}>
+					<Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+				</Animated.View>
 
-			{/* Sheet */}
-			<View style={[styles.sheet, { paddingBottom: insets.bottom + Theme.spacing.xl }]}>
-				{/* Handle bar */}
-				<View style={styles.handle} />
-
-				{/* Header */}
-				<View style={styles.header}>
-					<View style={styles.headerText}>
-						<Text style={styles.title}>{title}</Text>
-						{!!subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
-					</View>
-					<TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-						<MaterialCommunityIcons
-							name="close"
-							size={20}
-							color={Theme.colors.textMuted}
-						/>
-					</TouchableOpacity>
-				</View>
-
-				{/* Divider */}
-				<View style={styles.divider} />
-
-				{/* Scrollable Content */}
-				<ScrollView
-					style={styles.content}
-					contentContainerStyle={styles.contentInner}
-					showsVerticalScrollIndicator={false}
-					keyboardShouldPersistTaps="handled"
+				{/* Sheet */}
+				<Animated.View
+					style={[
+						styles.sheet,
+						{ paddingBottom: insets.bottom + Theme.spacing.xl },
+						sheetStyle,
+					]}
 				>
-					{children}
-				</ScrollView>
+					{/* Handle bar */}
+					<View style={styles.handle} />
+
+					{/* Header */}
+					<View style={styles.header}>
+						<View style={styles.headerText}>
+							<Text style={styles.title}>{dTitle}</Text>
+							{!!dSubtitle && <Text style={styles.subtitle}>{dSubtitle}</Text>}
+						</View>
+						<TouchableOpacity style={styles.closeBtn} onPress={onClose}>
+							<MaterialCommunityIcons
+								name="close"
+								size={20}
+								color={Theme.colors.textMuted}
+							/>
+						</TouchableOpacity>
+					</View>
+
+					{/* Divider */}
+					<View style={styles.divider} />
+
+					{/* Scrollable Content */}
+					<ScrollView
+						style={styles.content}
+						contentContainerStyle={styles.contentInner}
+						showsVerticalScrollIndicator={false}
+						keyboardShouldPersistTaps="handled"
+					>
+						{dChildren}
+					</ScrollView>
+				</Animated.View>
 			</View>
 		</Modal>
 	);
@@ -83,10 +147,6 @@ const styles = StyleSheet.create({
 	backdrop: {
 		...StyleSheet.absoluteFillObject,
 		backgroundColor: 'rgba(0, 0, 0, 0.72)',
-		justifyContent: 'flex-end',
-	},
-	backdropInner: {
-		flex: 1,
 	},
 	sheet: {
 		position: 'absolute',
