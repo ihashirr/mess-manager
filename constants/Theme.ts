@@ -39,6 +39,7 @@ export const Theme = {
 		md: 12,
 		lg: 16,
 		xl: 24,
+		pill: 9999,
 		full: 9999,
 	},
 

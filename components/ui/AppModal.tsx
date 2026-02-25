@@ -9,6 +9,7 @@ import {
 	TouchableOpacity,
 	View,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
 	interpolate,
 	runOnJS,
@@ -44,6 +45,7 @@ export const AppModal: React.FC<AppModalProps> = ({
 	const insets = useSafeAreaInsets();
 	const [renderModal, setRenderModal] = useState(visible);
 	const anim = useSharedValue(0);
+	const dragY = useSharedValue(0);
 
 	// "Freeze" content during exit animation to prevent ghosting/jumps
 	const [stableContent, setStableContent] = useState({ title, subtitle, children });
@@ -52,6 +54,7 @@ export const AppModal: React.FC<AppModalProps> = ({
 		if (visible) {
 			setStableContent({ title, subtitle, children });
 			setRenderModal(true);
+			dragY.value = 0;
 			anim.value = withSpring(1, SPRING_CONFIG);
 		} else {
 			anim.value = withTiming(0, { duration: 250 }, (finished) => {
@@ -69,14 +72,29 @@ export const AppModal: React.FC<AppModalProps> = ({
 		}
 	}, [title, subtitle, children, visible]);
 
+	const panGesture = Gesture.Pan()
+		.onUpdate((e) => {
+			if (e.translationY > 0) {
+				dragY.value = e.translationY;
+			}
+		})
+		.onEnd((e) => {
+			if (e.translationY > 100 || e.velocityY > 600) {
+				dragY.value = withTiming(600, { duration: 200 });
+				runOnJS(onClose)();
+			} else {
+				dragY.value = withSpring(0, SPRING_CONFIG);
+			}
+		});
+
 	const backdropStyle = useAnimatedStyle(() => ({
-		opacity: anim.value,
+		opacity: interpolate(dragY.value, [0, 400], [anim.value, 0], 'clamp'),
 	}));
 
 	const sheetStyle = useAnimatedStyle(() => ({
 		transform: [
 			{
-				translateY: interpolate(anim.value, [0, 1], [400, 0]),
+				translateY: interpolate(anim.value, [0, 1], [400, 0]) + dragY.value,
 			},
 		],
 	}));
@@ -100,44 +118,46 @@ export const AppModal: React.FC<AppModalProps> = ({
 				</Animated.View>
 
 				{/* Sheet */}
-				<Animated.View
-					style={[
-						styles.sheet,
-						{ paddingBottom: insets.bottom + Theme.spacing.xl },
-						sheetStyle,
-					]}
-				>
-					{/* Handle bar */}
-					<View style={styles.handle} />
-
-					{/* Header */}
-					<View style={styles.header}>
-						<View style={styles.headerText}>
-							<Text style={styles.title}>{dTitle}</Text>
-							{!!dSubtitle && <Text style={styles.subtitle}>{dSubtitle}</Text>}
-						</View>
-						<TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-							<MaterialCommunityIcons
-								name="close"
-								size={20}
-								color={Theme.colors.textMuted}
-							/>
-						</TouchableOpacity>
-					</View>
-
-					{/* Divider */}
-					<View style={styles.divider} />
-
-					{/* Scrollable Content */}
-					<ScrollView
-						style={styles.content}
-						contentContainerStyle={styles.contentInner}
-						showsVerticalScrollIndicator={false}
-						keyboardShouldPersistTaps="handled"
+				<GestureDetector gesture={panGesture}>
+					<Animated.View
+						style={[
+							styles.sheet,
+							{ paddingBottom: insets.bottom + Theme.spacing.xl },
+							sheetStyle,
+						]}
 					>
-						{dChildren}
-					</ScrollView>
-				</Animated.View>
+						{/* Handle bar */}
+						<View style={styles.handle} />
+
+						{/* Header */}
+						<View style={styles.header}>
+							<View style={styles.headerText}>
+								<Text style={styles.title}>{dTitle}</Text>
+								{!!dSubtitle && <Text style={styles.subtitle}>{dSubtitle}</Text>}
+							</View>
+							<TouchableOpacity style={styles.closeBtn} onPress={onClose}>
+								<MaterialCommunityIcons
+									name="close"
+									size={20}
+									color={Theme.colors.textMuted}
+								/>
+							</TouchableOpacity>
+						</View>
+
+						{/* Divider */}
+						<View style={styles.divider} />
+
+						{/* Scrollable Content */}
+						<ScrollView
+							style={styles.content}
+							contentContainerStyle={styles.contentInner}
+							showsVerticalScrollIndicator={false}
+							keyboardShouldPersistTaps="handled"
+						>
+							{dChildren}
+						</ScrollView>
+					</Animated.View>
+				</GestureDetector>
 			</View>
 		</Modal>
 	);

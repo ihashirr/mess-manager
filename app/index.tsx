@@ -1,8 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import Animated, { FadeIn, FadeInLeft, FadeInUp } from 'react-native-reanimated';
 import { collection, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import Animated, { FadeIn, FadeInLeft, FadeInUp } from 'react-native-reanimated';
 import { AppModal } from '../components/ui/AppModal';
 import { Screen } from '../components/ui/Screen';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
@@ -50,7 +50,7 @@ export default function Index() {
 	const [attendance, setAttendance] = useState<AttendanceState>({});
 	const [stats, setStats] = useState({ activeCount: 0, paymentsDue: 0, lunchCount: 0, dinnerCount: 0 });
 	const [loading, setLoading] = useState(true);
-	const [activeModal, setActiveModal] = useState<'lunch' | 'dinner' | null>(null);
+	const [activeModal, setActiveModal] = useState<'lunch' | 'dinner' | 'total' | null>(null);
 
 	useEffect(() => {
 		if (SETTINGS.USE_MOCKS) {
@@ -175,9 +175,21 @@ export default function Index() {
 		const sel = attendance[c.id];
 		return !sel || sel.dinner !== false;
 	});
-	const modalCustomers = activeModal === 'lunch' ? lunchCustomers : dinnerCustomers;
-	const modalMealLabel = activeModal === 'lunch' ? 'LUNCH' : 'DINNER';
-	const modalDish = activeModal === 'lunch' ? todayMenu.lunch.main : todayMenu.dinner.main;
+	// Derived Modal Data
+	const modalCustomers = activeModal === 'lunch'
+		? lunchCustomers
+		: activeModal === 'dinner'
+			? dinnerCustomers
+			: activeModal === 'total'
+				? Array.from(new Set([...lunchCustomers, ...dinnerCustomers])).sort((a, b) => a.name.localeCompare(b.name))
+				: [];
+
+	const modalMealLabel = activeModal === 'lunch' ? 'LUNCH' : activeModal === 'dinner' ? 'DINNER' : 'DAILY TOTAL';
+	const modalDish = activeModal === 'lunch'
+		? todayMenu.lunch.main
+		: activeModal === 'dinner'
+			? todayMenu.dinner.main
+			: `${todayMenu.lunch.main || '...'} + ${todayMenu.dinner.main || '...'}`;
 
 	return (
 		<>
@@ -186,7 +198,7 @@ export default function Index() {
 					compact
 					gutter={Theme.spacing.screen}
 					title={`${todayName.charAt(0).toUpperCase() + todayName.slice(1)}, ${todayDate}`}
-					subtitle="OPERATIONAL HUB • HOME"
+					subtitle="SERVINGS DASHBOARD • HOME"
 					rightAction={
 						<TouchableOpacity
 							onPress={() => { /* Logic for settings */ }}
@@ -229,69 +241,76 @@ export default function Index() {
 
 				{activeTab === 'dashboard' ? (
 					<Animated.View
-					key="dashboard"
-					entering={FadeInUp.duration(220)}
-					style={styles.scrollContent}
-				>
-						{/* Production Panel */}
+						key="dashboard"
+						entering={FadeInUp.duration(220)}
+						style={styles.scrollContent}
+					>
 						<View style={styles.productionPanel}>
-							<Text style={styles.productionTitle}>TODAY PRODUCTION</Text>
+							<Text style={styles.productionTitle}>TODAY'S PRODUCTION</Text>
 
-							{/* Lunch Row */}
+							<View style={styles.servingsGrid}>
+								{/* Lunch Panel */}
+								<Animated.View
+									entering={FadeInLeft.delay(80).springify().damping(20)}
+									style={styles.servingCard}
+								>
+									<TouchableOpacity
+										style={styles.servingAction}
+										onPress={() => setActiveModal('lunch')}
+										activeOpacity={0.7}
+									>
+										<View style={styles.servingInfo}>
+											<Text style={styles.servingLabel}>LUNCH</Text>
+											<Text style={styles.servingDish} numberOfLines={1}>
+												{todayMenu.lunch.main || 'NOT SET'}
+											</Text>
+										</View>
+										<View style={styles.servingCountPill}>
+											<Text style={styles.servingCountValue}>{stats.lunchCount}</Text>
+											<MaterialCommunityIcons name="chevron-right" size={16} color={Theme.colors.textMuted} />
+										</View>
+									</TouchableOpacity>
+								</Animated.View>
+
+								{/* Dinner Panel */}
+								<Animated.View
+									entering={FadeInLeft.delay(180).springify().damping(20)}
+									style={styles.servingCard}
+								>
+									<TouchableOpacity
+										style={styles.servingAction}
+										onPress={() => setActiveModal('dinner')}
+										activeOpacity={0.7}
+									>
+										<View style={styles.servingInfo}>
+											<Text style={styles.servingLabel}>DINNER</Text>
+											<Text style={styles.servingDish} numberOfLines={1}>
+												{todayMenu.dinner.main || 'NOT SET'}
+											</Text>
+										</View>
+										<View style={styles.servingCountPill}>
+											<Text style={styles.servingCountValue}>{stats.dinnerCount}</Text>
+											<MaterialCommunityIcons name="chevron-right" size={16} color={Theme.colors.textMuted} />
+										</View>
+									</TouchableOpacity>
+								</Animated.View>
+							</View>
+
+							{/* Master Total Bar */}
 							<Animated.View
-							entering={FadeInLeft.delay(80).springify().damping(20)}
-						>
-								<View style={styles.productionDivider} />
+								entering={FadeIn.delay(280).duration(300)}
+								style={styles.totalBar}
+							>
 								<TouchableOpacity
-									style={styles.productionRow}
-									onPress={() => setActiveModal('lunch')}
+									style={styles.totalBarAction}
+									onPress={() => setActiveModal('total')}
 									activeOpacity={0.7}
 								>
-									<View style={styles.productionMeta}>
-										<Text style={styles.productionLabel}>LUNCH</Text>
-										<Text style={styles.productionDish} numberOfLines={1}>
-											{todayMenu.lunch.main || 'Not Set'}
-										</Text>
-									</View>
-									<View style={styles.productionCountRow}>
-										<Text style={styles.productionCount}>{stats.lunchCount}</Text>
-										<MaterialCommunityIcons name="chevron-right" size={18} color={Theme.colors.textMuted} />
+									<Text style={styles.totalBarLabel}>TOTAL DAILY SERVINGS</Text>
+									<View style={styles.totalBarValueContainer}>
+										<Text style={styles.totalBarValue}>{stats.lunchCount + stats.dinnerCount}</Text>
 									</View>
 								</TouchableOpacity>
-							</Animated.View>
-
-							{/* Dinner Row */}
-							<Animated.View
-							entering={FadeInLeft.delay(180).springify().damping(20)}
-						>
-								<View style={styles.productionDivider} />
-								<TouchableOpacity
-									style={styles.productionRow}
-									onPress={() => setActiveModal('dinner')}
-									activeOpacity={0.7}
-								>
-									<View style={styles.productionMeta}>
-										<Text style={styles.productionLabel}>DINNER</Text>
-										<Text style={styles.productionDish} numberOfLines={1}>
-											{todayMenu.dinner.main || 'Not Set'}
-										</Text>
-									</View>
-									<View style={styles.productionCountRow}>
-										<Text style={styles.productionCount}>{stats.dinnerCount}</Text>
-										<MaterialCommunityIcons name="chevron-right" size={18} color={Theme.colors.textMuted} />
-									</View>
-								</TouchableOpacity>
-							</Animated.View>
-
-							{/* Total Row */}
-							<Animated.View
-							entering={FadeIn.delay(280).duration(300)}
-						>
-								<View style={styles.productionDividerThick} />
-								<View style={styles.productionRow}>
-									<Text style={styles.productionTotalLabel}>TOTAL PLATES</Text>
-									<Text style={styles.productionTotalCount}>{stats.lunchCount + stats.dinnerCount}</Text>
-								</View>
 							</Animated.View>
 						</View>
 
@@ -311,10 +330,10 @@ export default function Index() {
 					</Animated.View>
 				) : (
 					<Animated.View
-					key="attendance"
-					entering={FadeInUp.duration(220)}
-					style={styles.scrollContent}
-				>
+						key="attendance"
+						entering={FadeInUp.duration(220)}
+						style={styles.scrollContent}
+					>
 						<Section title="Customer Attendance" subtitle="Tap to toggle today's meals">
 							{customers.length === 0 ? (
 								<Text style={styles.emptyText}>No active customers found</Text>
@@ -339,7 +358,7 @@ export default function Index() {
 			<AppModal
 				visible={activeModal !== null}
 				onClose={() => setActiveModal(null)}
-				title={`${modalMealLabel} — ${modalCustomers.length} plates`}
+				title={`${modalMealLabel} — ${modalCustomers.length} servings`}
 				subtitle={modalDish || 'MENU NOT SET'}
 			>
 				{modalCustomers.length === 0 ? (
@@ -449,52 +468,85 @@ const styles = StyleSheet.create({
 		color: Theme.colors.textMuted,
 		textTransform: 'uppercase',
 		letterSpacing: 1.5,
-		marginBottom: Theme.spacing.xs,
+		marginBottom: Theme.spacing.md,
 	},
-	productionDivider: {
-		height: 1,
-		backgroundColor: Theme.colors.border,
-		marginVertical: Theme.spacing.sm,
+	servingsGrid: {
+		gap: Theme.spacing.md,
 	},
-	productionDividerThick: {
-		height: 1,
-		backgroundColor: Theme.colors.border,
-		marginVertical: Theme.spacing.sm,
-		opacity: 0.6,
+	servingCard: {
+		backgroundColor: Theme.colors.surface,
+		borderRadius: Theme.radius.md,
+		borderWidth: 1,
+		borderColor: Theme.colors.border,
+		overflow: 'hidden',
 	},
-	productionRow: {
+	servingAction: {
 		flexDirection: 'row',
-		justifyContent: 'space-between',
 		alignItems: 'center',
-		paddingVertical: Theme.spacing.xs,
+		padding: Theme.spacing.md,
+		paddingRight: Theme.spacing.sm,
 	},
-	productionMeta: { flex: 1 },
-	productionLabel: {
-		...Theme.typography.labelMedium,
+	servingInfo: {
+		flex: 1,
+	},
+	servingLabel: {
+		...Theme.typography.detailBold,
 		color: Theme.colors.textSecondary,
+		letterSpacing: 1,
 	},
-	productionDish: {
-		...Theme.typography.detail,
-		color: Theme.colors.textMuted,
+	servingDish: {
+		...Theme.typography.labelMedium,
+		color: Theme.colors.textPrimary,
 		marginTop: 2,
 	},
-	productionCount: {
-		...Theme.typography.answer,
-		color: Theme.colors.textPrimary,
-	},
-	productionCountRow: {
+	servingCountPill: {
+		backgroundColor: Theme.colors.surfaceElevated,
+		paddingHorizontal: Theme.spacing.md,
+		paddingVertical: Theme.spacing.sm,
+		borderRadius: Theme.radius.sm,
 		flexDirection: 'row',
 		alignItems: 'center',
 		gap: Theme.spacing.xs,
+		borderWidth: 1,
+		borderColor: Theme.colors.border,
 	},
-	productionTotalLabel: {
-		...Theme.typography.labelMedium,
-		color: Theme.colors.textPrimary,
-		flex: 1,
-	},
-	productionTotalCount: {
+	servingCountValue: {
 		...Theme.typography.answerGiant,
-		color: Theme.colors.textPrimary,
+		color: Theme.colors.primary,
+		lineHeight: 48,
+	},
+	totalBar: {
+		marginTop: Theme.spacing.lg,
+		backgroundColor: Theme.colors.primary,
+		borderRadius: Theme.radius.md,
+		shadowColor: Theme.colors.primary,
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 0.3,
+		shadowRadius: 8,
+		elevation: 4,
+		overflow: 'hidden',
+	},
+	totalBarAction: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'space-between',
+		padding: Theme.spacing.lg,
+	},
+	totalBarLabel: {
+		...Theme.typography.labelMedium,
+		color: '#FFFFFF',
+		letterSpacing: 1.2,
+	},
+	totalBarValueContainer: {
+		backgroundColor: 'rgba(255,255,255,0.2)',
+		paddingHorizontal: Theme.spacing.lg,
+		paddingVertical: Theme.spacing.xs,
+		borderRadius: Theme.radius.pill,
+	},
+	totalBarValue: {
+		...Theme.typography.answerGiant,
+		color: '#FFFFFF',
+		lineHeight: 42,
 	},
 
 	statsRow: { flexDirection: 'row', gap: Theme.spacing.lg, marginTop: Theme.spacing.sm },
