@@ -14,8 +14,9 @@ If you want to completely remove the mock logic from your project, follow these 
 
 ### Files to Delete 🗑️
 - [ ] Folder: `/mocks/` (Delete the whole folder and JSON files)
+- [ ] File: `utils/mockDb.ts` (The mock state manager)
 - [ ] File: `constants/Settings.ts`
-- [ ] File: `PRODUCTION_CLEANUP.md` (this file)
+- [ ] File: `docs/PRODUCTION_CLEANUP.md` (this file)
 
 ### Code to Remove ✂️
 In `index.tsx`, `customers.tsx`, `payments.tsx`, and `menu.tsx`:

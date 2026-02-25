@@ -1,6 +1,6 @@
 # Mess Manager 🍲
 
-A focused, high-readability mobile app for home-based meal service operators. Replaces paper notebooks with a clean digital ledger for tracking customers, payments, and daily menus.
+A focused, high-readability mobile app for home-based meal service operators. Built with a "Deep Aqua Ledger" aesthetic—powerful, dark, and tech-serious—it replaces paper notebooks with a clean digital ledger for tracking customers, payments, and daily menus.
 
 ---
 
@@ -76,11 +76,12 @@ mocks/
 constants/
   Settings.ts     — USE_MOCKS toggle
 
-TECHNICAL_LOGIC.md   — System architecture & data model
+TECHNICAL_LOGIC.md   — System architecture & design philosophy
+DATABASE_SCHEMA.md   — Detailed Firestore field specs & logic
 REDESIGN_LOG.md      — Development history & phase log
 PRODUCTION_CLEANUP.md — Steps to ship to production
 ```
 
 ---
 
-*Built for simplicity and ease of use. See `TECHNICAL_LOGIC.md` for architecture details.*
+*Built for simplicity. See [TECHNICAL_LOGIC.md](file:///c:/Users/ihash/Desktop/Hm/docs/TECHNICAL_LOGIC.md) for architecture and [DATABASE_SCHEMA.md](file:///c:/Users/ihash/Desktop/Hm/docs/DATABASE_SCHEMA.md) for data specs.*

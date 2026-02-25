@@ -56,7 +56,7 @@ This document covers the architecture, data model, and screen-by-screen logic fo
 - **Two Modes**:
     - **View Mode (Default)**: Visual checklist of "What we are cooking" with bold typography.
     - **Edit Mode (Gear)**: Reveals input fields and toggles for configuration.
-- **Visual Dominance**: Today's card is dark-themed (#1a1a1a) to stand out as the current focus.
+- **Visual Dominance**: Today's card is highlighted using `surfaceElevated` (#1C2428) to stand out as the current focus.
 - **Intelligence Layer**: Displays live **Production Forecasts** (Demand counts) under each day card, synced to customer/attendance data.
 - **Sticky Save Bar**: Bottom bar appears for uncommitted changes allowing a single "SAVE WEEK" batch update.
 - **Persistence**: Saves to `menu/{YYYY-MM-DD}` via individual day commits.
@@ -88,42 +88,9 @@ This document covers the architecture, data model, and screen-by-screen logic fo
 
 ---
 
-## 🛠️ Data Model
-
-### 👤 Customers Collection
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `name` | string | Customer's full name |
-| `phone` | string | Contact number |
-| `mealsPerDay` | `{lunch: bool, dinner: bool}` | Meal subscription type |
-| `pricePerMonth` | number | Monthly fee (DHS) |
-| `startDate` | Timestamp | Subscription start |
-| `endDate` | Timestamp | Subscription end |
-| `totalPaid` | number | Cumulative payments received |
-| `notes` | string | Optional notes |
-| `isActive` | boolean | Soft-delete flag |
-
-### 🍴 Menu Collection
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `date` | string | ISO date string, used as document ID (`YYYY-MM-DD`) |
-| `lunch.main` | string | Primary curry / salan for lunch |
-| `lunch.rice.enabled` | boolean | Whether rice is served at lunch |
-| `lunch.rice.type` | string | Name of the rice dish (e.g. "Biryani", "Plain Rice") |
-| `lunch.roti` | boolean | Whether roti is served at lunch |
-| `lunch.extra` | string | Optional side (e.g. "Raita", "Salad") |
-| `dinner.*` | same as lunch | Mirror structure for dinner |
-| `updatedAt` | string | ISO timestamp of last save |
-
-### 💰 Payments Collection
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `customerId` | string | Firestore ID of the customer (primary relationship key) |
-| `customerName` | string | Denormalized for readable history |
-| `amount` | number | Payment amount (DHS) |
-| `date` | Timestamp | Date/time of payment |
-| `method` | string | `"cash"`, `"bank"`, or `"other"` |
-| `monthTag` | string | `"YYYY-MM"` — used to filter current-month payments |
+## �️ Database Architecture
+The system logic is built on a relational-lite Firestore model. For detailed field specifications, document IDs, and relationship logic, refer to:
+👉 **[DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md)**
 
 ---
 
@@ -171,3 +138,7 @@ The app uses **Aesthetic Option A: Flat Modern** + **Deep Aqua Dark Mode**.
 - **Floating UI**: Bottom navigation is a decoupled, floating dock with rounded corners, providing a modern, premium feel.
 - **Icon Intelligence**: Icons are reserved strictly for **Actions** or to prevent **Text Ambiguity**.
 - **Urdu labels**: Primary action buttons use Urdu text for native-language accessibility.
+
+---
+
+*For detailed data structures, see [DATABASE_SCHEMA.md](file:///c:/Users/ihash/Desktop/Hm/docs/DATABASE_SCHEMA.md).*
