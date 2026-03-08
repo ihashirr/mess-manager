@@ -350,10 +350,10 @@ export default function Index() {
 								<View style={styles.tieredMeta}>
 									<Animated.View style={iconAnimatedStyle}>
 										<MaterialCommunityIcons
-											name="weather-sunny"
+											name="food-drumstick"
 											size={20}
-											color="#FF8E3C"
-											style={[styles.microIcon, { textShadowColor: '#FF8E3C', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 6 }]}
+											color="#FF6B35"
+											style={[styles.microIcon, { textShadowColor: '#FF6B35', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 6 }]}
 										/>
 									</Animated.View>
 									<Text style={styles.tieredLabel}>Lunch</Text>
@@ -374,10 +374,10 @@ export default function Index() {
 								<View style={styles.tieredMeta}>
 									<Animated.View style={iconAnimatedStyle}>
 										<MaterialCommunityIcons
-											name="weather-night"
+											name="food-variant"
 											size={20}
-											color="#3BC9DB"
-											style={[styles.microIcon, { textShadowColor: '#3BC9DB', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 6 }]}
+											color="#7C3AED"
+											style={[styles.microIcon, { textShadowColor: '#7C3AED', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 6 }]}
 										/>
 									</Animated.View>
 									<Text style={styles.tieredLabel}>Dinner</Text>
@@ -725,8 +725,8 @@ const styles = StyleSheet.create({
 		borderTopColor: Theme.colors.border,
 	},
 	panelFooterUrgent: {
-		backgroundColor: 'rgba(162, 74, 74, 0.05)',
-		borderTopColor: 'rgba(162, 74, 74, 0.15)',
+		backgroundColor: 'rgba(231, 76, 60, 0.06)',
+		borderTopColor: 'rgba(231, 76, 60, 0.2)',
 	},
 	panelFooterText: {
 		...Theme.typography.detailBold,

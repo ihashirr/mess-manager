@@ -293,3 +293,12 @@ Locked the "Flat Modern" depth through structural contrast:
 - **Enhanced Separation**: Replaced soft glow effects in `PrimaryPanel` with solid 1px borders.
 - **Surface Contrast**: Added background fills and borders to stat cards in `index.tsx` to prevent them from blending into the wallpaper.
 - **Decision**: Flat doesn't mean invisible. Surfaces now sit with authoritative structure.
+
+---
+
+## Phase 42 — Header Unification & Typography Fix
+Resolved horizontal margin discrepancies and silent layout fallbacks across all main screens.
+- **Typography Scale Fix**: Fixed `Theme.ts` to use correct React Native keys (`fontSize` / `fontWeight` instead of `size` / `weight`), returning `ScreenHeader` titles to their intended `Tier A` / 32px size.
+- **Strict Edge-to-Edge Sync**: Discovered that non-scrollable screens (`Customers`, `Payments`, `Finance`, `Menu`) lacked the parent padding necessary for `edgeToEdge={true}` to work. Explicitly turned it off on those screens.
+- **Single Source of Truth**: Purged `Theme.spacing.screenPadding` (16px) and consolidated all layout frames exclusively around `Theme.spacing.screen` (20px).
+- **Finance Integration**: Stripped the custom `finance.tsx` header and fully integrated it into the global `ScreenHeader` component logic.

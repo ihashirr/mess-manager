@@ -1,27 +1,27 @@
 export const Theme = {
 	colors: {
 		// Functional
-		primary: '#0F766E',    // Dark Aqua
-		success: '#1E8E6E',    // Emerald
-		danger: '#B45353',     // Muted Red
-		warning: '#D48C45',    // Muted Amber
+		primary: '#FF6B35',    // Vibrant Orange
+		success: '#2ECC71',    // Bright Green
+		danger: '#E74C3C',     // Bright Red
+		warning: '#F39C12',    // Bright Amber
 
 		// Structural
-		bg: '#0F1416',         // Deep Charcoal Blue
-		surface: '#151C1F',    // Dark Slate
-		surfaceElevated: '#1C2428', // Medium Slate
-		border: '#1F2E33',     // Aqua Structural Border
-		textPrimary: '#E6F0EF',   // Light Aqua Grey
-		textSecondary: '#9FB3B0', // Muted Aqua Grey
-		textMuted: '#6B7C7A',     // Deep Muted Aqua
-		textInverted: '#0F1416',
+		bg: '#FFF8F0',         // Warm Cream
+		surface: '#FFFFFF',    // White
+		surfaceElevated: '#FFF3E0', // Light Orange Tint
+		border: '#FFE0CC',     // Warm Peach Border
+		textPrimary: '#1A1A2E',   // Near Black
+		textSecondary: '#5D4E6D', // Warm Purple Grey
+		textMuted: '#B0A8B9',     // Soft Muted
+		textInverted: '#FFFFFF',
 
 		// Meal Semantics
-		mealLunch: '#A24A4A',  // Desaturated Rust
-		mealDinner: '#2E5E82', // Desaturated Steel Blue
+		mealLunch: '#FF6B35',  // Vivid Orange
+		mealDinner: '#7C3AED', // Vivid Violet
 
 		// Utilities
-		overlay: 'rgba(15, 20, 22, 0.8)',
+		overlay: 'rgba(255, 248, 240, 0.85)',
 	},
 
 	spacing: {

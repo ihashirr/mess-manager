@@ -24,7 +24,7 @@ export default function TabLayout() {
 						title: 'Home',
 						tabBarIcon: ({ color, size, focused }) => (
 							<MaterialCommunityIcons
-								name={focused ? "view-dashboard" : "view-dashboard-outline"}
+								name={focused ? "silverware-fork-knife" : "silverware-variant"}
 								color={color}
 								size={26}
 							/>
@@ -50,7 +50,7 @@ export default function TabLayout() {
 						title: 'Payments',
 						tabBarIcon: ({ color, size, focused }) => (
 							<MaterialCommunityIcons
-								name={focused ? "wallet" : "wallet-outline"}
+								name={focused ? "cash-multiple" : "cash"}
 								color={color}
 								size={26}
 							/>
@@ -63,7 +63,7 @@ export default function TabLayout() {
 						title: 'Finance',
 						tabBarIcon: ({ color, size, focused }) => (
 							<MaterialCommunityIcons
-								name={focused ? "chart-box" : "chart-box-outline"}
+								name={focused ? "chart-areaspline" : "chart-areaspline-variant"}
 								color={color}
 								size={26}
 							/>
@@ -76,7 +76,7 @@ export default function TabLayout() {
 						title: 'Menu',
 						tabBarIcon: ({ color, size, focused }) => (
 							<MaterialCommunityIcons
-								name={focused ? "clipboard-text" : "clipboard-text-outline"}
+								name={focused ? "food" : "food-outline"}
 								color={color}
 								size={26}
 							/>
@@ -95,13 +95,18 @@ const styles = StyleSheet.create({
 		left: Theme.spacing.screen,
 		right: Theme.spacing.screen,
 		height: 80,
-		backgroundColor: Theme.colors.surfaceElevated,
+		backgroundColor: Theme.colors.surface,
 		borderRadius: Theme.radius.xl,
 		borderTopWidth: 0,
 		paddingBottom: Theme.spacing.md,
 		paddingTop: Theme.spacing.sm,
-		borderWidth: 1,
-		borderColor: 'rgba(255,255,255,0.1)',
+		borderWidth: 1.5,
+		borderColor: Theme.colors.border,
+		shadowColor: '#FF6B35',
+		shadowOffset: { width: 0, height: 4 },
+		shadowOpacity: 0.15,
+		shadowRadius: 12,
+		elevation: 8,
 	},
 	tabLabel: {
 		...Theme.typography.detailBold,
