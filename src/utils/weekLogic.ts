@@ -21,9 +21,11 @@ export const getTodayName = (): DayName => {
 };
 
 export const emptyWeekAttendance = () => {
-	const obj: any = {};
-	DAYS.forEach(d => obj[d] = { lunch: true, dinner: true });
-	return obj as Record<DayName, { lunch: boolean; dinner: boolean }>;
+	const attendance = {} as Record<DayName, { lunch: boolean; dinner: boolean }>;
+	DAYS.forEach((day) => {
+		attendance[day] = { lunch: true, dinner: true };
+	});
+	return attendance;
 };
 
 export const formatISO = (date: Date) => {

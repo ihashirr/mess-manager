@@ -27,7 +27,7 @@ A focused, high-readability mobile app for home-based meal service operators. Bu
 - **Database**: Firebase Firestore (real-time `onSnapshot` listeners)
 - **Architecture**: SSOT — derived logic only, no stored calculated fields
 - **Currency**: DHS (UAE dirham), pricing tiers: 350 / 650 per month
-- **Mock Mode**: Toggle `SETTINGS.USE_MOCKS` in `constants/Settings.ts` for offline dev
+- **Mock Mode**: Toggle `SETTINGS.USE_MOCKS` in `src/constants/Settings.ts` for offline dev
 
 ---
 
@@ -38,7 +38,7 @@ A focused, high-readability mobile app for home-based meal service operators. Bu
 npm install
 
 # 2. Configure Firebase
-# Add your credentials to firebase/config.ts
+# Add your credentials to src/firebase/config.ts
 
 # 3. Start development server
 npx expo start --clear
@@ -49,42 +49,44 @@ npx expo start --clear
 ## 📂 Project Structure
 
 ```
-app/
-  index.tsx       — Home / Dashboard
-  customers.tsx   — Customer management
-  payments.tsx    — Payment recording
-  finance.tsx     — Financial overview
-  menu.tsx        — Daily menu editor
-  _layout.tsx     — Tab navigation
+src/
+  app/
+    index.tsx       — Home / Dashboard
+    customers.tsx   — Customer management
+    payments.tsx    — Payment recording
+    finance.tsx     — Financial overview
+    menu.tsx        — Daily menu editor
+    _layout.tsx     — Tab navigation
 
-components/ui/    — Atomic Layout Engine
-  Card.tsx        — Content container
-  Button.tsx      — Functional interactions
-  Input.tsx       — High-readability fields
-  Badge.tsx       — Status indicators
-  Screen.tsx      — Layout frame
-  ScreenHeader.tsx — Contextual header
-  Section.tsx     — Structural grouping
-  PrimaryPanel.tsx — High-contrast summary
-  AppModal.tsx    — Slide-up sheet logic
-  CenterModal.tsx — 360-degree popup logic
-  UserAvatar.tsx  — Luminous identity initial
-  UserIdentity.tsx — Tactile identity bundle
-  CustomerIntelligenceDetail.tsx — High-density data grid
+  components/ui/    — Atomic Layout Engine
+    Card.tsx        — Content container
+    Button.tsx      — Functional interactions
+    Input.tsx       — High-readability fields
+    Badge.tsx       — Status indicators
+    Screen.tsx      — Layout frame
+    ScreenHeader.tsx — Contextual header
+    Section.tsx     — Structural grouping
+    PrimaryPanel.tsx — High-contrast summary
+    AppModal.tsx    — Slide-up sheet logic
+    CenterModal.tsx — 360-degree popup logic
+    UserAvatar.tsx  — Luminous identity initial
+    UserIdentity.tsx — Tactile identity bundle
+    CustomerIntelligenceDetail.tsx — High-density data grid
 
-firebase/
-  config.ts       — Firestore initialization
+  firebase/
+    config.ts       — Firestore initialization
 
-utils/
-  customerLogic.ts — Derived status, days left, due amount
-  mockDb.ts        — In-memory mock state manager
+  utils/
+    customerLogic.ts — Derived status, days left, due amount
+    menuLogic.ts     — Shared menu types and normalization
+    mockDb.ts        — In-memory mock state manager
 
-mocks/
-  customers.json  — Sample customer data
-  payments.json   — Sample payment ledger
+  mocks/
+    customers.json  — Sample customer data
+    payments.json   — Sample payment ledger
 
-constants/
-  Settings.ts     — USE_MOCKS toggle
+  constants/
+    Settings.ts     — USE_MOCKS toggle
 
 TECHNICAL_LOGIC.md   — System architecture & design philosophy
 DATABASE_SCHEMA.md   — Detailed Firestore field specs & logic

@@ -15,23 +15,9 @@ import { SETTINGS } from '../constants/Settings';
 import { Theme } from '../constants/Theme';
 import { db } from '../firebase/config';
 import { getDaysLeft, getDueAmount, toDate } from '../utils/customerLogic';
+import { createEmptyDayMenu, normalizeDayMenu, type DayMenu } from '../utils/menuLogic';
 import { mockDb } from '../utils/mockDb';
 import { formatISO, getTodayName } from '../utils/weekLogic';
-
-type RiceSlot = { enabled: boolean; type: string };
-type MealSlot = { main: string; rice: RiceSlot; roti: boolean; extra: string };
-type DayMenu = { lunch: MealSlot; dinner: MealSlot };
-
-const EMPTY_MEAL: MealSlot = { main: "", rice: { enabled: false, type: "" }, roti: true, extra: "" };
-
-const normalizeMeal = (raw: any): MealSlot => ({
-	main: typeof raw?.main === 'string' ? raw.main : "",
-	rice: (raw?.rice && typeof raw.rice === 'object' && 'enabled' in raw.rice)
-		? raw.rice
-		: { enabled: false, type: typeof raw?.rice === 'string' ? raw.rice : "" },
-	roti: typeof raw?.roti === 'boolean' ? raw.roti : true,
-	extra: typeof raw?.extra === 'string' ? raw.extra : (raw?.side || ""),
-});
 
 type Customer = {
 	id: string;
@@ -43,10 +29,11 @@ type Customer = {
 	mealsPerDay?: { lunch: boolean; dinner: boolean };
 	pricePerMonth: number;
 	totalPaid: number;
-	endDate: any;
+	endDate: unknown;
 };
 
-type AttendanceState = Record<string, { lunch: boolean; dinner: boolean }>;
+type AttendanceSelection = { lunch: boolean; dinner: boolean };
+type AttendanceState = Record<string, AttendanceSelection>;
 
 export default function Index() {
 	const router = useRouter();
@@ -54,7 +41,7 @@ export default function Index() {
 	const todayName = getTodayName();
 
 	const [activeTab, setActiveTab] = useState<'dashboard' | 'attendance'>('dashboard');
-	const [todayMenu, setTodayMenu] = useState<DayMenu>({ lunch: { ...EMPTY_MEAL }, dinner: { ...EMPTY_MEAL } });
+	const [todayMenu, setTodayMenu] = useState<DayMenu>(createEmptyDayMenu());
 	const [customers, setCustomers] = useState<Customer[]>([]);
 	const [attendance, setAttendance] = useState<AttendanceState>({});
 	const [stats, setStats] = useState({ activeCount: 0, paymentsDue: 0, lunchCount: 0, dinnerCount: 0, dailyCapacity: 0 });
@@ -78,7 +65,7 @@ export default function Index() {
 			-1,
 			true
 		);
-	}, []);
+	}, [iconPulse]);
 
 	const iconAnimatedStyle = useAnimatedStyle(() => ({
 		transform: [{ scale: iconPulse.value }]
@@ -86,36 +73,31 @@ export default function Index() {
 
 	useEffect(() => {
 		if (SETTINGS.USE_MOCKS) {
-			const cs = mockDb.getCustomers() as Customer[];
-			setCustomers(cs.filter(c => getDaysLeft(toDate(c.endDate)) >= 0));
-			setLoading(false);
-			return;
+			const loadMockDashboard = () => {
+				const activeCustomers = (mockDb.getCustomers() as Customer[])
+					.filter((customer) => getDaysLeft(toDate(customer.endDate)) >= 0);
+				const dueCount = activeCustomers
+					.filter((customer) => getDueAmount(customer.pricePerMonth, customer.totalPaid) > 0)
+					.length;
+
+				setCustomers(activeCustomers);
+				setTodayMenu(normalizeDayMenu(mockDb.getMenu(todayDate)));
+				setStats((prev) => ({
+					...prev,
+					activeCount: activeCustomers.length,
+					paymentsDue: dueCount,
+				}));
+				setLoading(false);
+			};
+
+			loadMockDashboard();
+			return mockDb.subscribe(loadMockDashboard);
 		}
 
 		// 1. Subscribe to Today's Menu
-		let unsubMenu = () => { };
-		if (SETTINGS.USE_MOCKS) {
-			// In mock mode, we could use a global mockDb menu but for now let's just use what's in SETTINGS or similar
-			// To keep it simple and reactive, index.tsx should ideally use the same mock source as Menu screen
-			// We'll add getMenu to mockDb
-			const loadMockMenu = () => {
-				const data = mockDb.getMenu(todayDate);
-				setTodayMenu({
-					lunch: normalizeMeal(data.lunch),
-					dinner: normalizeMeal(data.dinner),
-				});
-			};
-			loadMockMenu();
-			unsubMenu = mockDb.subscribe(loadMockMenu);
-		} else {
-			unsubMenu = onSnapshot(doc(db, "menu", todayDate), (snap) => {
-				const data = snap.exists() ? snap.data() : {};
-				setTodayMenu({
-					lunch: normalizeMeal(data.lunch),
-					dinner: normalizeMeal(data.dinner),
-				});
-			});
-		}
+		const unsubMenu = onSnapshot(doc(db, "menu", todayDate), (snap) => {
+			setTodayMenu(normalizeDayMenu(snap.exists() ? snap.data() : {}));
+		});
 
 		// 2. Subscribe to Active Customers
 		const unsubCustomers = onSnapshot(query(collection(db, "customers")), (snap) => {
@@ -138,7 +120,6 @@ export default function Index() {
 			query(collection(db, "attendance"), where("date", "==", todayDate)),
 			(snap) => {
 				const state: AttendanceState = {};
-				let lCount = 0, dCount = 0;
 				snap.forEach(d => {
 					const data = d.data();
 					state[data.customerId] = { lunch: data.lunch, dinner: data.dinner };
@@ -428,9 +409,8 @@ export default function Index() {
 										customer={c}
 										menu={todayMenu}
 										attendance={attendance[c.id]}
-										date={todayDate}
 										onToggle={(meal: 'lunch' | 'dinner') => toggleTodayAttendance(c.id, meal)}
-										onAvatarPress={(cust: any) => setSelectedCustomer(cust)}
+										onAvatarPress={setSelectedCustomer}
 									/>
 								))
 							)}
@@ -493,9 +473,7 @@ export default function Index() {
 						customer={selectedCustomer}
 						daysLeft={getDaysLeft(toDate(selectedCustomer.endDate))}
 						dueAmount={getDueAmount(selectedCustomer.pricePerMonth, selectedCustomer.totalPaid || 0)}
-						onAction={(type) => {
-							console.log("Intelligence Action:", type, selectedCustomer.id);
-							// Future: Wire real actions here
+						onAction={() => {
 							setSelectedCustomer(null);
 						}}
 					/>
@@ -506,7 +484,21 @@ export default function Index() {
 }
 
 
-const CustomerAttendanceRow = ({ customer, menu, attendance, onToggle, date, onAvatarPress }: any) => {
+type CustomerAttendanceRowProps = {
+	customer: Customer;
+	menu: DayMenu;
+	attendance?: AttendanceSelection;
+	onToggle: (meal: 'lunch' | 'dinner') => void;
+	onAvatarPress: (customer: Customer) => void;
+};
+
+const CustomerAttendanceRow = ({
+	customer,
+	menu,
+	attendance,
+	onToggle,
+	onAvatarPress,
+}: CustomerAttendanceRowProps) => {
 	const sel = attendance || { lunch: true, dinner: true };
 	const subLunch = customer.mealsPerDay?.lunch !== false;
 	const subDinner = customer.mealsPerDay?.dinner !== false;
@@ -550,7 +542,6 @@ const CustomerAttendanceRow = ({ customer, menu, attendance, onToggle, date, onA
 };
 
 const styles = StyleSheet.create({
-	container: { flex: 1, backgroundColor: Theme.colors.bg },
 	centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 	tabBar: {
 		flexDirection: 'row',
@@ -572,10 +563,7 @@ const styles = StyleSheet.create({
 	tabTextActive: { color: Theme.colors.textPrimary },
 
 	scrollContent: { padding: Theme.spacing.screen, paddingBottom: 150 },
-	row: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
 	rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-	dateLabel: { ...Theme.typography.labelMedium, color: Theme.colors.textSecondary, marginBottom: Theme.spacing.sm },
-	sectionHeader: { ...Theme.typography.label, color: Theme.colors.textSecondary },
 
 	// Production Panel
 	productionPanel: {
@@ -647,12 +635,6 @@ const styles = StyleSheet.create({
 		color: Theme.colors.textMuted,
 		letterSpacing: 2,
 		opacity: 0.65,
-	},
-	panelDivider: {
-		height: 1,
-		backgroundColor: Theme.colors.border,
-		marginHorizontal: Theme.spacing.lg,
-		opacity: 0.5,
 	},
 	tieredRow: {
 		flexDirection: 'row',
@@ -741,21 +723,8 @@ const styles = StyleSheet.create({
 		marginTop: 4,
 	},
 
-	servingIndicator: {
-		width: 8,
-		height: 8,
-		borderRadius: 4,
-	},
-	servingIndicatorLunch: {
-		backgroundColor: Theme.colors.mealLunch,
-	},
-	servingIndicatorDinner: {
-		backgroundColor: Theme.colors.mealDinner,
-	},
-
 	customerRow: { backgroundColor: 'transparent', borderBottomWidth: 1, borderBottomColor: Theme.colors.border, paddingVertical: Theme.spacing.md },
 	customerInfo: { marginBottom: Theme.spacing.sm },
-	customerName: { ...Theme.typography.labelMedium, color: Theme.colors.textPrimary },
 	toggleGroup: { flexDirection: 'row', gap: Theme.spacing.md },
 	toggleBtn: {
 		flex: 1,
@@ -770,7 +739,6 @@ const styles = StyleSheet.create({
 		backgroundColor: Theme.colors.surfaceElevated,
 		borderColor: Theme.colors.primary,
 	},
-	lockedBadge: { ...Theme.typography.detailBold, color: Theme.colors.textSecondary, marginTop: Theme.spacing.xs },
 	toggleBtnLabel: { ...Theme.typography.detailBold, color: Theme.colors.textSecondary },
 	toggleBtnDish: { ...Theme.typography.labelMedium, color: Theme.colors.textPrimary, marginTop: Theme.spacing.xs },
 	emptyText: { textAlign: 'center', color: Theme.colors.textMuted, marginTop: Theme.spacing.massive, ...Theme.typography.labelMedium },
@@ -785,25 +753,6 @@ const styles = StyleSheet.create({
 	modalRowBorder: {
 		borderBottomWidth: 1,
 		borderBottomColor: Theme.colors.border,
-	},
-	modalRowIndex: {
-		width: 28,
-		height: 28,
-		borderRadius: 14,
-		backgroundColor: Theme.colors.surfaceElevated,
-		borderWidth: 1,
-		borderColor: Theme.colors.border,
-		justifyContent: 'center',
-		alignItems: 'center',
-	},
-	modalRowNumber: {
-		...Theme.typography.detailBold,
-		color: Theme.colors.textMuted,
-	},
-	modalCustomerName: {
-		...Theme.typography.labelMedium,
-		color: Theme.colors.textPrimary,
-		flex: 1,
 	},
 	modalEmpty: {
 		alignItems: 'center',

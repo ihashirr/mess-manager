@@ -5,8 +5,16 @@ import { Theme } from '../../constants/Theme';
 import { Badge } from './Badge';
 import { UserAvatar } from './UserAvatar';
 
+type IntelligenceCustomer = {
+	name: string;
+	mealsPerDay?: { lunch?: boolean; dinner?: boolean };
+	address?: { location?: string; flat?: string };
+	totalPaid?: number;
+	pricePerMonth?: number;
+};
+
 interface CustomerIntelligenceDetailProps {
-	customer: any;
+	customer: IntelligenceCustomer;
 	daysLeft: number;
 	dueAmount: number;
 	onAction: (type: 'attendance' | 'payment' | 'edit' | 'delete') => void;
@@ -63,7 +71,7 @@ export const CustomerIntelligenceDetail: React.FC<CustomerIntelligenceDetailProp
 					</View>
 					<View style={styles.financeItem}>
 						<Text style={styles.financeLabel}>Plan Price</Text>
-						<Text style={styles.financeValue}>DHS {customer.pricePerMonth}</Text>
+						<Text style={styles.financeValue}>DHS {customer.pricePerMonth ?? 0}</Text>
 					</View>
 				</View>
 				<View style={[styles.financeRow, { marginTop: Theme.spacing.md }]}>

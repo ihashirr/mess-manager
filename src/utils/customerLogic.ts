@@ -42,8 +42,27 @@ export function getDueAmount(pricePerMonth: number, totalPaid: number): number {
 /**
  * Utility to convert Firestore Timestamp or ISO string to Date object.
  */
-export function toDate(dateVal: any): Date {
+export function toDate(dateVal: unknown): Date {
 	if (!dateVal) return new Date();
-	if (dateVal.seconds) return new Date(dateVal.seconds * 1000);
-	return new Date(dateVal);
+	if (dateVal instanceof Date) return dateVal;
+	if (
+		typeof dateVal === 'object' &&
+		dateVal !== null &&
+		'seconds' in dateVal &&
+		typeof dateVal.seconds === 'number'
+	) {
+		return new Date(dateVal.seconds * 1000);
+	}
+	if (
+		typeof dateVal === 'object' &&
+		dateVal !== null &&
+		'toDate' in dateVal &&
+		typeof dateVal.toDate === 'function'
+	) {
+		return dateVal.toDate();
+	}
+	if (typeof dateVal === 'string' || typeof dateVal === 'number') {
+		return new Date(dateVal);
+	}
+	return new Date();
 }

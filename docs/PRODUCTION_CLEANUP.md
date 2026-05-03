@@ -4,7 +4,7 @@ When you are ready to publish the app and no longer need the "Mock Mode" feature
 
 ## 1. The "Quick Switch"
 If you just want to go live but **keep** the ability to test later, do only this:
-- **File**: `constants/Settings.ts`
+- **File**: `src/constants/Settings.ts`
 - **Action**: Change `USE_MOCKS: true` to `USE_MOCKS: false`.
 
 ---
@@ -13,13 +13,13 @@ If you just want to go live but **keep** the ability to test later, do only this
 If you want to completely remove the mock logic from your project, follow these steps:
 
 ### Files to Delete 🗑️
-- [ ] Folder: `/mocks/` (Delete the whole folder and JSON files)
-- [ ] File: `utils/mockDb.ts` (The mock state manager)
-- [ ] File: `constants/Settings.ts`
+- [ ] Folder: `src/mocks/` (Delete the whole folder and JSON files)
+- [ ] File: `src/utils/mockDb.ts` (The mock state manager)
+- [ ] File: `src/constants/Settings.ts`
 - [ ] File: `docs/PRODUCTION_CLEANUP.md` (this file)
 
 ### Code to Remove ✂️
-In `index.tsx`, `customers.tsx`, `payments.tsx`, and `menu.tsx`:
+In `src/app/index.tsx`, `src/app/customers.tsx`, `src/app/payments.tsx`, and `src/app/menu.tsx`:
 
 1.  **Remove Imports**:
     ```typescript

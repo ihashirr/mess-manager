@@ -28,7 +28,7 @@ Mess Manager is a single-user mobile app for a home-based meal service operator.
 
 ## Developer Notes
 
-- Toggle `SETTINGS.USE_MOCKS` in `constants/Settings.ts` to switch between Firebase live data and a local mock session
+- Toggle `SETTINGS.USE_MOCKS` in `src/constants/Settings.ts` to switch between Firebase live data and a local mock session
 - See `TECHNICAL_LOGIC.md` for data model and screen-by-screen logic
 - See `REDESIGN_LOG.md` for full development history
 

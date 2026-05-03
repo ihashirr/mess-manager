@@ -15,7 +15,7 @@ Deleted brittle "shortcut" fields and implemented a transparent data model.
 
 ## Phase 2 — Derived Logic Implementation
 *"Stored numbers rot. Derived numbers stay honest."*
-- Created `utils/customerLogic.ts` as the central business logic module.
+- Created `src/utils/customerLogic.ts` as the central business logic module.
 - `getDaysLeft`: Calculated from `endDate`.
 - `getCustomerStatus`: Derived labels (ACTIVE, EXPIRING SOON, EXPIRED).
 - `getDueAmount`: Live balance (`pricePerMonth - totalPaid`).
@@ -31,26 +31,26 @@ High-end subscription renewal logic to prevent date overlap bugs.
 Redesigned the daily menu for scalability.
 - Every day's menu is stored as a Firestore document with the ISO date (`YYYY-MM-DD`) as its ID.
 - One global menu per day. Customer's meal flags determine what they receive.
-- Fully redesigned `app/menu.tsx`.
+- Fully redesigned `src/app/menu.tsx`.
 
 ## Phase 5 — Subscription Type Refactor
 Replaced the string-based `plan` field with a structured boolean object.
 - **Schema change**: `plan: string` → `mealsPerDay: { lunch: boolean, dinner: boolean }`
-- Updated all mock data in `mocks/customers.json`.
-- Updated meal count logic in `app/index.tsx`.
+- Updated all mock data in `src/mocks/customers.json`.
+- Updated meal count logic in `src/app/index.tsx`.
 - Updated Customer form with independent Lunch/Dinner toggles.
 
 ## Phase 6 — Firebase Live Mode Integration
 Connected all screens to Firebase Firestore.
 - Implemented `onSnapshot` listeners across `index.tsx`, `customers.tsx`, `payments.tsx`, `menu.tsx`.
-- Introduced `SETTINGS.USE_MOCKS` flag in `constants/Settings.ts` for dev/prod switching.
+- Introduced `SETTINGS.USE_MOCKS` flag in `src/constants/Settings.ts` for dev/prod switching.
 - Mock Mode guards prevent any Firebase writes when `USE_MOCKS=true`.
 
 ## Phase 7 — Financial Dashboard Engine
 Moved from cumulative tracking to a professional transaction ledger.
 - Created new `payments` Firestore collection for individual transactions.
 - Each "Mark Paid" action creates a permanent, auditable record.
-- New `app/finance.tsx` tab showing:
+- New `src/app/finance.tsx` tab showing:
   - **Expected Income**: Potential monthly revenue.
   - **Collected**: Real cash received this month.
   - **Outstanding**: Remaining balance per customer.
@@ -66,7 +66,7 @@ Moved from cumulative tracking to a professional transaction ledger.
 - **Per-Customer Outstanding**: Changed from `Expected − Collected` to a sum of actual balances per customer. Prevents negative totals from bulk historical cash flow.
 - **Name Validation**: Form requires a non-empty name — prevents ghost records.
 - **Delete Feature**: Added "DELETE" button to Customer cards for easy cleanup.
-- **Mock State Manager**: Created `utils/mockDb.ts` — synchronized in-memory store for cross-tab mock updates.
+- **Mock State Manager**: Created `src/utils/mockDb.ts` — synchronized in-memory store for cross-tab mock updates.
 
 ## Phase 10 — Transaction Auditing & UI Polish
 - Added "Recent Transactions" list at the bottom of the Finance dashboard.
@@ -102,7 +102,7 @@ Replaced flat blob strings with a structured per-category schema. The app now un
 - **New Firestore schema**: `menu/{YYYY-MM-DD}.lunch` and `.dinner` are now objects `{ rice, roti, side }` instead of strings.
 - **Menu tab**: 3 labelled inputs per meal (🍚 Rice, 🫓 Roti, 🥗 Side) — replaces single text blob.
 - **Home screen**: Production cards now render each food component on its own row with emoji icons and the meal count badge.
-- **Mock data**: `mocks/menu.json` updated to new schema.
+- **Mock data**: `src/mocks/menu.json` updated to new schema.
 - **Foundation for production math**: Rice vs roti counts can now be derived separately — future grocery intelligence engine basis.
 
 ## Phase 14 — Desi Mess Architecture (Cultural Correctness)
@@ -115,7 +115,7 @@ Refactored from western food-category model to desi kitchen reality model.
 
 ## Phase 15 — Weekly Attendance Engine
 Introduced a 3-layer operational system: weekly menu, customer attendance commitments, derived production counts.
-- **`utils/weekLogic.ts`**: `getWeekId()` (ISO week), `getTodayName()`, `shortDay()`, `emptyWeekAttendance()` utilities.
+- **`src/utils/weekLogic.ts`**: `getWeekId()` (ISO week), `getTodayName()`, `shortDay()`, `emptyWeekAttendance()` utilities.
 - **Weekly Menu editor**: `menu.tsx` refactored to edit `weeklyMenu/{weekId}` docs. Day picker (Mon–Sun) with today highlighted. Save with Firestore `merge: true`.
 - **Customer Attendance panel**: Each customer card in `customers.tsx` has a `📅 SET WEEK` button. Expands to show 7-day grid of Lunch/Dinner toggle chips. Saves to `customerSelections/{customerId}_{weekId}`.
 - **Attendance-derived counts**: Home screen now derives `lunchCount`/`dinnerCount` from `customerSelections` docs, not from static `mealsPerDay` flags.
@@ -203,7 +203,7 @@ Optimized screen real estate by merging secondary actions into the primary heade
 
 ## Phase 31 — Layout Engine Architecture (Step 2)
 Replaced ad-hoc styles with a formal Layout Engine based on UI primitives.
-- **New Library**: Created `components/ui/` containing `Card`, `Button`, `Input`, `Badge`, `Screen`, `Section`, and `PrimaryPanel`.
+- **New Library**: Created `src/components/ui/` containing `Card`, `Button`, `Input`, `Badge`, `Screen`, `Section`, and `PrimaryPanel`.
 - **Global Migration**: Refactored all screens (`Home`, `Customers`, `Payments`, `Menu`, `Finance`) to build layouts using these primitives exclusively.
 - **Consistency**: Guaranteed 1:1 visual parity in spacing, radius, and behavior across the entire app.
 

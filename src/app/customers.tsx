@@ -14,22 +14,9 @@ import { SETTINGS } from '../constants/Settings';
 import { Theme } from '../constants/Theme';
 import { db } from '../firebase/config';
 import { getCustomerStatus, getDaysLeft, getDueAmount, toDate } from '../utils/customerLogic';
+import { normalizeDayMenu, type WeekMenu } from '../utils/menuLogic';
 import { mockDb } from '../utils/mockDb';
 import { DAYS, DayName, emptyWeekAttendance, formatISO, getDatesForWeek, getWeekId, shortDay } from '../utils/weekLogic';
-
-
-type MealSlot = { main: string; roti: boolean; rice: { enabled: boolean; type: string }; extra: string };
-type DayMenu = { lunch: MealSlot; dinner: MealSlot };
-type WeekMenu = Partial<Record<DayName, DayMenu>>;
-
-const normalizeMeal = (raw: any): MealSlot => ({
-	main: typeof raw?.main === 'string' ? raw.main : "",
-	rice: (raw?.rice && typeof raw.rice === 'object' && 'enabled' in raw.rice)
-		? raw.rice
-		: { enabled: false, type: typeof raw?.rice === 'string' ? raw.rice : "" },
-	roti: typeof raw?.roti === 'boolean' ? raw.roti : true,
-	extra: typeof raw?.extra === 'string' ? raw.extra : (raw?.side || ""),
-});
 
 type Customer = {
 	id: string;
@@ -42,8 +29,8 @@ type Customer = {
 	mealsPerDay: { lunch: boolean; dinner: boolean };
 	plan?: string; // Legacy fallback
 	pricePerMonth: number;
-	startDate: any;
-	endDate: any;
+	startDate: unknown;
+	endDate: unknown;
 	totalPaid: number;
 	notes: string;
 	isActive: boolean;
@@ -66,7 +53,7 @@ export default function CustomersScreen() {
 	const [newFlat, setNewFlat] = useState("");
 	const [isLunch, setIsLunch] = useState(true);
 	const [isDinner, setIsDinner] = useState(false);
-	const [newPrice, setNewPrice] = useState("2500");
+	const [newPrice, setNewPrice] = useState("350");
 	const [newNotes, setNewNotes] = useState("");
 	const [newStartDate, setNewStartDate] = useState(formatISO(new Date()));
 	const [newEndDate, setNewEndDate] = useState(() => {
@@ -121,10 +108,7 @@ export default function CustomersScreen() {
 				dates.forEach((date: string, idx: number) => {
 					const dayName = DAYS[idx];
 					const data = mockDb.getMenu(date);
-					mock[dayName] = {
-						lunch: normalizeMeal(data.lunch),
-						dinner: normalizeMeal(data.dinner),
-					};
+					mock[dayName] = normalizeDayMenu(data);
 				});
 				setWeekMenu(mock);
 			}
@@ -141,10 +125,7 @@ export default function CustomersScreen() {
 				const data = snap.exists() ? snap.data() : {};
 				setWeekMenu(prev => ({
 					...prev,
-					[dayName]: {
-						lunch: normalizeMeal(data.lunch),
-						dinner: normalizeMeal(data.dinner),
-					}
+					[dayName]: normalizeDayMenu(data)
 				}));
 			});
 		});
@@ -173,9 +154,8 @@ export default function CustomersScreen() {
 					isActive: true
 				});
 			} else {
-				console.log("Mock Mode: Adding customer to local session storage");
 				mockDb.addCustomer({
-					id: `mock - ${Date.now()} `,
+					id: `mock-${Date.now()}`,
 					name: newName,
 					phone: newPhone,
 					address: { location: newLocation, flat: newFlat },
@@ -209,7 +189,7 @@ export default function CustomersScreen() {
 				console.error("Error deleting customer:", error);
 			}
 		} else {
-			console.log("Mock Mode: Delete not persisted");
+			mockDb.deleteCustomer(id);
 		}
 	};
 
@@ -225,10 +205,10 @@ export default function CustomersScreen() {
 		if (!SETTINGS.USE_MOCKS) {
 			try {
 				// Fetch 7 docs in parallel for the week
-				const promises = dates.map((date: string) => getDoc(doc(db, "attendance", `${date}_${customerId} `)));
+				const promises = dates.map((date: string) => getDoc(doc(db, "attendance", `${date}_${customerId}`)));
 				const snaps = await Promise.all(promises);
 
-				snaps.forEach((snap: any, i: number) => {
+				snaps.forEach((snap, i: number) => {
 					if (snap.exists()) {
 						const dayName = DAYS[i];
 						attendance[dayName] = {
@@ -564,9 +544,7 @@ export default function CustomersScreen() {
 						customer={selectedCustomer}
 						daysLeft={getDaysLeft(toDate(selectedCustomer.endDate))}
 						dueAmount={getDueAmount(selectedCustomer.pricePerMonth, selectedCustomer.totalPaid || 0)}
-						onAction={(type) => {
-							console.log("Intelligence Action:", type, selectedCustomer.id);
-							// Future: Wire real actions here
+						onAction={() => {
 							setSelectedCustomer(null);
 						}}
 					/>
@@ -648,41 +626,11 @@ const styles = StyleSheet.create({
 	planOptionTextSelected: {
 		color: Theme.colors.primary,
 	},
-	name: {
-		...Theme.typography.answer,
-		color: Theme.colors.textPrimary,
-	},
 	details: {
 		flexDirection: 'row',
 		justifyContent: 'space-between',
 		alignItems: 'center',
 		marginTop: Theme.spacing.sm,
-	},
-	headerInfo: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		gap: Theme.spacing.md,
-		flex: 1,
-	},
-	plan: {
-		...Theme.typography.labelMedium,
-		color: Theme.colors.primary,
-	},
-	phone: {
-		...Theme.typography.labelMedium,
-		color: Theme.colors.textSecondary,
-	},
-	dates: {
-		...Theme.typography.detail,
-		color: Theme.colors.textMuted,
-	},
-	statusBadge: {
-		flexDirection: 'row',
-		alignItems: 'center',
-	},
-	paid: {
-		...Theme.typography.labelMedium,
-		color: Theme.colors.primary,
 	},
 	daysRemaining: {
 		marginTop: Theme.spacing.xs,
@@ -700,20 +648,6 @@ const styles = StyleSheet.create({
 		...Theme.typography.labelMedium,
 		color: Theme.colors.textMuted,
 		marginTop: Theme.spacing.massive,
-	},
-	notes: {
-		...Theme.typography.detail,
-		fontStyle: 'italic',
-		marginTop: Theme.spacing.sm,
-		paddingTop: Theme.spacing.sm,
-		borderTopWidth: 1,
-		borderTopColor: Theme.colors.border,
-	},
-	deleteBtn: {
-		backgroundColor: 'rgba(180, 83, 83, 0.15)', // Palette-aligned muted danger
-		paddingHorizontal: Theme.spacing.md,
-		paddingVertical: Theme.spacing.xs,
-		borderRadius: Theme.radius.sm,
 	},
 	deleteBtnText: {
 		color: Theme.colors.danger,

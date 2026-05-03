@@ -45,7 +45,6 @@ export const CenterModal: React.FC<CenterModalProps> = ({
 
 	useEffect(() => {
 		if (visible) {
-			setStableContent({ title, children });
 			setRenderModal(true);
 			anim.value = withSpring(1, SPRING_CONFIG);
 		} else {
@@ -55,7 +54,7 @@ export const CenterModal: React.FC<CenterModalProps> = ({
 				}
 			});
 		}
-	}, [visible]);
+	}, [anim, visible]);
 
 	// Update stable content only when visible
 	useEffect(() => {

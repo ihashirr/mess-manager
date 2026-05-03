@@ -10,6 +10,23 @@ import { db } from '../firebase/config';
 import { getDaysLeft, getDueAmount, toDate } from '../utils/customerLogic';
 import { mockDb } from '../utils/mockDb';
 
+type FinanceCustomer = {
+	pricePerMonth: number;
+	totalPaid: number;
+	endDate: unknown;
+	isActive: boolean;
+};
+
+type Transaction = {
+	id: string;
+	customerId: string;
+	customerName: string;
+	amount: number;
+	date: unknown;
+	method?: string;
+	isOrphan?: boolean;
+};
+
 export default function FinanceScreen() {
 	const [metrics, setMetrics] = useState({
 		expected: 0,
@@ -18,7 +35,7 @@ export default function FinanceScreen() {
 		activeCount: 0,
 		renewalRate: 0
 	});
-	const [transactions, setTransactions] = useState<any[]>([]);
+	const [transactions, setTransactions] = useState<Transaction[]>([]);
 	const [loading, setLoading] = useState(true);
 
 	const handleDeleteTransaction = async (id: string) => {
@@ -29,7 +46,7 @@ export default function FinanceScreen() {
 				console.error("Error deleting transaction:", error);
 			}
 		} else {
-			console.log("Mock Mode: Transaction not deleted from real DB");
+			mockDb.deletePayment(id);
 		}
 	};
 
@@ -38,9 +55,9 @@ export default function FinanceScreen() {
 			const customers = mockDb.getCustomers();
 			const payments = mockDb.getPayments();
 
-			const totalExpected = (customers as any[]).reduce((sum, c) => sum + (c.isActive ? c.pricePerMonth : 0), 0);
-			const totalCollected = (payments as any[]).reduce((sum, p) => sum + (p.amount || 0), 0);
-			const active = (customers as any[]).filter(c => c.isActive && getDaysLeft(toDate(c.endDate)) >= 0).length;
+			const totalExpected = customers.reduce((sum, customer) => sum + (customer.isActive ? customer.pricePerMonth : 0), 0);
+			const totalCollected = payments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+			const active = customers.filter(customer => customer.isActive && getDaysLeft(toDate(customer.endDate)) >= 0).length;
 
 			setMetrics({
 				expected: totalExpected,
@@ -49,6 +66,15 @@ export default function FinanceScreen() {
 				activeCount: active,
 				renewalRate: 92 // Mock rate
 			});
+			setTransactions(payments.map((payment, index) => ({
+				id: payment.id ?? `mock-payment-${index}`,
+				customerId: payment.customerId,
+				customerName: payment.customerName,
+				amount: payment.amount,
+				date: payment.date,
+				method: payment.method,
+				isOrphan: false,
+			})));
 			setLoading(false);
 		};
 
@@ -66,12 +92,14 @@ export default function FinanceScreen() {
 		let unsubscribePayments = () => { };
 
 		const unsubscribeCustomers = onSnapshot(qCustomers, (customerSnapshot) => {
+			unsubscribePayments();
+
 			let expected = 0;
 			let active = 0;
 			let outstandingCalculated = 0;
 
 			customerSnapshot.forEach((doc) => {
-				const data = doc.data();
+				const data = doc.data() as FinanceCustomer;
 				expected += data.pricePerMonth || 0;
 				const due = getDueAmount(data.pricePerMonth, data.totalPaid);
 				outstandingCalculated += due;
@@ -82,11 +110,11 @@ export default function FinanceScreen() {
 
 			unsubscribePayments = onSnapshot(qPayments, (paymentSnapshot) => {
 				let collected = 0;
-				const paymentList: any[] = [];
+				const paymentList: Transaction[] = [];
 				const existingCustomerIds = new Set(customerSnapshot.docs.map(doc => doc.id));
 
 				paymentSnapshot.forEach((doc) => {
-					const data = doc.data();
+					const data = doc.data() as Omit<Transaction, 'id' | 'isOrphan'>;
 					const isOrphan = !existingCustomerIds.has(data.customerId);
 					if (!isOrphan) {
 						collected += data.amount || 0;
@@ -98,7 +126,7 @@ export default function FinanceScreen() {
 					});
 				});
 
-				setTransactions(paymentList.sort((a, b) => b.date?.seconds - a.date?.seconds));
+				setTransactions(paymentList.sort((a, b) => toDate(b.date).getTime() - toDate(a.date).getTime()));
 				setMetrics(prev => ({
 					...prev,
 					expected,
@@ -186,7 +214,11 @@ export default function FinanceScreen() {
 						</View>
 					) : (
 						transactions.map((tx) => (
-							<Card borderless key={tx.id} style={[styles.transactionCard, tx.isOrphan && styles.orphanCard]}>
+							<Card
+								borderless
+								key={tx.id}
+								style={tx.isOrphan ? [styles.transactionCard, styles.orphanCard] : styles.transactionCard}
+							>
 								<View style={styles.txIconContainer}>
 									<MaterialCommunityIcons
 										name={tx.method === 'bank' ? 'bank' : 'cash-multiple'}
@@ -277,19 +309,4 @@ const styles = StyleSheet.create({
 	txDelete: { marginTop: 4 },
 	emptyCard: { backgroundColor: Theme.colors.surface, padding: Theme.spacing.massive, borderRadius: Theme.radius.xl, alignItems: 'center', borderWidth: 1, borderColor: Theme.colors.border },
 	emptyText: { ...Theme.typography.label, color: Theme.colors.textMuted, fontStyle: 'italic' },
-	statsRowFinance: {
-		flexDirection: 'row',
-		marginHorizontal: Theme.spacing.screen,
-		backgroundColor: Theme.colors.surface,
-		borderRadius: Theme.radius.xl,
-		padding: Theme.spacing.xl,
-		marginTop: -Theme.spacing.xxl,
-		alignItems: 'center',
-		borderWidth: 1,
-		borderColor: Theme.colors.border,
-	},
-	statItemFinance: { flex: 1, alignItems: 'center' },
-	statLabelFinance: { ...Theme.typography.detailBold, color: Theme.colors.textSecondary, marginBottom: Theme.spacing.xs },
-	statValueFinance: { ...Theme.typography.labelMedium, color: Theme.colors.textPrimary },
-	separatorFinance: { width: 1, height: '60%', backgroundColor: Theme.colors.border },
 });

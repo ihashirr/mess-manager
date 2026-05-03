@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { collection, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -9,25 +9,21 @@ import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { SETTINGS } from '../constants/Settings';
 import { Theme } from '../constants/Theme';
 import { db } from '../firebase/config';
+import { cloneDayMenu, createEmptyDayMenu, normalizeDayMenu, type MealSlot, type RiceSlot, type WeekMenu } from '../utils/menuLogic';
 import { mockDb } from '../utils/mockDb';
-import { DAYS, DayName, getDateForDayName, getDatesForWeek, getPrevWeekId, getTodayName, getWeekId } from '../utils/weekLogic';
+import { DAYS, DayName, getDateForDayName, getDatesForWeek, getTodayName, getWeekId } from '../utils/weekLogic';
 
-type RiceSlot = { enabled: boolean; type: string };
-type MealSlot = { main: string; rice: RiceSlot; roti: boolean; extra: string };
-type DayMenu = { lunch: MealSlot; dinner: MealSlot };
-type WeekMenu = Partial<Record<DayName, DayMenu>>;
+type MenuCustomer = {
+	id: string;
+	mealsPerDay?: { lunch?: boolean; dinner?: boolean };
+};
 
-const EMPTY_MEAL: MealSlot = { main: "", rice: { enabled: false, type: "" }, roti: true, extra: "" };
-const EMPTY_DAY: DayMenu = { lunch: { ...EMPTY_MEAL }, dinner: { ...EMPTY_MEAL } };
-
-const normalizeMeal = (raw: any): MealSlot => ({
-	main: typeof raw?.main === 'string' ? raw.main : "",
-	rice: (raw?.rice && typeof raw.rice === 'object' && 'enabled' in raw.rice)
-		? raw.rice
-		: { enabled: false, type: typeof raw?.rice === 'string' ? raw.rice : "" },
-	roti: typeof raw?.roti === 'boolean' ? raw.roti : true,
-	extra: typeof raw?.extra === 'string' ? raw.extra : (raw?.side || ""),
-});
+type AttendanceRecord = {
+	customerId: string;
+	date: string;
+	lunch?: boolean;
+	dinner?: boolean;
+};
 
 export default function MenuScreen() {
 	const weekId = getWeekId();
@@ -37,8 +33,8 @@ export default function MenuScreen() {
 	const [weekMenu, setWeekMenu] = useState<WeekMenu>({});
 	const [loading, setLoading] = useState(true);
 	const [saveBatch, setSaveBatch] = useState<Set<DayName>>(new Set());
-	const [customers, setCustomers] = useState<any[]>([]);
-	const [allAttendance, setAllAttendance] = useState<Record<string, Record<string, any>>>({});
+	const [customers, setCustomers] = useState<MenuCustomer[]>([]);
+	const [allAttendance, setAllAttendance] = useState<Record<string, Record<string, AttendanceRecord>>>({});
 
 	const [showCopyModal, setShowCopyModal] = useState(false);
 	const [copySelection, setCopySelection] = useState<Set<DayName>>(new Set());
@@ -56,10 +52,7 @@ export default function MenuScreen() {
 				dates.forEach((date: string, i: number) => {
 					const dayName = DAYS[i];
 					const data = mockDb.getMenu(date);
-					mock[dayName] = {
-						lunch: normalizeMeal(data.lunch),
-						dinner: normalizeMeal(data.dinner),
-					};
+					mock[dayName] = normalizeDayMenu(data);
 				});
 				setWeekMenu(mock);
 				setLoading(false);
@@ -77,11 +70,7 @@ export default function MenuScreen() {
 			const dayName = DAYS[idx];
 			return onSnapshot(doc(db, "menu", date), (docSnap) => {
 				const raw = docSnap.exists() ? docSnap.data() : {};
-				const normalized: DayMenu = {
-					lunch: normalizeMeal(raw.lunch),
-					dinner: normalizeMeal(raw.dinner),
-				};
-				setWeekMenu(prev => ({ ...prev, [dayName]: normalized }));
+				setWeekMenu(prev => ({ ...prev, [dayName]: normalizeDayMenu(raw) }));
 				if (idx === 6) {
 					setLoading(false);
 				}
@@ -89,14 +78,14 @@ export default function MenuScreen() {
 		});
 
 		const unsubCustomers = onSnapshot(collection(db, "customers"), (snap) => {
-			setCustomers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+			setCustomers(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as MenuCustomer)));
 		});
 
 		const attendanceQuery = query(collection(db, "attendance"), where("date", "in", dates));
 		const unsubAttendance = onSnapshot(attendanceQuery, (snap) => {
-			const acc: Record<string, Record<string, any>> = {};
+			const acc: Record<string, Record<string, AttendanceRecord>> = {};
 			snap.docs.forEach(doc => {
-				const data = doc.data();
+				const data = doc.data() as AttendanceRecord;
 				if (!acc[data.date]) acc[data.date] = {};
 				acc[data.date][data.customerId] = data;
 			});
@@ -110,21 +99,21 @@ export default function MenuScreen() {
 		};
 	}, [weekId]);
 
-	// Auto-scroll logic
-	useEffect(() => {
-		if (!loading && Object.keys(layoutMap.current).length === 7) {
-			setTimeout(() => {
-				scrollToToday();
-			}, 300);
-		}
-	}, [loading]);
-
-	const scrollToToday = () => {
+	const scrollToToday = useCallback(() => {
 		const y = layoutMap.current[todayName];
 		if (y !== undefined && scrollRef.current) {
 			scrollRef.current.scrollTo({ y: Math.max(0, y - 20), animated: true });
 		}
-	};
+	}, [todayName]);
+
+	// Auto-scroll logic
+	useEffect(() => {
+		if (!loading && Object.keys(layoutMap.current).length === 7) {
+			const timer = setTimeout(scrollToToday, 300);
+			return () => clearTimeout(timer);
+		}
+		return undefined;
+	}, [loading, scrollToToday]);
 
 	const toggleDayExpansion = (day: DayName) => {
 		setExpandedDays(prev => {
@@ -135,45 +124,6 @@ export default function MenuScreen() {
 		});
 	};
 
-	const duplicatePreviousWeek = async () => {
-		const prevWeekId = getPrevWeekId(weekId);
-		const prevDates = getDatesForWeek(prevWeekId);
-
-		setLoading(true);
-		const newWeekMenu = { ...weekMenu };
-		const newBatch = new Set(saveBatch);
-
-		try {
-			if (SETTINGS.USE_MOCKS) {
-				// Mock duplication logic (just copy current as example or empty)
-				console.log("Mock: Duplicating prev week", prevWeekId);
-			} else {
-				// Real fetch for each day of prev week
-				const fetchPromises = prevDates.map(async (date: string, idx: number) => {
-					const dayName = DAYS[idx];
-					// This is a direct fetch for duplication, not a sub
-					const { getDoc } = await import('firebase/firestore');
-					const snap = await getDoc(doc(db, "menu", date));
-					if (snap.exists()) {
-						const raw = snap.data();
-						newWeekMenu[dayName] = {
-							lunch: normalizeMeal(raw.lunch),
-							dinner: normalizeMeal(raw.dinner),
-						};
-						newBatch.add(dayName);
-					}
-				});
-				await Promise.all(fetchPromises);
-			}
-			setWeekMenu(newWeekMenu);
-			setSaveBatch(newBatch);
-		} catch (e) {
-			console.error("Duplication failed", e);
-		} finally {
-			setLoading(false);
-		}
-	};
-
 	const handleSelectiveCopy = (targetDays: Set<DayName>) => {
 		const todayMenuData = weekMenu[todayName];
 		if (!todayMenuData) return;
@@ -182,7 +132,7 @@ export default function MenuScreen() {
 		const newBatch = new Set(saveBatch);
 
 		targetDays.forEach((day: DayName) => {
-			newWeekMenu[day] = JSON.parse(JSON.stringify(todayMenuData));
+			newWeekMenu[day] = cloneDayMenu(todayMenuData);
 			newBatch.add(day);
 		});
 
@@ -207,27 +157,33 @@ export default function MenuScreen() {
 		return { lunch, dinner, total: lunch + dinner };
 	};
 
-	const updateMeal = (day: DayName, meal: 'lunch' | 'dinner', field: keyof MealSlot, value: any) => {
+	const updateMeal = <K extends keyof MealSlot,>(day: DayName, meal: 'lunch' | 'dinner', field: K, value: MealSlot[K]) => {
 		setWeekMenu(prev => ({
 			...prev,
-			[day]: {
-				...prev[day] ?? EMPTY_DAY,
-				[meal]: { ...((prev[day] ?? EMPTY_DAY)[meal]), [field]: value }
-			}
+			[day]: (() => {
+				const currentDay = prev[day] ?? createEmptyDayMenu();
+				return {
+					...currentDay,
+					[meal]: { ...currentDay[meal], [field]: value },
+				};
+			})()
 		}));
 		setSaveBatch(prev => new Set(prev).add(day));
 	};
 
-	const updateRice = (day: DayName, meal: 'lunch' | 'dinner', field: keyof RiceSlot, value: any) => {
+	const updateRice = <K extends keyof RiceSlot,>(day: DayName, meal: 'lunch' | 'dinner', field: K, value: RiceSlot[K]) => {
 		setWeekMenu(prev => ({
 			...prev,
-			[day]: {
-				...prev[day] ?? EMPTY_DAY,
-				[meal]: {
-					...((prev[day] ?? EMPTY_DAY)[meal]),
-					rice: { ...((prev[day] ?? EMPTY_DAY)[meal].rice), [field]: value }
-				}
-			}
+			[day]: (() => {
+				const currentDay = prev[day] ?? createEmptyDayMenu();
+				return {
+					...currentDay,
+					[meal]: {
+						...currentDay[meal],
+						rice: { ...currentDay[meal].rice, [field]: value },
+					},
+				};
+			})()
 		}));
 		setSaveBatch(prev => new Set(prev).add(day));
 	};
@@ -235,19 +191,23 @@ export default function MenuScreen() {
 	const handleSave = async () => {
 		try {
 			if (!SETTINGS.USE_MOCKS) {
-				const promises = Array.from(saveBatch).map(day => {
+				const promises = Array.from(saveBatch).flatMap(day => {
 					const date = getDateForDayName(day, weekId);
 					const dayData = weekMenu[day];
-					return setDoc(doc(db, "menu", date), {
+					if (!dayData) return [];
+					return [setDoc(doc(db, "menu", date), {
 						...dayData,
 						updatedAt: new Date().toISOString()
-					}, { merge: true });
+					}, { merge: true })];
 				});
 				await Promise.all(promises);
 			} else {
 				saveBatch.forEach(day => {
 					const date = getDateForDayName(day, weekId);
-					mockDb.saveMenu(date, weekMenu[day]);
+					const dayData = weekMenu[day];
+					if (dayData) {
+						mockDb.saveMenu(date, dayData);
+					}
 				});
 			}
 			setSaveBatch(new Set());
@@ -293,7 +253,7 @@ export default function MenuScreen() {
 				showsVerticalScrollIndicator={false}
 			>
 				{DAYS.map((day: DayName) => {
-					const dayData = weekMenu[day] ?? EMPTY_DAY;
+					const dayData = weekMenu[day] ?? createEmptyDayMenu();
 					const isToday = day === todayName;
 					const forecast = getForecast(day);
 					const isExpanded = expandedDays.has(day) || isEditing;
@@ -456,7 +416,7 @@ export default function MenuScreen() {
 				<View style={styles.modalOverlay}>
 					<View style={styles.modalContent}>
 						<Text style={styles.modalTitle}>Select Target Days</Text>
-						<Text style={styles.modalSub}>Copy Today's Menu to these days:</Text>
+						<Text style={styles.modalSub}>{"Copy Today's Menu to these days:"}</Text>
 
 						<View style={styles.dayGrid}>
 							{DAYS.map((d: DayName) => {
@@ -502,11 +462,7 @@ export default function MenuScreen() {
 }
 
 const styles = StyleSheet.create({
-	container: { flex: 1, backgroundColor: Theme.colors.bg },
 	scrollContent: { padding: Theme.spacing.screen, paddingBottom: 150 },
-	headerBtns: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.md },
-	title: { ...Theme.typography.answer, color: Theme.colors.textPrimary },
-	weekLabel: { ...Theme.typography.detailBold, color: Theme.colors.textMuted, marginTop: Theme.spacing.xs, textTransform: 'uppercase' },
 
 	dayCard: {
 		padding: Theme.spacing.lg,
@@ -526,7 +482,6 @@ const styles = StyleSheet.create({
 		marginBottom: Theme.spacing.lg,
 	},
 	dayHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Theme.spacing.sm },
-	dayRow: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.md },
 	dayHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
 	dayTitle: { ...Theme.typography.answer, color: Theme.colors.textPrimary },
 	forecastLabel: { ...Theme.typography.detailBold, color: Theme.colors.textMuted, marginTop: Theme.spacing.xs },

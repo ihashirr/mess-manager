@@ -19,7 +19,7 @@ type Payment = {
 	totalPaid: number;
 	isActive: boolean;
 	mealsPerDay: { lunch: boolean; dinner: boolean };
-	endDate: any;
+	endDate: unknown;
 };
 
 export default function PaymentsScreen() {
@@ -29,8 +29,8 @@ export default function PaymentsScreen() {
 	useEffect(() => {
 		const loadPayments = () => {
 			const customers = mockDb.getCustomers();
-			const paymentsArray = (customers as any[]).filter(c => c.isActive && getDueAmount(c.pricePerMonth, c.totalPaid) > 0);
-			setPayments(paymentsArray as Payment[]);
+			const paymentsArray = customers.filter(c => c.isActive && getDueAmount(c.pricePerMonth, c.totalPaid) > 0);
+			setPayments(paymentsArray);
 			setLoading(false);
 		};
 
@@ -88,9 +88,7 @@ export default function PaymentsScreen() {
 					totalPaid: (customer.totalPaid || 0) + customer.pricePerMonth,
 					endDate: newEndDate
 				});
-				console.log("Transaction recorded in ledger and DB updated");
 			} else {
-				console.log("Mock Payment: Recording in local session storage");
 				mockDb.updateCustomer(customer.id, {
 					totalPaid: (customer.totalPaid || 0) + customer.pricePerMonth,
 					endDate: newEndDate
@@ -164,9 +162,6 @@ export default function PaymentsScreen() {
 
 const styles = StyleSheet.create({
 	container: { flex: 1, backgroundColor: Theme.colors.bg },
-	title: { ...Theme.typography.answer, color: Theme.colors.textPrimary },
-	subtitle: { ...Theme.typography.label, color: Theme.colors.textMuted, textTransform: 'uppercase' },
-	content: { padding: Theme.spacing.screen, paddingBottom: 150 },
 	info: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Theme.spacing.md },
 	name: { ...Theme.typography.labelMedium, color: Theme.colors.textPrimary },
 	subText: { ...Theme.typography.detail, color: Theme.colors.textSecondary, marginTop: Theme.spacing.xs },

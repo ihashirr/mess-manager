@@ -85,9 +85,9 @@ This document covers the architecture, data model, and screen-by-screen logic fo
 - **Transaction History**: Lists all this month's payments, with orphaned ones grayed out and labeled "(Deleted Customer)".
 - **Delete Transaction**: Calls `deleteDoc` on `payments/{id}` — dashboard updates instantly.
 
-### 6. Mock Database (`utils/mockDb.ts`)
+### 6. Mock Database (`src/utils/mockDb.ts`)
 **Purpose**: Offline/demo mode with cross-tab synchronization.
-- In-memory singleton seeded from `mocks/customers.json` and `mocks/payments.json`.
+- In-memory singleton seeded from `src/mocks/customers.json` and `src/mocks/payments.json`.
 - `subscribe(listener)` — components register for updates, mimicking `onSnapshot`.
 - Any action (add customer, record payment) calls `notify()` which fires all listeners.
 
@@ -101,7 +101,7 @@ The system logic is built on a relational-lite Firestore model. For detailed fie
 
 ## 🏗️ UI Architecture (Layout Engine)
 
-The application follows a formal Layout Engine model where screens are composed of a limited set of **UI Primitives** found in `components/ui/`.
+The application follows a formal Layout Engine model where screens are composed of a limited set of **UI Primitives** found in `src/components/ui/`.
 
 | Priority | Primitive | Description |
 | :--- | :--- | :--- |

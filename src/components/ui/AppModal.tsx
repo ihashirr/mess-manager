@@ -52,7 +52,6 @@ export const AppModal: React.FC<AppModalProps> = ({
 
 	useEffect(() => {
 		if (visible) {
-			setStableContent({ title, subtitle, children });
 			setRenderModal(true);
 			dragY.value = 0;
 			anim.value = withSpring(1, SPRING_CONFIG);
@@ -63,7 +62,7 @@ export const AppModal: React.FC<AppModalProps> = ({
 				}
 			});
 		}
-	}, [visible]);
+	}, [anim, dragY, visible]);
 
 	// Update stable content only when visible
 	useEffect(() => {

@@ -14,15 +14,13 @@ export default function TabLayout() {
 					tabBarActiveTintColor: Theme.colors.primary,
 					tabBarInactiveTintColor: Theme.colors.textMuted,
 					tabBarLabelStyle: styles.tabLabel,
-					// @ts-ignore - web only property for clarity
-					tabBarItemStyle: { outline: 'none' },
 				}}
 			>
 				<Tabs.Screen
 					name="index"
 					options={{
 						title: 'Home',
-						tabBarIcon: ({ color, size, focused }) => (
+						tabBarIcon: ({ color, focused }) => (
 							<MaterialCommunityIcons
 								name={focused ? "silverware-fork-knife" : "silverware-variant"}
 								color={color}
@@ -35,7 +33,7 @@ export default function TabLayout() {
 					name="customers"
 					options={{
 						title: 'Customers',
-						tabBarIcon: ({ color, size, focused }) => (
+						tabBarIcon: ({ color, focused }) => (
 							<MaterialCommunityIcons
 								name={focused ? "account-group" : "account-group-outline"}
 								color={color}
@@ -48,7 +46,7 @@ export default function TabLayout() {
 					name="payments"
 					options={{
 						title: 'Payments',
-						tabBarIcon: ({ color, size, focused }) => (
+						tabBarIcon: ({ color, focused }) => (
 							<MaterialCommunityIcons
 								name={focused ? "cash-multiple" : "cash"}
 								color={color}
@@ -61,7 +59,7 @@ export default function TabLayout() {
 					name="finance"
 					options={{
 						title: 'Finance',
-						tabBarIcon: ({ color, size, focused }) => (
+						tabBarIcon: ({ color, focused }) => (
 							<MaterialCommunityIcons
 								name={focused ? "chart-areaspline" : "chart-areaspline-variant"}
 								color={color}
@@ -74,7 +72,7 @@ export default function TabLayout() {
 					name="menu"
 					options={{
 						title: 'Menu',
-						tabBarIcon: ({ color, size, focused }) => (
+						tabBarIcon: ({ color, focused }) => (
 							<MaterialCommunityIcons
 								name={focused ? "food" : "food-outline"}
 								color={color}
