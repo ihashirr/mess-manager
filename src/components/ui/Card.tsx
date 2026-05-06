@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { Animated, Pressable, StyleSheet, View, ViewStyle } from 'react-native';
 import { Theme } from '../../constants/Theme';
+import { useAppTheme } from '../../context/ThemeModeContext';
 
 type CardVariant = 'elevated' | 'flat' | 'outlined';
 
@@ -14,6 +15,7 @@ interface CardProps {
 
 export function Card({ children, variant = 'elevated', style, onPress, borderless = false }: CardProps) {
 	const scale = useRef(new Animated.Value(1)).current;
+	const { colors, isDark } = useAppTheme();
 
 	const handlePressIn = () => {
 		if (!onPress) return;
@@ -36,8 +38,13 @@ export function Card({ children, variant = 'elevated', style, onPress, borderles
 	const cardContent = (
 		<View style={[
 			styles.base,
-			variantStyles[variant],
-			borderless && styles.borderless,
+			variant === 'elevated' && [
+				{ backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+				!isDark && styles.elevatedShadow,
+			],
+			variant === 'flat' && { backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: 'transparent' },
+			variant === 'outlined' && { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+			borderless && { borderWidth: 0, borderColor: 'transparent', backgroundColor: 'transparent', paddingHorizontal: 0 },
 			style
 		]}>
 			{children}
@@ -61,29 +68,12 @@ const styles = StyleSheet.create({
 	base: {
 		padding: Theme.spacing.screen,
 		borderRadius: Theme.radius.lg,
-		backgroundColor: Theme.colors.surface,
 	},
-	borderless: {
-		borderWidth: 0,
-		borderColor: 'transparent',
-		backgroundColor: 'transparent',
-		paddingHorizontal: 0, // Let container padding handle it if borderless
+	elevatedShadow: {
+		shadowColor: '#201812',
+		shadowOpacity: 0.06,
+		shadowRadius: 16,
+		shadowOffset: { width: 0, height: 8 },
+		elevation: 2,
 	},
-});
-
-const variantStyles = StyleSheet.create({
-	elevated: {
-		borderWidth: 1,
-		borderColor: Theme.colors.border,
-		backgroundColor: Theme.colors.surface,
-	},
-	flat: {
-		backgroundColor: Theme.colors.bg,
-		borderWidth: 1,
-		borderColor: 'transparent',
-	},
-	outlined: {
-		borderWidth: 1,
-		borderColor: Theme.colors.border,
-	}
 });

@@ -17,6 +17,8 @@ import Animated, {
 	withTiming,
 } from 'react-native-reanimated';
 import { Theme } from '../../constants/Theme';
+import { useAppTheme } from '../../context/ThemeModeContext';
+import { ModalBackdrop } from './ModalBackdrop';
 
 interface CenterModalProps {
 	visible: boolean;
@@ -37,6 +39,7 @@ export const CenterModal: React.FC<CenterModalProps> = ({
 	title,
 	children,
 }) => {
+	const { colors } = useAppTheme();
 	const [renderModal, setRenderModal] = useState(visible);
 	const anim = useSharedValue(0);
 
@@ -87,17 +90,32 @@ export const CenterModal: React.FC<CenterModalProps> = ({
 		>
 			<View style={styles.container}>
 				{/* Backdrop */}
-				<Animated.View style={[styles.backdrop, backdropStyle]}>
+				<Animated.View
+					style={[
+						styles.backdrop,
+						backdropStyle,
+					]}
+				>
+					<ModalBackdrop intensity={30} />
 					<Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
 				</Animated.View>
 
 				{/* Content */}
-				<Animated.View style={[styles.content, contentStyle]}>
+				<Animated.View
+					style={[
+						styles.content,
+						{
+							backgroundColor: colors.surface,
+							borderColor: colors.border,
+						},
+						contentStyle,
+					]}
+				>
 					{dTitle && (
-						<View style={styles.header}>
-							<Text style={styles.title}>{dTitle}</Text>
+						<View style={[styles.header, { borderBottomColor: colors.border }]}>
+							<Text style={[styles.title, { color: colors.textSecondary }]}>{dTitle}</Text>
 							<TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-								<MaterialCommunityIcons name="close" size={20} color={Theme.colors.textMuted} />
+								<MaterialCommunityIcons name="close" size={20} color={colors.textMuted} />
 							</TouchableOpacity>
 						</View>
 					)}
@@ -119,15 +137,12 @@ const styles = StyleSheet.create({
 	},
 	backdrop: {
 		...StyleSheet.absoluteFillObject,
-		backgroundColor: 'rgba(0, 0, 0, 0.8)',
 	},
 	content: {
 		width: '100%',
 		maxWidth: 400,
-		backgroundColor: Theme.colors.surface,
 		borderRadius: Theme.radius.xl,
 		borderWidth: 1,
-		borderColor: Theme.colors.border,
 		overflow: 'hidden',
 		elevation: 5,
 	},
@@ -138,11 +153,9 @@ const styles = StyleSheet.create({
 		paddingHorizontal: Theme.spacing.lg,
 		paddingVertical: Theme.spacing.md,
 		borderBottomWidth: 1,
-		borderBottomColor: Theme.colors.border,
 	},
 	title: {
 		...Theme.typography.label,
-		color: Theme.colors.textSecondary,
 		textTransform: 'uppercase',
 		letterSpacing: 1,
 	},

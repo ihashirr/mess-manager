@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { Theme } from '../../constants/Theme';
+import { useAppTheme } from '../../context/ThemeModeContext';
 
 interface SectionProps {
 	title?: string;
@@ -11,12 +12,17 @@ interface SectionProps {
 }
 
 export function Section({ title, subtitle, children, style, contentStyle }: SectionProps) {
+	const { colors } = useAppTheme();
+
 	return (
 		<View style={[styles.container, style]}>
 			{(title || subtitle) && (
 				<View style={styles.header}>
-					{title && <Text style={styles.title}>{title}</Text>}
-					{subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+					<View style={styles.headerTopRow}>
+						<View style={[styles.headerAccent, { backgroundColor: colors.primary }]} />
+						{title && <Text style={[styles.title, { color: colors.textPrimary }]}>{title}</Text>}
+					</View>
+					{subtitle && <Text style={[styles.subtitle, { color: colors.textMuted }]}>{subtitle}</Text>}
 				</View>
 			)}
 			<View style={[styles.content, contentStyle]}>
@@ -31,16 +37,24 @@ const styles = StyleSheet.create({
 		marginBottom: Theme.spacing.xl,
 	},
 	header: {
-		paddingHorizontal: Theme.spacing.screen,
+		paddingHorizontal: Theme.spacing.xs,
 		marginBottom: Theme.spacing.md,
+	},
+	headerTopRow: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: Theme.spacing.sm,
+	},
+	headerAccent: {
+		width: 10,
+		height: 10,
+		borderRadius: Theme.radius.full,
 	},
 	title: {
 		...Theme.typography.labelMedium,
-		color: Theme.colors.textPrimary,
 	},
 	subtitle: {
 		...Theme.typography.detailBold,
-		color: Theme.colors.textMuted,
 		marginTop: Theme.spacing.xs,
 		textTransform: 'uppercase',
 	},

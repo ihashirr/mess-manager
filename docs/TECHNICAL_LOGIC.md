@@ -13,7 +13,7 @@ This document covers the architecture, data model, and screen-by-screen logic fo
 | **State** | Per-screen independent fetching, no global store |
 | **Derived logic** | All status fields computed at runtime (never stored) |
 | **Deadlines** | No cutoff — full editability for past and today's records |
-| **Dev mode** | `SETTINGS.USE_MOCKS = true` uses `mockDb.ts` — no Firebase calls |
+| **Data mode** | Live Firestore only — no in-repo mock database path |
 
 > "Stored numbers rot. Derived numbers stay honest."
 
@@ -76,20 +76,25 @@ This document covers the architecture, data model, and screen-by-screen logic fo
 
 ### 5. Finance Screen (`finance.tsx`)
 **Purpose**: Monthly financial health audit.
-- Listens to `customers` (for Expected) and `payments` filtered by `monthTag == "YYYY-MM"`.
+- Listens to `customers` (for Expected), `payments` filtered by `monthTag == "YYYY-MM"`, and `expenses` filtered by the same month tag.
 - **Derived Metrics**:
   - **Expected**: Sum of `pricePerMonth` for all active customers.
   - **Collected**: Sum of `amount` for payments in current month — **only from existing customers** (orphan-filtered by ID).
   - **Outstanding**: Per-customer `getDueAmount` sum (not `Expected − Collected`).
+  - **Expenses**: Sum of receipt totals saved into the expense ledger.
+  - **Net Cash**: `Collected − Expenses`.
   - **Progress**: `min(100, collected/expected * 100)` — capped to prevent overflow.
+- **Receipt OCR**: Uses image capture/import plus AI extraction to detect merchant name, totals, and visible line items from receipts before saving.
+- **Expense History**: Lists saved receipts with OCR confidence and line-item preview.
 - **Transaction History**: Lists all this month's payments, with orphaned ones grayed out and labeled "(Deleted Customer)".
 - **Delete Transaction**: Calls `deleteDoc` on `payments/{id}` — dashboard updates instantly.
+- **Delete Expense**: Calls `deleteDoc` on `expenses/{id}` — net cash updates instantly.
 
-### 6. Mock Database (`src/utils/mockDb.ts`)
-**Purpose**: Offline/demo mode with cross-tab synchronization.
-- In-memory singleton seeded from `src/mocks/customers.json` and `src/mocks/payments.json`.
-- `subscribe(listener)` — components register for updates, mimicking `onSnapshot`.
-- Any action (add customer, record payment) calls `notify()` which fires all listeners.
+### 6. Live Data Contract
+**Purpose**: Keep the app production-bound and consistent across screens.
+- All operational screens read from Firestore directly.
+- Customer, attendance, payment, expense, and menu mutations write straight to Firestore.
+- There is no bundled mock dataset or local in-memory fallback path.
 
 ---
 

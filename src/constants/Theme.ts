@@ -7,13 +7,13 @@ export const Theme = {
 		warning: '#F39C12',    // Bright Amber
 
 		// Structural
-		bg: '#FFF8F0',         // Warm Cream
+		bg: '#F8F6F2',         // Soft Porcelain
 		surface: '#FFFFFF',    // White
-		surfaceElevated: '#FFF3E0', // Light Orange Tint
-		border: '#FFE0CC',     // Warm Peach Border
-		textPrimary: '#1A1A2E',   // Near Black
-		textSecondary: '#5D4E6D', // Warm Purple Grey
-		textMuted: '#B0A8B9',     // Soft Muted
+		surfaceElevated: '#F4EEE6', // Warm Sand Tint
+		border: '#E8DDD0',     // Soft Sand Border
+		textPrimary: '#1F1B16',   // Warm Charcoal
+		textSecondary: '#62574C', // Toasted Taupe
+		textMuted: '#9A8D80',     // Quiet Neutral
 		textInverted: '#FFFFFF',
 
 		// Meal Semantics
@@ -21,7 +21,7 @@ export const Theme = {
 		mealDinner: '#7C3AED', // Vivid Violet
 
 		// Utilities
-		overlay: 'rgba(255, 248, 240, 0.85)',
+		overlay: 'rgba(26, 21, 17, 0.42)',
 	},
 
 	spacing: {

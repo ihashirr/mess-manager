@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useRef } from 'react';
 import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, TextStyle, ViewStyle } from 'react-native';
 import { Theme } from '../../constants/Theme';
+import { useAppTheme } from '../../context/ThemeModeContext';
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -16,8 +17,8 @@ interface ButtonProps {
 	disabled?: boolean;
 	loading?: boolean;
 	fullWidth?: boolean;
-	style?: ViewStyle;
-	textStyle?: TextStyle;
+	style?: ViewStyle | ViewStyle[];
+	textStyle?: TextStyle | TextStyle[];
 }
 
 export function Button({
@@ -34,6 +35,7 @@ export function Button({
 	textStyle,
 }: ButtonProps) {
 	const scale = useRef(new Animated.Value(1)).current;
+	const { colors } = useAppTheme();
 
 	const handlePressIn = () => {
 		Animated.timing(scale, {
@@ -52,6 +54,7 @@ export function Button({
 	};
 
 	const isDisabled = disabled || loading;
+	const variantStyle = getVariantStyle(variant, colors);
 
 	return (
 		<Animated.View style={[{ transform: [{ scale }] }, fullWidth && styles.fullWidth, style]}>
@@ -62,30 +65,30 @@ export function Button({
 				style={[
 					styles.base,
 					styles[size],
-					variantStyles[variant].container,
+					variantStyle.container,
 					isDisabled && styles.disabled,
 				]}
 			>
 				{loading ? (
-					<ActivityIndicator color={variantStyles[variant].text.color} size="small" />
+					<ActivityIndicator color={variantStyle.text.color} size="small" />
 				) : (
 					<>
 						{iconLeft && (
 							<MaterialCommunityIcons
 								name={iconLeft}
 								size={iconSizes[size]}
-								color={variantStyles[variant].text.color as string}
+								color={variantStyle.text.color as string}
 								style={styles.iconLeft}
 							/>
 						)}
-						<Text style={[styles.textBase, textSizes[size], variantStyles[variant].text, textStyle]}>
+						<Text style={[styles.textBase, textSizes[size], variantStyle.text, textStyle]}>
 							{title}
 						</Text>
 						{iconRight && (
 							<MaterialCommunityIcons
 								name={iconRight}
 								size={iconSizes[size]}
-								color={variantStyles[variant].text.color as string}
+								color={variantStyle.text.color as string}
 								style={styles.iconRight}
 							/>
 						)}
@@ -146,25 +149,29 @@ const iconSizes = {
 	lg: 24,
 };
 
-const variantStyles = {
-	primary: StyleSheet.create({
-		container: { backgroundColor: Theme.colors.primary },
-		text: { color: Theme.colors.textInverted },
-	}),
-	secondary: StyleSheet.create({
-		container: { backgroundColor: Theme.colors.primary },
-		text: { color: Theme.colors.textInverted },
-	}),
-	danger: StyleSheet.create({
-		container: { backgroundColor: Theme.colors.danger },
-		text: { color: Theme.colors.textInverted },
-	}),
-	ghost: StyleSheet.create({
-		container: { backgroundColor: 'transparent' },
-		text: { color: Theme.colors.primary },
-	}),
-	outline: StyleSheet.create({
-		container: { backgroundColor: 'transparent', borderWidth: 1, borderColor: Theme.colors.border },
-		text: { color: Theme.colors.textPrimary },
-	}),
+const getVariantStyle = (variant: ButtonVariant, colors: typeof Theme.colors) => {
+	const stylesByVariant = {
+		primary: {
+			container: { backgroundColor: colors.primary, borderWidth: 1, borderColor: colors.primary },
+			text: { color: colors.textInverted },
+		},
+		secondary: {
+			container: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+			text: { color: colors.textPrimary },
+		},
+		danger: {
+			container: { backgroundColor: colors.danger, borderWidth: 1, borderColor: colors.danger },
+			text: { color: colors.textInverted },
+		},
+		ghost: {
+			container: { backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: 'transparent' },
+			text: { color: colors.primary },
+		},
+		outline: {
+			container: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+			text: { color: colors.textPrimary },
+		},
+	};
+
+	return stylesByVariant[variant];
 };

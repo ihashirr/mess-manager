@@ -4,7 +4,7 @@ This guide explains how to run the Mess Manager app on your mobile device (e.g.,
 
 ## Prerequisites
 - **Node.js** and **npm** installed
-- **Expo CLI** installed globally (`npm install -g expo-cli`)
+- Use the local Expo CLI through the project scripts. Do not install the old global `expo-cli` package.
 - **Android device** (Samsung S23) with USB debugging enabled
 - **USB cable** to connect your phone
 - **Expo Go** app installed on your phone (from Google Play Store)
@@ -21,9 +21,9 @@ This guide explains how to run the Mess Manager app on your mobile device (e.g.,
    - Open a terminal in the project root folder.
    - Run:
      ```sh
-     npx expo start
+     npm start
      ```
-   - This will open the Expo Dev Tools in your browser.
+   - This starts Expo with a clean Metro cache and avoids the Expo API cache issue that can show `Body is unusable: Body has already been read`.
 
 3. **(Optional) Use Reverse TCP for USB Debugging**
    If your phone and computer are not on the same Wi-Fi, or you want to use USB for a more stable connection:
@@ -54,6 +54,52 @@ This guide explains how to run the Mess Manager app on your mobile device (e.g.,
   adb devices
   ```
   to verify your device is listed.
+- If you still need to run Expo directly, use:
+  ```powershell
+  $env:EXPO_NO_CACHE="1"; npx expo start --clear
+  ```
+
+## Phone Run Log
+
+Recorded on May 3, 2026 for the connected Samsung S23+.
+
+1. Confirmed the phone was connected:
+   ```powershell
+   adb devices -l
+   ```
+   Device detected:
+   ```text
+   RZCWA0HEBJF device product:dm2qxxx model:SM_S916B device:dm2q
+   ```
+
+2. Confirmed Metro was already running on port `8081` from:
+   ```powershell
+   npm start
+   ```
+
+3. Forwarded Metro to the phone over USB:
+   ```powershell
+   adb reverse tcp:8081 tcp:8081
+   ```
+
+4. Launched the app in Expo Go on the phone:
+   ```powershell
+   adb shell am start -a android.intent.action.VIEW -d "exp://127.0.0.1:8081" host.exp.exponent
+   ```
+
+5. Verified the app was foregrounded in Expo Go:
+   ```powershell
+   adb shell dumpsys activity activities | findstr /i "mResumedActivity host.exp.exponent ExperienceActivity"
+   ```
+
+6. Verified the USB reverse rule:
+   ```powershell
+   adb reverse --list
+   ```
+   Expected output:
+   ```text
+   UsbFfs tcp:8081 tcp:8081
+   ```
 
 ---
 

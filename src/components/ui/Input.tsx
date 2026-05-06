@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
 import { Theme } from '../../constants/Theme';
+import { useAppTheme } from '../../context/ThemeModeContext';
 
 interface InputProps extends TextInputProps {
 	label?: string;
@@ -10,12 +11,13 @@ interface InputProps extends TextInputProps {
 
 export function Input({ label, error, containerStyle, onFocus, onBlur, ...props }: InputProps) {
 	const [isFocused, setIsFocused] = useState(false);
+	const { colors, isDark } = useAppTheme();
 
 	return (
 		<View style={[styles.container, containerStyle]}>
-			{label && <Text style={styles.label}>{label}</Text>}
+			{label && <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>}
 			<TextInput
-				placeholderTextColor={Theme.colors.textMuted}
+				placeholderTextColor={colors.textMuted}
 				onFocus={(e) => {
 					setIsFocused(true);
 					onFocus?.(e);
@@ -26,13 +28,16 @@ export function Input({ label, error, containerStyle, onFocus, onBlur, ...props 
 				}}
 				style={[
 					styles.input,
-					isFocused && styles.inputFocused,
-					error && styles.inputError,
+					{
+						backgroundColor: isFocused || isDark ? colors.surface : colors.surfaceElevated,
+						borderColor: isFocused ? colors.primary : error ? colors.danger : colors.border,
+						color: colors.textPrimary,
+					},
 					props.style
 				]}
 				{...props}
 			/>
-			{error && <Text style={styles.errorText}>{error}</Text>}
+			{error && <Text style={[styles.errorText, { color: colors.danger }]}>{error}</Text>}
 		</View>
 	);
 }
@@ -43,28 +48,17 @@ const styles = StyleSheet.create({
 	},
 	label: {
 		...Theme.typography.labelMedium,
-		color: Theme.colors.textSecondary,
 		marginBottom: Theme.spacing.xs,
 	},
 	input: {
 		...Theme.typography.labelMedium,
-		backgroundColor: Theme.colors.surface,
 		borderWidth: 1,
-		borderColor: Theme.colors.border,
 		borderRadius: Theme.radius.md,
 		padding: Theme.spacing.md,
-		color: Theme.colors.textPrimary,
-	},
-	inputFocused: {
-		borderColor: Theme.colors.primary,
-		backgroundColor: Theme.colors.surface,
-	},
-	inputError: {
-		borderColor: Theme.colors.danger,
+		minHeight: 48,
 	},
 	errorText: {
 		...Theme.typography.detail,
-		color: Theme.colors.danger,
 		marginTop: Theme.spacing.xs,
 	}
 });

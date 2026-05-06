@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { Edge, SafeAreaView } from 'react-native-safe-area-context';
 import { Theme } from '../../constants/Theme';
+import { useAppTheme } from '../../context/ThemeModeContext';
+import { useResponsiveLayout } from './useResponsiveLayout';
 
 interface ScreenProps {
 	children: React.ReactNode;
@@ -19,6 +21,8 @@ interface ScreenProps {
 	edges?: Edge[];
 	backgroundColor?: string;
 	keyboardOffset?: number;
+	centerContent?: boolean;
+	maxContentWidth?: number;
 }
 
 /**
@@ -34,15 +38,21 @@ export const Screen: React.FC<ScreenProps> = ({
 	edges = ['top', 'left', 'right'], // Navigation usually handles bottom
 	backgroundColor = Theme.colors.bg,
 	keyboardOffset = 0,
+	centerContent = true,
+	maxContentWidth,
 }) => {
 	const Container = scrollable ? ScrollView : View;
+	const { colors, isDark } = useAppTheme();
+	const { contentPadding, maxContentWidth: responsiveMaxContentWidth } = useResponsiveLayout();
+	const resolvedBackground = backgroundColor === Theme.colors.bg ? colors.bg : backgroundColor;
+	const resolvedMaxWidth = maxContentWidth ?? responsiveMaxContentWidth;
 
 	return (
 		<SafeAreaView
-			style={[styles.outer, { backgroundColor }]}
+			style={[styles.outer, { backgroundColor: resolvedBackground }]}
 			edges={edges}
 		>
-			<StatusBar barStyle="dark-content" />
+			<StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
 			<KeyboardAvoidingView
 				behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -53,6 +63,12 @@ export const Screen: React.FC<ScreenProps> = ({
 					style={[styles.flex, style]}
 					contentContainerStyle={[
 						scrollable && styles.scrollContent,
+						centerContent && {
+							paddingHorizontal: contentPadding,
+							width: '100%',
+							alignSelf: 'center',
+							maxWidth: resolvedMaxWidth,
+						},
 						contentContainerStyle
 					]}
 					showsVerticalScrollIndicator={false}
@@ -72,7 +88,6 @@ const styles = StyleSheet.create({
 		flex: 1,
 	},
 	scrollContent: {
-		paddingHorizontal: Theme.spacing.screen,
 		paddingBottom: 100, // Extra space for bottom nav/fab
 	},
 });

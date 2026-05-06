@@ -1,11 +1,13 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, {
 	useAnimatedStyle,
 	useSharedValue,
 	withSpring
 } from 'react-native-reanimated';
 import { Theme } from '../../constants/Theme';
+import { useAppTheme } from '../../context/ThemeModeContext';
 import { UserAvatar } from './UserAvatar';
 
 interface UserIdentityProps {
@@ -28,6 +30,7 @@ export const UserIdentity: React.FC<UserIdentityProps> = ({
 	subtext,
 }) => {
 	const scale = useSharedValue(1);
+	const { colors } = useAppTheme();
 
 	const animatedStyle = useAnimatedStyle(() => ({
 		transform: [{ scale: scale.value }],
@@ -47,7 +50,7 @@ export const UserIdentity: React.FC<UserIdentityProps> = ({
 			onPress={onPress}
 			onPressIn={handlePressIn}
 			onPressOut={handlePressOut}
-			style={[styles.container, animatedStyle]}
+			style={[styles.container, onPress && styles.containerInteractive, animatedStyle]}
 		>
 			<UserAvatar
 				name={name}
@@ -55,15 +58,20 @@ export const UserIdentity: React.FC<UserIdentityProps> = ({
 				fontSize={fontSize}
 			/>
 			<View style={styles.textContainer}>
-				<Text style={[styles.name, { fontSize: nameSize }]} numberOfLines={1}>
+				<Text style={[styles.name, { color: colors.textPrimary, fontSize: nameSize }]} numberOfLines={1}>
 					{name}
 				</Text>
 				{!!subtext && (
-					<Text style={styles.subtext} numberOfLines={1}>
+					<Text style={[styles.subtext, { color: colors.textMuted }]} numberOfLines={1}>
 						{subtext}
 					</Text>
 				)}
 			</View>
+			{onPress ? (
+				<View style={[styles.hintIcon, { backgroundColor: colors.surfaceElevated }]}>
+					<MaterialCommunityIcons name="chevron-right" size={16} color={colors.textMuted} />
+				</View>
+			) : null}
 		</AnimatedPressable>
 	);
 };
@@ -75,18 +83,30 @@ const styles = StyleSheet.create({
 		gap: Theme.spacing.md,
 		alignSelf: 'flex-start', // Don't stretch across the whole row by default
 		paddingRight: Theme.spacing.md,
-		paddingVertical: 2,
+		paddingVertical: 4,
+		borderRadius: Theme.radius.lg,
+	},
+	containerInteractive: {
+		paddingLeft: Theme.spacing.xs,
+		paddingRight: Theme.spacing.sm,
 	},
 	textContainer: {
 		justifyContent: 'center',
+		flexShrink: 1,
 	},
 	name: {
 		...Theme.typography.labelMedium,
-		color: Theme.colors.textPrimary,
 	},
 	subtext: {
 		...Theme.typography.detail,
-		color: Theme.colors.textMuted,
 		marginTop: 2,
+	},
+	hintIcon: {
+		width: 24,
+		height: 24,
+		borderRadius: 12,
+		alignItems: 'center',
+		justifyContent: 'center',
+		marginLeft: Theme.spacing.xs,
 	},
 });

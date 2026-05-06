@@ -1,16 +1,18 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { collection, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Screen } from '../components/ui/Screen';
-import { ScreenHeader } from '../components/ui/ScreenHeader';
-import { SETTINGS } from '../constants/Settings';
+import { ScreenHeader, ScreenHeaderActionButton } from '../components/ui/ScreenHeader';
+import { ModalBackdrop } from '../components/ui/ModalBackdrop';
+import { useResponsiveLayout } from '../components/ui/useResponsiveLayout';
 import { Theme } from '../constants/Theme';
+import { useAppTheme } from '../context/ThemeModeContext';
 import { db } from '../firebase/config';
+import { getFirestoreErrorMessage } from '../utils/firestoreErrors';
 import { cloneDayMenu, createEmptyDayMenu, normalizeDayMenu, type MealSlot, type RiceSlot, type WeekMenu } from '../utils/menuLogic';
-import { mockDb } from '../utils/mockDb';
 import { DAYS, DayName, getDateForDayName, getDatesForWeek, getTodayName, getWeekId } from '../utils/weekLogic';
 
 type MenuCustomer = {
@@ -26,6 +28,8 @@ type AttendanceRecord = {
 };
 
 export default function MenuScreen() {
+	const { colors, isDark } = useAppTheme();
+	const { contentPadding, maxContentWidth, stacked } = useResponsiveLayout();
 	const weekId = getWeekId();
 	const todayName = getTodayName();
 
@@ -43,54 +47,52 @@ export default function MenuScreen() {
 	const layoutMap = useRef<Record<string, number>>({});
 	const [expandedDays, setExpandedDays] = useState<Set<DayName>>(new Set([todayName]));
 
+	const handleSnapshotError = (context: string, error: unknown) => {
+		console.error(`Firestore ${context} listener failed:`, error);
+		setLoading(false);
+		Alert.alert('Firestore access failed', getFirestoreErrorMessage(error, `Could not load ${context}.`));
+	};
+
 	useEffect(() => {
 		const dates = getDatesForWeek(weekId);
 
-		const loadMenu = () => {
-			if (SETTINGS.USE_MOCKS) {
-				const mock: WeekMenu = {};
-				dates.forEach((date: string, i: number) => {
-					const dayName = DAYS[i];
-					const data = mockDb.getMenu(date);
-					mock[dayName] = normalizeDayMenu(data);
-				});
-				setWeekMenu(mock);
-				setLoading(false);
-				return;
-			}
-		};
-
-		if (SETTINGS.USE_MOCKS) {
-			loadMenu();
-			const unsub = mockDb.subscribe(loadMenu);
-			return unsub;
-		}
-
 		const unsubMenu = dates.map((date: string, idx: number) => {
 			const dayName = DAYS[idx];
-			return onSnapshot(doc(db, "menu", date), (docSnap) => {
-				const raw = docSnap.exists() ? docSnap.data() : {};
-				setWeekMenu(prev => ({ ...prev, [dayName]: normalizeDayMenu(raw) }));
-				if (idx === 6) {
-					setLoading(false);
-				}
-			});
+			return onSnapshot(
+				doc(db, "menu", date),
+				(docSnap) => {
+					const raw = docSnap.exists() ? docSnap.data() : {};
+					setWeekMenu(prev => ({ ...prev, [dayName]: normalizeDayMenu(raw) }));
+					if (idx === 6) {
+						setLoading(false);
+					}
+				},
+				(error) => handleSnapshotError(`menu for ${dayName}`, error)
+			);
 		});
 
-		const unsubCustomers = onSnapshot(collection(db, "customers"), (snap) => {
-			setCustomers(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as MenuCustomer)));
-		});
+		const unsubCustomers = onSnapshot(
+			collection(db, "customers"),
+			(snap) => {
+				setCustomers(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as MenuCustomer)));
+			},
+			(error) => handleSnapshotError('customers', error)
+		);
 
 		const attendanceQuery = query(collection(db, "attendance"), where("date", "in", dates));
-		const unsubAttendance = onSnapshot(attendanceQuery, (snap) => {
-			const acc: Record<string, Record<string, AttendanceRecord>> = {};
-			snap.docs.forEach(doc => {
-				const data = doc.data() as AttendanceRecord;
-				if (!acc[data.date]) acc[data.date] = {};
-				acc[data.date][data.customerId] = data;
-			});
-			setAllAttendance(acc);
-		});
+		const unsubAttendance = onSnapshot(
+			attendanceQuery,
+			(snap) => {
+				const acc: Record<string, Record<string, AttendanceRecord>> = {};
+				snap.docs.forEach(doc => {
+					const data = doc.data() as AttendanceRecord;
+					if (!acc[data.date]) acc[data.date] = {};
+					acc[data.date][data.customerId] = data;
+				});
+				setAllAttendance(acc);
+			},
+			(error) => handleSnapshotError('attendance', error)
+		);
 
 		return () => {
 			unsubMenu.forEach((unsub: () => void) => unsub());
@@ -190,33 +192,23 @@ export default function MenuScreen() {
 
 	const handleSave = async () => {
 		try {
-			if (!SETTINGS.USE_MOCKS) {
-				const promises = Array.from(saveBatch).flatMap(day => {
-					const date = getDateForDayName(day, weekId);
-					const dayData = weekMenu[day];
-					if (!dayData) return [];
-					return [setDoc(doc(db, "menu", date), {
-						...dayData,
-						updatedAt: new Date().toISOString()
-					}, { merge: true })];
-				});
-				await Promise.all(promises);
-			} else {
-				saveBatch.forEach(day => {
-					const date = getDateForDayName(day, weekId);
-					const dayData = weekMenu[day];
-					if (dayData) {
-						mockDb.saveMenu(date, dayData);
-					}
-				});
-			}
+			const promises = Array.from(saveBatch).flatMap(day => {
+				const date = getDateForDayName(day, weekId);
+				const dayData = weekMenu[day];
+				if (!dayData) return [];
+				return [setDoc(doc(db, "menu", date), {
+					...dayData,
+					updatedAt: new Date().toISOString()
+				}, { merge: true })];
+			});
+			await Promise.all(promises);
 			setSaveBatch(new Set());
 		} catch (error) {
 			console.error("Error saving week menu:", error);
 		}
 	};
 
-	if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={Theme.colors.primary} /></View>;
+	if (loading) return <View style={[styles.centered, { backgroundColor: colors.bg }]}><ActivityIndicator size="large" color={colors.primary} /></View>;
 
 	return (
 		<Screen scrollable={false}>
@@ -225,13 +217,12 @@ export default function MenuScreen() {
 				title="Weekly Menu"
 				subtitle={`OPERATIONAL PLAN • WEEK ${weekId}`}
 				rightAction={
-					<TouchableOpacity onPress={() => setIsEditing(!isEditing)}>
-						<MaterialCommunityIcons
-							name={isEditing ? "close-circle" : "cog"}
-							size={28}
-							color={isEditing ? Theme.colors.danger : Theme.colors.textMuted}
-						/>
-					</TouchableOpacity>
+					<ScreenHeaderActionButton
+						icon={isEditing ? "close-circle" : "cog"}
+						onPress={() => setIsEditing(!isEditing)}
+						accessibilityLabel={isEditing ? 'Close editing' : 'Edit weekly menu'}
+						variant={isEditing ? 'danger' : 'default'}
+					/>
 				}
 			/>
 
@@ -249,7 +240,15 @@ export default function MenuScreen() {
 
 			<ScrollView
 				ref={scrollRef}
-				contentContainerStyle={styles.scrollContent}
+				contentContainerStyle={[
+					styles.scrollContent,
+					{
+						paddingHorizontal: contentPadding,
+						width: '100%',
+						maxWidth: maxContentWidth,
+						alignSelf: 'center',
+					},
+				]}
 				showsVerticalScrollIndicator={false}
 			>
 				{DAYS.map((day: DayName) => {
@@ -263,7 +262,9 @@ export default function MenuScreen() {
 							key={day}
 							style={[
 								styles.dayCard,
+								!isToday && { borderBottomColor: colors.border },
 								isToday && styles.dayCardToday,
+								isToday && { backgroundColor: colors.surfaceElevated, borderColor: colors.success },
 								!isToday && styles.dayCardQuiet
 							]}
 							onLayout={(e) => {
@@ -276,8 +277,8 @@ export default function MenuScreen() {
 								activeOpacity={0.7}
 							>
 								<View>
-									<Text style={[styles.dayTitle, isToday && styles.textWhite]}>{day}</Text>
-									<Text style={[styles.forecastLabel, isToday ? styles.textMutedDark : (forecast.total > 10 ? styles.demandHigh : null)]}>
+									<Text style={[styles.dayTitle, { color: colors.textPrimary }]}>{day}</Text>
+									<Text style={[styles.forecastLabel, { color: isToday ? colors.textMuted : forecast.total > 10 ? colors.warning : colors.textMuted }]}>
 										DEMAND: LUN {forecast.lunch} | DIN {forecast.dinner}
 									</Text>
 								</View>
@@ -286,7 +287,7 @@ export default function MenuScreen() {
 									<MaterialCommunityIcons
 										name={isExpanded ? "chevron-up" : "chevron-down"}
 										size={24}
-										color={isToday ? Theme.colors.textInverted : Theme.colors.textMuted}
+										color={isToday ? colors.textPrimary : colors.textMuted}
 									/>
 								</View>
 							</TouchableOpacity>
@@ -305,7 +306,7 @@ export default function MenuScreen() {
 										/>
 									)}
 
-									<View style={styles.mealsRow}>
+									<View style={[styles.mealsRow, stacked && styles.mealsRowStacked]}>
 										{(['lunch', 'dinner'] as const).map(meal => {
 											const slot = dayData[meal];
 											return (
@@ -323,20 +324,20 @@ export default function MenuScreen() {
 																containerStyle={{ marginBottom: 0 }}
 															/>
 															<View style={styles.row}>
-																<Text style={[styles.label, isToday && styles.textWhite]}>Roti</Text>
-																<Switch
-																	value={slot.roti}
-																	onValueChange={(v) => updateMeal(day, meal, 'roti', v)}
-																	trackColor={{ false: Theme.colors.border, true: Theme.colors.primary }}
-																/>
+															<Text style={[styles.label, { color: colors.textSecondary }]}>Roti</Text>
+															<Switch
+																value={slot.roti}
+																onValueChange={(v) => updateMeal(day, meal, 'roti', v)}
+																trackColor={{ false: colors.border, true: colors.primary }}
+															/>
 															</View>
 															<View style={styles.row}>
-																<Text style={[styles.label, isToday && styles.textWhite]}>Rice</Text>
-																<Switch
-																	value={slot.rice.enabled}
-																	onValueChange={(v) => updateRice(day, meal, 'enabled', v)}
-																	trackColor={{ false: Theme.colors.border, true: Theme.colors.primary }}
-																/>
+															<Text style={[styles.label, { color: colors.textSecondary }]}>Rice</Text>
+															<Switch
+																value={slot.rice.enabled}
+																onValueChange={(v) => updateRice(day, meal, 'enabled', v)}
+																trackColor={{ false: colors.border, true: colors.primary }}
+															/>
 															</View>
 															{slot.rice.enabled && (
 																<Input
@@ -359,28 +360,28 @@ export default function MenuScreen() {
 															onPress={() => setIsEditing(true)}
 														>
 															{slot.main ? (
-																<Text style={[styles.mainValue, isToday && styles.textWhite]} numberOfLines={2}>
+																<Text style={[styles.mainValue, { color: colors.textPrimary }]} numberOfLines={2}>
 																	{slot.main}
 																</Text>
 															) : (
 																<View style={styles.notSetContainer}>
-																	<MaterialCommunityIcons name="alert-circle-outline" size={18} color={Theme.colors.danger} />
-																	<Text style={styles.notSetWarning}>Not Set</Text>
+																	<MaterialCommunityIcons name="alert-circle-outline" size={18} color={colors.danger} />
+																	<Text style={[styles.notSetWarning, { color: colors.danger }]}>Not Set</Text>
 																</View>
 															)}
 															<View style={styles.servingInfo}>
-																<Text style={[styles.servingText, isToday && styles.textMutedDark]}>
+																<Text style={[styles.servingText, { color: colors.textSecondary }]}>
 																	{slot.roti ? "Roti" : "No Roti"}
 																</Text>
 															</View>
 															<View style={styles.servingInfo}>
-																<Text style={[styles.servingText, isToday && styles.textMutedDark]}>
+																<Text style={[styles.servingText, { color: colors.textSecondary }]}>
 																	{slot.rice.enabled ? (slot.rice.type || "Rice") : "No Rice"}
 																</Text>
 															</View>
 															{slot.extra ? (
 																<View style={styles.servingInfo}>
-																	<Text style={[styles.extraText, isToday && styles.textWhite]}>{slot.extra}</Text>
+																	<Text style={[styles.extraText, { color: colors.textSecondary }]}>{slot.extra}</Text>
 																</View>
 															) : null}
 														</TouchableOpacity>
@@ -391,16 +392,16 @@ export default function MenuScreen() {
 									</View>
 								</View>
 							) : (
-								<View style={styles.summaryRow}>
+								<View style={[styles.summaryRow, stacked && styles.summaryRowStacked]}>
 									<View style={styles.summaryMeal}>
-										<MaterialCommunityIcons name="weather-sunny" size={12} color={isToday ? Theme.colors.textInverted : Theme.colors.textMuted} />
-										<Text style={[styles.summaryText, isToday && styles.textWhite]} numberOfLines={1}>
+										<MaterialCommunityIcons name="weather-sunny" size={12} color={isToday ? colors.textPrimary : colors.textMuted} />
+										<Text style={[styles.summaryText, { color: isToday ? colors.textPrimary : colors.textSecondary }]} numberOfLines={1}>
 											{dayData.lunch.main || '---'}
 										</Text>
 									</View>
 									<View style={styles.summaryMeal}>
-										<MaterialCommunityIcons name="weather-night" size={12} color={isToday ? Theme.colors.textInverted : Theme.colors.textMuted} />
-										<Text style={[styles.summaryText, isToday && styles.textWhite]} numberOfLines={1}>
+										<MaterialCommunityIcons name="weather-night" size={12} color={isToday ? colors.textPrimary : colors.textMuted} />
+										<Text style={[styles.summaryText, { color: isToday ? colors.textPrimary : colors.textSecondary }]} numberOfLines={1}>
 											{dayData.dinner.main || '---'}
 										</Text>
 									</View>
@@ -414,9 +415,10 @@ export default function MenuScreen() {
 			{/* Selective Copy Modal */}
 			{showCopyModal && (
 				<View style={styles.modalOverlay}>
-					<View style={styles.modalContent}>
-						<Text style={styles.modalTitle}>Select Target Days</Text>
-						<Text style={styles.modalSub}>{"Copy Today's Menu to these days:"}</Text>
+					<ModalBackdrop intensity={30} />
+					<View style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+						<Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Select Target Days</Text>
+						<Text style={[styles.modalSub, { color: colors.textSecondary }]}>{"Copy Today's Menu to these days:"}</Text>
 
 						<View style={styles.dayGrid}>
 							{DAYS.map((d: DayName) => {
@@ -425,7 +427,11 @@ export default function MenuScreen() {
 								return (
 									<TouchableOpacity
 										key={d}
-										style={[styles.dayChip, isSel && styles.dayChipActive]}
+										style={[
+											styles.dayChip,
+											{ backgroundColor: colors.bg, borderColor: colors.border },
+											isSel && { backgroundColor: colors.primary, borderColor: colors.primary },
+										]}
 										onPress={() => {
 											setCopySelection(prev => {
 												const next = new Set(prev);
@@ -435,14 +441,14 @@ export default function MenuScreen() {
 											});
 										}}
 									>
-										<Text style={[styles.dayChipText, isSel && styles.textWhite]}>{d}</Text>
-										{isSel && <MaterialCommunityIcons name="check-circle" size={14} color={Theme.colors.textInverted} />}
+										<Text style={[styles.dayChipText, { color: isSel ? colors.textInverted : colors.textPrimary }]}>{d}</Text>
+										{isSel && <MaterialCommunityIcons name="check-circle" size={14} color={colors.textInverted} />}
 									</TouchableOpacity>
 								);
 							})}
 						</View>
 
-						<View style={styles.modalFooter}>
+						<View style={[styles.modalFooter, stacked && styles.modalFooterStacked]}>
 							<Button
 								variant="ghost"
 								title="CANCEL"
@@ -462,7 +468,7 @@ export default function MenuScreen() {
 }
 
 const styles = StyleSheet.create({
-	scrollContent: { padding: Theme.spacing.screen, paddingBottom: 150 },
+	scrollContent: { paddingBottom: 150 },
 
 	dayCard: {
 		padding: Theme.spacing.lg,
@@ -504,12 +510,16 @@ const styles = StyleSheet.create({
 		flexDirection: 'row',
 		gap: Theme.spacing.lg
 	},
+	summaryRowStacked: {
+		flexDirection: 'column',
+	},
 	summaryMeal: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
 	summaryText: { ...Theme.typography.detail, color: Theme.colors.textSecondary },
 
 	cardExpandedContent: { marginTop: Theme.spacing.md },
 
 	mealsRow: { flexDirection: 'row', gap: Theme.spacing.xl },
+	mealsRowStacked: { flexDirection: 'column' },
 	mealColumn: { flex: 1 },
 	mealLabel: { ...Theme.typography.detailBold, color: Theme.colors.danger, marginBottom: Theme.spacing.xs },
 	mealLabelToday: { color: Theme.colors.danger },
@@ -531,7 +541,7 @@ const styles = StyleSheet.create({
 	// Helpers
 	textWhite: { color: Theme.colors.textPrimary },
 	textMutedDark: { color: Theme.colors.textMuted },
-	centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Theme.colors.bg },
+	centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
 	// Modal
 	modalOverlay: {
@@ -544,6 +554,7 @@ const styles = StyleSheet.create({
 	modalContent: {
 		backgroundColor: Theme.colors.surface,
 		width: '85%',
+		maxWidth: 560,
 		borderRadius: Theme.radius.xl,
 		padding: Theme.spacing.xl,
 		borderWidth: 1,
@@ -566,6 +577,7 @@ const styles = StyleSheet.create({
 	dayChipActive: { backgroundColor: Theme.colors.primary, borderColor: Theme.colors.primary },
 	dayChipText: { ...Theme.typography.labelMedium, color: Theme.colors.textPrimary },
 	modalFooter: { flexDirection: 'row', justifyContent: 'flex-end', gap: Theme.spacing.md },
+	modalFooterStacked: { flexDirection: 'column' },
 	floatingAction: {
 		position: 'absolute',
 		bottom: 100,

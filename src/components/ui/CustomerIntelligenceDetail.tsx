@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Theme } from '../../constants/Theme';
+import { useAppTheme } from '../../context/ThemeModeContext';
 import { Badge } from './Badge';
 import { UserAvatar } from './UserAvatar';
 
@@ -26,6 +27,7 @@ export const CustomerIntelligenceDetail: React.FC<CustomerIntelligenceDetailProp
 	dueAmount,
 	onAction,
 }) => {
+	const { colors } = useAppTheme();
 	const planLabel = [
 		customer.mealsPerDay?.lunch && "LUNCH",
 		customer.mealsPerDay?.dinner && "DINNER"
@@ -36,13 +38,13 @@ export const CustomerIntelligenceDetail: React.FC<CustomerIntelligenceDetailProp
 			{/* Top Section: Identity & Status */}
 			<View style={styles.topSection}>
 				<UserAvatar name={customer.name} size={64} fontSize={24} />
-				<Text style={styles.name}>{customer.name}</Text>
-				<Text style={styles.planText}>{planLabel}</Text>
+				<Text style={[styles.name, { color: colors.textPrimary }]}>{customer.name}</Text>
+				<Text style={[styles.planText, { color: colors.primary }]}>{planLabel}</Text>
 
 				{customer.address?.location && (
 					<View style={styles.addressContainer}>
-						<MaterialCommunityIcons name="map-marker-outline" size={14} color={Theme.colors.textMuted} />
-						<Text style={styles.addressText}>
+						<MaterialCommunityIcons name="map-marker-outline" size={14} color={colors.textMuted} />
+						<Text style={[styles.addressText, { color: colors.textMuted }]}>
 							{customer.address.flat ? `${customer.address.flat}, ` : ''}{customer.address.location}
 						</Text>
 					</View>
@@ -59,49 +61,49 @@ export const CustomerIntelligenceDetail: React.FC<CustomerIntelligenceDetailProp
 				</View>
 			</View>
 
-			<View style={styles.divider} />
+			<View style={[styles.divider, { backgroundColor: colors.border }]} />
 
 			{/* Middle Section: Financial Intelligence */}
 			<View style={styles.middleSection}>
-				<Text style={styles.sectionTitle}>Financial Summary</Text>
+				<Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Financial Summary</Text>
 				<View style={styles.financeRow}>
 					<View style={styles.financeItem}>
-						<Text style={styles.financeLabel}>Total Paid</Text>
-						<Text style={styles.financeValue}>DHS {customer.totalPaid || 0}</Text>
+						<Text style={[styles.financeLabel, { color: colors.textMuted }]}>Total Paid</Text>
+						<Text style={[styles.financeValue, { color: colors.textPrimary }]}>DHS {customer.totalPaid || 0}</Text>
 					</View>
 					<View style={styles.financeItem}>
-						<Text style={styles.financeLabel}>Plan Price</Text>
-						<Text style={styles.financeValue}>DHS {customer.pricePerMonth ?? 0}</Text>
+						<Text style={[styles.financeLabel, { color: colors.textMuted }]}>Plan Price</Text>
+						<Text style={[styles.financeValue, { color: colors.textPrimary }]}>DHS {customer.pricePerMonth ?? 0}</Text>
 					</View>
 				</View>
 				<View style={[styles.financeRow, { marginTop: Theme.spacing.md }]}>
 					<View style={styles.financeItem}>
-						<Text style={styles.financeLabel}>Last Payment</Text>
-						<Text style={styles.financeValue}>---</Text>
+						<Text style={[styles.financeLabel, { color: colors.textMuted }]}>Last Payment</Text>
+						<Text style={[styles.financeValue, { color: colors.textPrimary }]}>---</Text>
 					</View>
 				</View>
 			</View>
 
-			<View style={styles.divider} />
+			<View style={[styles.divider, { backgroundColor: colors.border }]} />
 
 			{/* Bottom Section: Action Grid */}
 			<View style={styles.bottomSection}>
 				<View style={styles.actionGrid}>
 					<TouchableOpacity style={styles.actionItem} onPress={() => onAction('attendance')}>
-						<MaterialCommunityIcons name="calendar-check" size={18} color={Theme.colors.primary} />
-						<Text style={styles.actionText}>Set Week</Text>
+						<MaterialCommunityIcons name="calendar-check" size={18} color={colors.primary} />
+						<Text style={[styles.actionText, { color: colors.primary }]}>Set Week</Text>
 					</TouchableOpacity>
 					<TouchableOpacity style={styles.actionItem} onPress={() => onAction('payment')}>
-						<MaterialCommunityIcons name="cash-register" size={18} color={Theme.colors.primary} />
-						<Text style={styles.actionText}>Record Payment</Text>
+						<MaterialCommunityIcons name="cash-register" size={18} color={colors.primary} />
+						<Text style={[styles.actionText, { color: colors.primary }]}>Record Payment</Text>
 					</TouchableOpacity>
 					<TouchableOpacity style={styles.actionItem} onPress={() => onAction('edit')}>
-						<MaterialCommunityIcons name="account-edit-outline" size={18} color={Theme.colors.textSecondary} />
-						<Text style={[styles.actionText, { color: Theme.colors.textSecondary }]}>Edit</Text>
+						<MaterialCommunityIcons name="account-edit-outline" size={18} color={colors.textSecondary} />
+						<Text style={[styles.actionText, { color: colors.textSecondary }]}>Edit</Text>
 					</TouchableOpacity>
 					<TouchableOpacity style={styles.actionItem} onPress={() => onAction('delete')}>
-						<MaterialCommunityIcons name="delete-outline" size={18} color={Theme.colors.danger} />
-						<Text style={[styles.actionText, { color: Theme.colors.danger }]}>Delete</Text>
+						<MaterialCommunityIcons name="delete-outline" size={18} color={colors.danger} />
+						<Text style={[styles.actionText, { color: colors.danger }]}>Delete</Text>
 					</TouchableOpacity>
 				</View>
 			</View>
@@ -119,13 +121,11 @@ const styles = StyleSheet.create({
 	},
 	name: {
 		...Theme.typography.answer,
-		color: Theme.colors.textPrimary,
 		fontSize: 24,
 		textAlign: 'center',
 	},
 	planText: {
 		...Theme.typography.detailBold,
-		color: Theme.colors.primary,
 		letterSpacing: 1,
 	},
 	addressContainer: {
@@ -136,7 +136,6 @@ const styles = StyleSheet.create({
 	},
 	addressText: {
 		...Theme.typography.detail,
-		color: Theme.colors.textMuted,
 	},
 	badgeRow: {
 		flexDirection: 'row',
@@ -145,7 +144,6 @@ const styles = StyleSheet.create({
 	},
 	divider: {
 		height: 1,
-		backgroundColor: Theme.colors.border,
 		opacity: 0.5,
 	},
 	middleSection: {
@@ -153,7 +151,6 @@ const styles = StyleSheet.create({
 	},
 	sectionTitle: {
 		...Theme.typography.label,
-		color: Theme.colors.textMuted,
 		fontSize: 10,
 		letterSpacing: 1.5,
 		textTransform: 'uppercase',
@@ -167,11 +164,9 @@ const styles = StyleSheet.create({
 	},
 	financeLabel: {
 		...Theme.typography.detail,
-		color: Theme.colors.textMuted,
 	},
 	financeValue: {
 		...Theme.typography.labelMedium,
-		color: Theme.colors.textPrimary,
 		marginTop: 2,
 	},
 	bottomSection: {
@@ -192,7 +187,6 @@ const styles = StyleSheet.create({
 	},
 	actionText: {
 		...Theme.typography.detailBold,
-		color: Theme.colors.primary,
 		fontSize: 13,
 	},
 });

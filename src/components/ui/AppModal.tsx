@@ -20,6 +20,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Theme } from '../../constants/Theme';
+import { useAppTheme } from '../../context/ThemeModeContext';
+import { ModalBackdrop } from './ModalBackdrop';
 
 interface AppModalProps {
 	visible: boolean;
@@ -43,6 +45,7 @@ export const AppModal: React.FC<AppModalProps> = ({
 	children,
 }) => {
 	const insets = useSafeAreaInsets();
+	const { colors } = useAppTheme();
 	const [renderModal, setRenderModal] = useState(visible);
 	const anim = useSharedValue(0);
 	const dragY = useSharedValue(0);
@@ -112,7 +115,13 @@ export const AppModal: React.FC<AppModalProps> = ({
 		>
 			<View style={StyleSheet.absoluteFill}>
 				{/* Backdrop */}
-				<Animated.View style={[styles.backdrop, backdropStyle]}>
+				<Animated.View
+					style={[
+						styles.backdrop,
+						backdropStyle,
+					]}
+				>
+					<ModalBackdrop intensity={34} />
 					<Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
 				</Animated.View>
 
@@ -121,30 +130,43 @@ export const AppModal: React.FC<AppModalProps> = ({
 					<Animated.View
 						style={[
 							styles.sheet,
+							{
+								backgroundColor: colors.surface,
+								borderColor: colors.border,
+							},
 							{ paddingBottom: insets.bottom + Theme.spacing.xl },
 							sheetStyle,
 						]}
 					>
 						{/* Handle bar */}
-						<View style={styles.handle} />
+						<View style={[styles.handle, { backgroundColor: colors.border }]} />
 
 						{/* Header */}
 						<View style={styles.header}>
 							<View style={styles.headerText}>
-								<Text style={styles.title}>{dTitle}</Text>
-								{!!dSubtitle && <Text style={styles.subtitle}>{dSubtitle}</Text>}
+								<Text style={[styles.title, { color: colors.textPrimary }]}>{dTitle}</Text>
+								{!!dSubtitle && <Text style={[styles.subtitle, { color: colors.textMuted }]}>{dSubtitle}</Text>}
 							</View>
-							<TouchableOpacity style={styles.closeBtn} onPress={onClose}>
+							<TouchableOpacity
+								style={[
+									styles.closeBtn,
+									{
+										backgroundColor: colors.surfaceElevated,
+										borderColor: colors.border,
+									},
+								]}
+								onPress={onClose}
+							>
 								<MaterialCommunityIcons
 									name="close"
 									size={20}
-									color={Theme.colors.textMuted}
+									color={colors.textMuted}
 								/>
 							</TouchableOpacity>
 						</View>
 
 						{/* Divider */}
-						<View style={styles.divider} />
+						<View style={[styles.divider, { backgroundColor: colors.border }]} />
 
 						{/* Scrollable Content */}
 						<ScrollView
@@ -165,20 +187,17 @@ export const AppModal: React.FC<AppModalProps> = ({
 const styles = StyleSheet.create({
 	backdrop: {
 		...StyleSheet.absoluteFillObject,
-		backgroundColor: 'rgba(0, 0, 0, 0.72)',
 	},
 	sheet: {
 		position: 'absolute',
 		bottom: 0,
 		left: 0,
 		right: 0,
-		backgroundColor: Theme.colors.surface,
 		borderTopLeftRadius: Theme.radius.xl,
 		borderTopRightRadius: Theme.radius.xl,
 		borderTopWidth: 1,
 		borderLeftWidth: 1,
 		borderRightWidth: 1,
-		borderColor: Theme.colors.border,
 		maxHeight: '80%',
 		minHeight: 200,
 	},
@@ -186,7 +205,6 @@ const styles = StyleSheet.create({
 		width: 36,
 		height: 4,
 		borderRadius: 2,
-		backgroundColor: Theme.colors.border,
 		alignSelf: 'center',
 		marginTop: Theme.spacing.md,
 		marginBottom: Theme.spacing.sm,
@@ -200,13 +218,11 @@ const styles = StyleSheet.create({
 	headerText: { flex: 1 },
 	title: {
 		...Theme.typography.labelMedium,
-		color: Theme.colors.textPrimary,
 		textTransform: 'uppercase',
 		letterSpacing: 1,
 	},
 	subtitle: {
 		...Theme.typography.detail,
-		color: Theme.colors.textMuted,
 		marginTop: 2,
 		textTransform: 'uppercase',
 		letterSpacing: 0.8,
@@ -215,15 +231,12 @@ const styles = StyleSheet.create({
 		width: 32,
 		height: 32,
 		borderRadius: 16,
-		backgroundColor: Theme.colors.surfaceElevated,
 		borderWidth: 1,
-		borderColor: Theme.colors.border,
 		justifyContent: 'center',
 		alignItems: 'center',
 	},
 	divider: {
 		height: 1,
-		backgroundColor: Theme.colors.border,
 	},
 	content: {
 		flex: 1,

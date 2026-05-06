@@ -44,3 +44,37 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Environment files
+.env
+.env.*
+*.env
+*.env.*
+
+# Agent / AI instruction markdown files anywhere in the repo
+**/AGENTS.md
+**/AGENT.md
+**/CLAUDE.md
+**/CLINE.md
+**/CURSOR.md
+**/CODEX.md
+**/COPILOT.md
+**/GEMINI.md
+**/WINDSURF.md
+**/CODEIUM.md
+**/QWEN.md
+**/OPENAI.md
+
+# Local project metadata
+.vercel/
+
+# Node modules and logs
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db

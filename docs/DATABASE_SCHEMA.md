@@ -10,6 +10,7 @@ This document defines the structure, data types, and relationships for the Mess 
 | :--- | :--- | :--- |
 | `customers` | Auto-generated | Master list of all enrolled customers. |
 | `payments` | Auto-generated | Ledger of every payment transaction. |
+| `expenses` | Auto-generated | Ledger of receipt-scanned or manually captured expense deductions. |
 | `menu` | `YYYY-MM-DD` | Master menu configuration per day. |
 | `attendance` | `YYYY-MM-DD_customerID` | Daily overrides for customer meal attendance. |
 
@@ -59,6 +60,24 @@ This document defines the structure, data types, and relationships for the Mess 
 
 ---
 
+## 🧾 Expenses Collection
+**Purpose**: Expense ledger for receipt scanning and cashflow deductions.
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `title` | string | Short operator-facing label for the receipt. |
+| `merchantName` | string | Store or supplier name detected from the receipt. |
+| `total` | number | Final payable total detected from the receipt. |
+| `date` | Timestamp | Receipt date or save date fallback. |
+| `monthTag` | string | `"YYYY-MM"` — used for monthly aggregation queries. |
+| `currency` | string | Usually `DHS`. |
+| `source` | string | `receipt-scan` or future manual-entry source. |
+| `note` | string | Optional scanner/operator note. |
+| `confidence` | number | OCR confidence estimate between `0` and `1`. |
+| `items` | array | Extracted line items: `{ name, amount, quantity }[]`. |
+
+---
+
 ## ✅ Attendance Collection
 **Purpose**: Daily attendance overrides (default is "Present").
 **Document ID**: Linked ID (`YYYY-MM-DD_customerID`).
@@ -76,7 +95,7 @@ This document defines the structure, data types, and relationships for the Mess 
 ## 🔗 Relationships & Integrity
 
 ### 1. The Finance Bridge
-The `Finance` screen joins `customers` (for **Expected Revenue**) and `payments` (for **Collected Revenue**). The `monthTag` in payments allows for instant filtering without complex date-range logic.
+The `Finance` screen joins `customers` (for **Expected Revenue**), `payments` (for **Collected Revenue**), and `expenses` (for **receipt deductions**). The `monthTag` in payment and expense docs allows for instant filtering without complex date-range logic.
 
 ### 2. The Attendance Proxy
 The `Home` screen calculates plate counts by:

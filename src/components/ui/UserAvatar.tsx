@@ -8,13 +8,13 @@ interface UserAvatarProps {
 }
 
 const AVATAR_COLORS = [
-	'#FF8E3C', // Electric Amber
-	'#3BC9DB', // Vibrant Sky Blue
-	'#1E8E6E', // Emerald
-	'#B45353', // Muted Red
-	'#A24A4A', // Rust
-	'#2E5E82', // Steel Blue
-	'#0F766E', // Dark Aqua
+	'#E28B5B',
+	'#6EA8B5',
+	'#6C9A7A',
+	'#C97D7D',
+	'#B7896C',
+	'#738DA8',
+	'#6E9A92',
 ];
 
 export const UserAvatar: React.FC<UserAvatarProps> = ({
@@ -48,8 +48,8 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
 					width: size,
 					height: size,
 					borderRadius: size / 2,
-					backgroundColor: bgColor + '20', // 20% opacity bg
-					borderColor: bgColor + '40', // 40% opacity border
+					backgroundColor: bgColor + '1A',
+					borderColor: bgColor + '36',
 				}
 			]}
 		>
@@ -59,9 +59,6 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
 					{
 						fontSize,
 						color: bgColor,
-						textShadowColor: bgColor,
-						textShadowOffset: { width: 0, height: 0 },
-						textShadowRadius: 4,
 					}
 				]}
 			>

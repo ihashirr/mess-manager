@@ -27,7 +27,7 @@ A focused, high-readability mobile app for home-based meal service operators. Bu
 - **Database**: Firebase Firestore (real-time `onSnapshot` listeners)
 - **Architecture**: SSOT — derived logic only, no stored calculated fields
 - **Currency**: DHS (UAE dirham), pricing tiers: 350 / 650 per month
-- **Mock Mode**: Toggle `SETTINGS.USE_MOCKS` in `src/constants/Settings.ts` for offline dev
+- **Data Source**: Live Firebase Firestore only
 
 ---
 
@@ -79,19 +79,10 @@ src/
   utils/
     customerLogic.ts — Derived status, days left, due amount
     menuLogic.ts     — Shared menu types and normalization
-    mockDb.ts        — In-memory mock state manager
-
-  mocks/
-    customers.json  — Sample customer data
-    payments.json   — Sample payment ledger
-
-  constants/
-    Settings.ts     — USE_MOCKS toggle
 
 TECHNICAL_LOGIC.md   — System architecture & design philosophy
 DATABASE_SCHEMA.md   — Detailed Firestore field specs & logic
 REDESIGN_LOG.md      — Development history & phase log
-PRODUCTION_CLEANUP.md — Steps to ship to production
 ```
 
 ---

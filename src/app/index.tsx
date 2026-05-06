@@ -2,8 +2,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { collection, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import Animated, { FadeInDown, FadeInUp, useAnimatedStyle, useSharedValue, withRepeat, withSpring, withTiming } from 'react-native-reanimated';
+import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import Animated, { FadeInDown, FadeInUp, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { AppModal } from '../components/ui/AppModal';
 import { CenterModal } from '../components/ui/CenterModal';
 import { CustomerIntelligenceDetail } from '../components/ui/CustomerIntelligenceDetail';
@@ -11,13 +11,13 @@ import { Screen } from '../components/ui/Screen';
 import { ScreenHeader } from '../components/ui/ScreenHeader';
 import { Section } from '../components/ui/Section';
 import { UserIdentity } from '../components/ui/UserIdentity';
-import { SETTINGS } from '../constants/Settings';
 import { Theme } from '../constants/Theme';
+import { useAppTheme } from '../context/ThemeModeContext';
 import { db } from '../firebase/config';
 import { getDaysLeft, getDueAmount, toDate } from '../utils/customerLogic';
+import { getFirestoreErrorMessage } from '../utils/firestoreErrors';
 import { createEmptyDayMenu, normalizeDayMenu, type DayMenu } from '../utils/menuLogic';
-import { mockDb } from '../utils/mockDb';
-import { formatISO, getTodayName } from '../utils/weekLogic';
+import { formatISO } from '../utils/weekLogic';
 
 type Customer = {
 	id: string;
@@ -37,8 +37,8 @@ type AttendanceState = Record<string, AttendanceSelection>;
 
 export default function Index() {
 	const router = useRouter();
+	const { colors, isDark } = useAppTheme();
 	const todayDate = formatISO(new Date());
-	const todayName = getTodayName();
 
 	const [activeTab, setActiveTab] = useState<'dashboard' | 'attendance'>('dashboard');
 	const [todayMenu, setTodayMenu] = useState<DayMenu>(createEmptyDayMenu());
@@ -52,68 +52,47 @@ export default function Index() {
 	const [activeModal, setActiveModal] = useState<'lunch' | 'dinner' | 'total' | null>(null);
 	const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 
+	const handleSnapshotError = (context: string, error: unknown) => {
+		console.error(`Firestore ${context} listener failed:`, error);
+		setLoading(false);
+		Alert.alert('Firestore access failed', getFirestoreErrorMessage(error, `Could not load ${context}.`));
+	};
+
 	// Interaction States
 	const totalScale = useSharedValue(1);
 	const totalAnimatedStyle = useAnimatedStyle(() => ({
 		transform: [{ scale: totalScale.value }]
 	}));
 
-	const iconPulse = useSharedValue(1);
 	useEffect(() => {
-		iconPulse.value = withRepeat(
-			withTiming(1.15, { duration: 1500 }),
-			-1,
-			true
-		);
-	}, [iconPulse]);
-
-	const iconAnimatedStyle = useAnimatedStyle(() => ({
-		transform: [{ scale: iconPulse.value }]
-	}));
-
-	useEffect(() => {
-		if (SETTINGS.USE_MOCKS) {
-			const loadMockDashboard = () => {
-				const activeCustomers = (mockDb.getCustomers() as Customer[])
-					.filter((customer) => getDaysLeft(toDate(customer.endDate)) >= 0);
-				const dueCount = activeCustomers
-					.filter((customer) => getDueAmount(customer.pricePerMonth, customer.totalPaid) > 0)
-					.length;
-
-				setCustomers(activeCustomers);
-				setTodayMenu(normalizeDayMenu(mockDb.getMenu(todayDate)));
-				setStats((prev) => ({
-					...prev,
-					activeCount: activeCustomers.length,
-					paymentsDue: dueCount,
-				}));
-				setLoading(false);
-			};
-
-			loadMockDashboard();
-			return mockDb.subscribe(loadMockDashboard);
-		}
-
 		// 1. Subscribe to Today's Menu
-		const unsubMenu = onSnapshot(doc(db, "menu", todayDate), (snap) => {
-			setTodayMenu(normalizeDayMenu(snap.exists() ? snap.data() : {}));
-		});
+		const unsubMenu = onSnapshot(
+			doc(db, "menu", todayDate),
+			(snap) => {
+				setTodayMenu(normalizeDayMenu(snap.exists() ? snap.data() : {}));
+			},
+			(error) => handleSnapshotError('menu', error)
+		);
 
 		// 2. Subscribe to Active Customers
-		const unsubCustomers = onSnapshot(query(collection(db, "customers")), (snap) => {
-			const active: Customer[] = [];
-			let due = 0;
-			snap.forEach(d => {
-				const data = { id: d.id, ...d.data() } as Customer;
-				if (getDaysLeft(toDate(data.endDate)) >= 0) {
-					active.push(data);
-					if (getDueAmount(data.pricePerMonth, data.totalPaid) > 0) due++;
-				}
-			});
-			setCustomers(active);
-			setStats(prev => ({ ...prev, activeCount: active.length, paymentsDue: due }));
-			setLoading(false);
-		});
+		const unsubCustomers = onSnapshot(
+			query(collection(db, "customers")),
+			(snap) => {
+				const active: Customer[] = [];
+				let due = 0;
+				snap.forEach(d => {
+					const data = { id: d.id, ...d.data() } as Customer;
+					if (getDaysLeft(toDate(data.endDate)) >= 0) {
+						active.push(data);
+						if (getDueAmount(data.pricePerMonth, data.totalPaid) > 0) due++;
+					}
+				});
+				setCustomers(active);
+				setStats(prev => ({ ...prev, activeCount: active.length, paymentsDue: due }));
+				setLoading(false);
+			},
+			(error) => handleSnapshotError('customers', error)
+		);
 
 		// 3. Subscribe to Today's Attendance
 		const unsubAttendance = onSnapshot(
@@ -125,7 +104,8 @@ export default function Index() {
 					state[data.customerId] = { lunch: data.lunch, dinner: data.dinner };
 				});
 				setAttendance(state);
-			}
+			},
+			(error) => handleSnapshotError('attendance', error)
 		);
 
 		return () => { unsubMenu(); unsubCustomers(); unsubAttendance(); };
@@ -171,32 +151,27 @@ export default function Index() {
 		const current = attendance[customerId] || { lunch: true, dinner: true };
 		const newValue = !current[meal];
 
-		if (!SETTINGS.USE_MOCKS) {
-			try {
-				await setDoc(doc(db, "attendance", `${todayDate}_${customerId}`), {
-					customerId,
-					date: todayDate,
-					...current,
-					[meal]: newValue,
-					updatedAt: new Date().toISOString()
-				}, { merge: true });
-			} catch (e) {
-				console.error("Error toggling attendance:", e);
-			}
-		} else {
-			setAttendance(prev => ({
-				...prev,
-				[customerId]: { ...current, [meal]: newValue }
-			}));
+		try {
+			await setDoc(doc(db, "attendance", `${todayDate}_${customerId}`), {
+				customerId,
+				date: todayDate,
+				...current,
+				[meal]: newValue,
+				updatedAt: new Date().toISOString()
+			}, { merge: true });
+		} catch (e) {
+			console.error("Error toggling attendance:", e);
 		}
 	};
 
-	if (loading) return <View style={styles.centered}><ActivityIndicator size="large" color={Theme.colors.primary} /></View>;
+	if (loading) return <View style={[styles.centered, { backgroundColor: colors.bg }]}><ActivityIndicator size="large" color={colors.primary} /></View>;
 
 	// derive intelligence signals
 	const missingMeals = [!todayMenu.lunch.main, !todayMenu.dinner.main].filter(Boolean).length;
-	const systemStatus = missingMeals === 0 ? "System Readiness: 100%" : `⚠ Attention Required`;
-	const statusDetail = missingMeals === 0 ? "All meals configured" : `${missingMeals} meal${missingMeals > 1 ? 's' : ''} not set`;
+	const totalServings = stats.lunchCount + stats.dinnerCount;
+	const hasActiveCustomers = stats.dailyCapacity > 0;
+	const menuReady = missingMeals === 0;
+	const statusDetail = menuReady ? "Menu ready" : `${missingMeals} meal${missingMeals > 1 ? 's' : ''} missing`;
 
 	// Derived customer lists for modals
 	const lunchCustomers = customers.filter(c => {
@@ -231,47 +206,37 @@ export default function Index() {
 
 	return (
 		<>
-			<Screen backgroundColor={Theme.colors.bg}>
+			<Screen backgroundColor={colors.bg}>
 				<ScreenHeader
 					gutter={Theme.spacing.screen}
-					title={`${todayName.charAt(0).toUpperCase() + todayName.slice(1)}, ${todayDate}`}
-					subtitle="SERVINGS DASHBOARD • HOME"
-					rightAction={
-						<TouchableOpacity
-							onPress={() => { /* Logic for settings */ }}
-							style={{ height: 40, width: 40, justifyContent: 'center', alignItems: 'center' }}
-						>
-							<MaterialCommunityIcons name="cog-outline" size={24} color={Theme.colors.textMuted} />
-						</TouchableOpacity>
-					}
+					title="Home"
 				/>
 
-				{/* Tab Navigation */}
-				<View style={styles.tabBar}>
+				<View style={[styles.tabBar, { backgroundColor: colors.surface, borderColor: colors.border }]}>
 					<TouchableOpacity
-						style={[styles.tab, activeTab === 'dashboard' && styles.tabActive]}
+						style={[styles.tab, activeTab === 'dashboard' && { backgroundColor: colors.surfaceElevated }]}
 						onPress={() => setActiveTab('dashboard')}
 					>
 						<View style={styles.tabItem}>
 							<MaterialCommunityIcons
 								name="view-dashboard"
 								size={20}
-								color={activeTab === 'dashboard' ? Theme.colors.primary : Theme.colors.textMuted}
+								color={activeTab === 'dashboard' ? colors.primary : colors.textMuted}
 							/>
-							<Text style={[styles.tabText, activeTab === 'dashboard' && styles.tabTextActive]}>DASHBOARD</Text>
+							<Text style={[styles.tabText, { color: activeTab === 'dashboard' ? colors.textPrimary : colors.textMuted }]}>Plan</Text>
 						</View>
 					</TouchableOpacity>
 					<TouchableOpacity
-						style={[styles.tab, activeTab === 'attendance' && styles.tabActive]}
+						style={[styles.tab, activeTab === 'attendance' && { backgroundColor: colors.surfaceElevated }]}
 						onPress={() => setActiveTab('attendance')}
 					>
 						<View style={styles.tabItem}>
 							<MaterialCommunityIcons
 								name="playlist-check"
 								size={20}
-								color={activeTab === 'attendance' ? Theme.colors.primary : Theme.colors.textMuted}
+								color={activeTab === 'attendance' ? colors.primary : colors.textMuted}
 							/>
-							<Text style={[styles.tabText, activeTab === 'attendance' && styles.tabTextActive]}>ATTENDANCE</Text>
+							<Text style={[styles.tabText, { color: activeTab === 'attendance' ? colors.textPrimary : colors.textMuted }]}>Attendance</Text>
 						</View>
 					</TouchableOpacity>
 				</View>
@@ -284,113 +249,131 @@ export default function Index() {
 					>
 						<Animated.View
 							entering={FadeInDown.delay(100).duration(400).springify().damping(20)}
-							style={styles.productionPanel}
+							style={[styles.productionPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}
 						>
-							{/* Hero Section */}
-							<Animated.View style={totalAnimatedStyle}>
-								<View style={styles.heroSection}>
-									<View style={styles.heroCountContainer}>
-										<Text style={styles.heroCount}>{stats.lunchCount + stats.dinnerCount}</Text>
-										<Text style={styles.heroCapacity}>/ {stats.dailyCapacity} capacity</Text>
-									</View>
-
-									<View style={styles.heroIntelligence}>
-										<Text style={styles.heroStatus}>{systemStatus}</Text>
-										<View style={styles.heroStatusRow}>
-											<Text style={styles.heroStatusDetail}>{statusDetail}</Text>
-											{missingMeals > 0 && (
-												<TouchableOpacity onPress={() => router.push('/menu')}>
-													<Text style={styles.heroAction}>Set Now →</Text>
-												</TouchableOpacity>
-											)}
+							{hasActiveCustomers ? (
+								<>
+									<Animated.View style={totalAnimatedStyle}>
+										<View style={styles.heroSection}>
+											<Text style={[styles.heroEyebrow, { color: colors.textMuted }]}>Servings today</Text>
+											<View style={styles.heroCountContainer}>
+												<Text style={[styles.heroCount, { color: colors.primary }]}>{totalServings}</Text>
+												<Text style={[styles.heroCapacity, { color: colors.textMuted }]}>of {stats.dailyCapacity}</Text>
+											</View>
+											<TouchableOpacity
+												style={styles.heroLabelWrapper}
+												onPress={() => setActiveModal('total')}
+												onPressIn={() => { totalScale.value = withSpring(0.97); }}
+												onPressOut={() => { totalScale.value = withSpring(1); }}
+												activeOpacity={1}
+											>
+												<View style={styles.heroLabelContainer}>
+													<Text style={[styles.heroLabel, { color: colors.textMuted }]}>View serving list</Text>
+													<MaterialCommunityIcons name="chevron-right" size={18} color={colors.textMuted} />
+												</View>
+											</TouchableOpacity>
 										</View>
-									</View>
+									</Animated.View>
+
+									{!menuReady && (
+										<TouchableOpacity
+											style={[styles.setupBanner, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
+											onPress={() => router.push('/menu')}
+											activeOpacity={0.8}
+										>
+											<View style={styles.setupBannerLeft}>
+												<MaterialCommunityIcons name="alert-circle-outline" size={18} color={colors.primary} />
+												<Text style={[styles.setupBannerText, { color: colors.textPrimary }]}>{statusDetail}</Text>
+											</View>
+											<Text style={[styles.setupBannerAction, { color: colors.primary }]}>Set menu</Text>
+										</TouchableOpacity>
+									)}
 
 									<TouchableOpacity
-										style={styles.heroLabelWrapper}
-										onPress={() => setActiveModal('total')}
-										onPressIn={() => { totalScale.value = withSpring(0.97); }}
-										onPressOut={() => { totalScale.value = withSpring(1); }}
-										activeOpacity={1}
+										style={[styles.tieredRow, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.03)' }]}
+										onPress={() => setActiveModal('lunch')}
+										activeOpacity={0.7}
 									>
-										<View style={styles.heroLabelContainer}>
-											<Text style={styles.heroLabel}>TOTAL SERVINGS TODAY</Text>
-											<MaterialCommunityIcons name="chevron-right" size={18} color={Theme.colors.textMuted} />
+										<View style={[styles.mealDot, styles.mealDotLunch]} />
+										<View style={styles.tieredMeta}>
+											<Text style={[styles.tieredLabel, { color: colors.textPrimary }]}>Lunch</Text>
+											<Text style={[styles.tieredDish, { color: colors.textMuted }]} numberOfLines={1}>
+												{todayMenu.lunch.main || 'Menu pending'}
+											</Text>
 										</View>
+										<Text style={[styles.tieredValue, { color: colors.textPrimary }]}>{stats.lunchCount}</Text>
 									</TouchableOpacity>
-								</View>
-							</Animated.View>
 
-							{/* Lunch Row */}
-							<TouchableOpacity
-								style={styles.tieredRow}
-								onPress={() => setActiveModal('lunch')}
-								activeOpacity={0.7}
-							>
-								<View style={[styles.tieredAccent, styles.tieredAccentLunch]} />
-								<View style={styles.tieredMeta}>
-									<Animated.View style={iconAnimatedStyle}>
-										<MaterialCommunityIcons
-											name="food-drumstick"
-											size={20}
-											color="#FF6B35"
-											style={[styles.microIcon, { textShadowColor: '#FF6B35', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 6 }]}
-										/>
-									</Animated.View>
-									<Text style={styles.tieredLabel}>Lunch</Text>
-								</View>
-								<Text style={styles.tieredValue}>{stats.lunchCount}</Text>
-								<Text style={styles.tieredDish} numberOfLines={1}>
-									{todayMenu.lunch.main || 'NOT SET'}
-								</Text>
-							</TouchableOpacity>
+									<TouchableOpacity
+										style={[styles.tieredRow, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.03)' }]}
+										onPress={() => setActiveModal('dinner')}
+										activeOpacity={0.7}
+									>
+										<View style={[styles.mealDot, styles.mealDotDinner]} />
+										<View style={styles.tieredMeta}>
+											<Text style={[styles.tieredLabel, { color: colors.textPrimary }]}>Dinner</Text>
+											<Text style={[styles.tieredDish, { color: colors.textMuted }]} numberOfLines={1}>
+												{todayMenu.dinner.main || 'Menu pending'}
+											</Text>
+										</View>
+										<Text style={[styles.tieredValue, { color: colors.textPrimary }]}>{stats.dinnerCount}</Text>
+									</TouchableOpacity>
 
-							{/* Dinner Row */}
-							<TouchableOpacity
-								style={styles.tieredRow}
-								onPress={() => setActiveModal('dinner')}
-								activeOpacity={0.7}
-							>
-								<View style={[styles.tieredAccent, styles.tieredAccentDinner]} />
-								<View style={styles.tieredMeta}>
-									<Animated.View style={iconAnimatedStyle}>
-										<MaterialCommunityIcons
-											name="food-variant"
-											size={20}
-											color="#7C3AED"
-											style={[styles.microIcon, { textShadowColor: '#7C3AED', textShadowOffset: { width: 0, height: 0 }, textShadowRadius: 6 }]}
-										/>
-									</Animated.View>
-									<Text style={styles.tieredLabel}>Dinner</Text>
-								</View>
-								<Text style={styles.tieredValue}>{stats.dinnerCount}</Text>
-								<Text style={styles.tieredDish} numberOfLines={1}>
-									{todayMenu.dinner.main || 'NOT SET'}
-								</Text>
-							</TouchableOpacity>
-
-							{/* Tomorrow Preview */}
-							<View style={styles.tomorrowRow}>
-								<Text style={styles.tomorrowText}>
-									Tomorrow: <Text style={{ color: Theme.colors.textPrimary }}>{tomorrowExpected}</Text> servings expected
-								</Text>
-							</View>
-
-							{/* Footer Meta */}
-							<View style={[styles.panelFooter, stats.paymentsDue > 0 && styles.panelFooterUrgent]}>
-								<Text style={styles.panelFooterText}>
-									Active: <Text style={{ color: Theme.colors.textPrimary }}>{stats.activeCount}</Text>
-									{"  "}•{"  "}
-									{stats.paymentsDue > 0 ? (
-										<Text style={{ color: Theme.colors.mealLunch }}>
-											⚠ {stats.paymentsDue} Payment{stats.paymentsDue > 1 ? 's' : ''} Due
+									<View style={styles.tomorrowRow}>
+										<Text style={[styles.tomorrowText, { color: colors.textMuted }]}>
+											Tomorrow: <Text style={{ color: colors.textPrimary }}>{tomorrowExpected}</Text> servings expected
 										</Text>
-									) : (
-										<>Due: <Text style={{ color: Theme.colors.textPrimary }}>0</Text></>
-									)}
-								</Text>
-								<Text style={styles.lastUpdatedText}>Updated {timeAgo}</Text>
-							</View>
+									</View>
+
+									<View
+										style={[
+											styles.panelFooter,
+											{ backgroundColor: colors.surfaceElevated, borderTopColor: colors.border },
+											stats.paymentsDue > 0 && {
+												backgroundColor: isDark ? 'rgba(231, 76, 60, 0.14)' : 'rgba(231, 76, 60, 0.06)',
+												borderTopColor: isDark ? 'rgba(231, 76, 60, 0.32)' : 'rgba(231, 76, 60, 0.2)',
+											},
+										]}
+									>
+										<Text style={[styles.panelFooterText, { color: colors.textMuted }]}>
+											Active <Text style={{ color: colors.textPrimary }}>{stats.activeCount}</Text>
+											{"  "}{" "}
+											{stats.paymentsDue > 0 ? (
+												<Text style={{ color: colors.mealLunch }}>
+													{stats.paymentsDue} payment{stats.paymentsDue > 1 ? 's' : ''} due
+												</Text>
+											) : (
+												<Text>Paid up</Text>
+											)}
+										</Text>
+										<Text style={[styles.lastUpdatedText, { color: colors.textMuted }]}>Updated {timeAgo}</Text>
+									</View>
+								</>
+							) : (
+								<View style={styles.emptyState}>
+									<View style={[styles.emptyIcon, { backgroundColor: colors.surfaceElevated }]}>
+										<MaterialCommunityIcons name="account-plus-outline" size={26} color={colors.primary} />
+									</View>
+									<Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No active customers</Text>
+									<Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>Add customers before tracking servings.</Text>
+									<View style={styles.emptyActions}>
+										<TouchableOpacity
+											style={[styles.primaryAction, { backgroundColor: colors.primary }]}
+											onPress={() => router.push('/customers')}
+										>
+											<Text style={[styles.primaryActionText, { color: colors.textInverted }]}>Add Customer</Text>
+										</TouchableOpacity>
+										{!menuReady && (
+											<TouchableOpacity
+												style={[styles.secondaryAction, { backgroundColor: colors.surface, borderColor: colors.border }]}
+												onPress={() => router.push('/menu')}
+											>
+												<Text style={[styles.secondaryActionText, { color: colors.primary }]}>Set Menu</Text>
+											</TouchableOpacity>
+										)}
+									</View>
+								</View>
+							)}
 						</Animated.View>
 					</Animated.View>
 				) : (
@@ -401,7 +384,7 @@ export default function Index() {
 					>
 						<Section title="Customer Attendance" subtitle="Tap to toggle today's meals">
 							{customers.length === 0 ? (
-								<Text style={styles.emptyText}>No active customers found</Text>
+								<Text style={[styles.emptyText, { color: colors.textMuted }]}>No active customers found</Text>
 							) : (
 								customers.map(c => (
 									<CustomerAttendanceRow
@@ -411,6 +394,7 @@ export default function Index() {
 										attendance={attendance[c.id]}
 										onToggle={(meal: 'lunch' | 'dinner') => toggleTodayAttendance(c.id, meal)}
 										onAvatarPress={setSelectedCustomer}
+										colors={colors}
 									/>
 								))
 							)}
@@ -428,8 +412,8 @@ export default function Index() {
 			>
 				{modalServings.length === 0 ? (
 					<View style={styles.modalEmpty}>
-						<MaterialCommunityIcons name="food-off-outline" size={32} color={Theme.colors.textMuted} />
-						<Text style={styles.modalEmptyText}>No customers for this meal</Text>
+						<MaterialCommunityIcons name="food-off-outline" size={32} color={colors.textMuted} />
+						<Text style={[styles.modalEmptyText, { color: colors.textMuted }]}>No customers for this meal</Text>
 					</View>
 				) : (
 					modalServings.map((s, i) => (
@@ -437,7 +421,7 @@ export default function Index() {
 							key={`${s.customer.id}_${s.meal}`}
 							style={[
 								styles.modalRow,
-								i < modalServings.length - 1 && styles.modalRowBorder,
+								i < modalServings.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border },
 							]}
 						>
 							<UserIdentity
@@ -448,12 +432,12 @@ export default function Index() {
 							/>
 							<View style={styles.modalCustomerInfo}>
 								{activeModal === 'total' && (
-									<View style={styles.mealBadge}>
+									<View style={[styles.mealBadge, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
 										<View style={[
 											styles.badgeDot,
 											s.meal === 'LUNCH' ? styles.badgeDotLunch : styles.badgeDotDinner
 										]} />
-										<Text style={styles.mealBadgeText}>{s.meal}</Text>
+										<Text style={[styles.mealBadgeText, { color: colors.textSecondary }]}>{s.meal}</Text>
 									</View>
 								)}
 							</View>
@@ -490,6 +474,7 @@ type CustomerAttendanceRowProps = {
 	attendance?: AttendanceSelection;
 	onToggle: (meal: 'lunch' | 'dinner') => void;
 	onAvatarPress: (customer: Customer) => void;
+	colors: ReturnType<typeof useAppTheme>['colors'];
 };
 
 const CustomerAttendanceRow = ({
@@ -498,13 +483,14 @@ const CustomerAttendanceRow = ({
 	attendance,
 	onToggle,
 	onAvatarPress,
+	colors,
 }: CustomerAttendanceRowProps) => {
 	const sel = attendance || { lunch: true, dinner: true };
 	const subLunch = customer.mealsPerDay?.lunch !== false;
 	const subDinner = customer.mealsPerDay?.dinner !== false;
 
 	return (
-		<View style={styles.customerRow}>
+		<View style={[styles.customerRow, { borderBottomColor: colors.border }]}>
 			<View style={styles.customerInfo}>
 				<UserIdentity
 					name={customer.name}
@@ -516,24 +502,32 @@ const CustomerAttendanceRow = ({
 			<View style={styles.toggleGroup}>
 				{subLunch && (
 					<TouchableOpacity
-						style={[styles.toggleBtn, sel.lunch && styles.toggleBtnOn]}
+						style={[
+							styles.toggleBtn,
+							{ backgroundColor: colors.bg, borderColor: colors.border },
+							sel.lunch && { backgroundColor: colors.surfaceElevated, borderColor: colors.primary },
+						]}
 						onPress={() => onToggle('lunch')}
 					>
 						<View style={styles.rowBetween}>
-							<Text style={styles.toggleBtnLabel}>LUNCH</Text>
+							<Text style={[styles.toggleBtnLabel, { color: colors.textSecondary }]}>LUNCH</Text>
 						</View>
-						<Text style={styles.toggleBtnDish} numberOfLines={1}>{menu.lunch.main || 'Rice/Roti'}</Text>
+						<Text style={[styles.toggleBtnDish, { color: colors.textPrimary }]} numberOfLines={1}>{menu.lunch.main || 'Rice/Roti'}</Text>
 					</TouchableOpacity>
 				)}
 				{subDinner && (
 					<TouchableOpacity
-						style={[styles.toggleBtn, sel.dinner && styles.toggleBtnOn]}
+						style={[
+							styles.toggleBtn,
+							{ backgroundColor: colors.bg, borderColor: colors.border },
+							sel.dinner && { backgroundColor: colors.surfaceElevated, borderColor: colors.primary },
+						]}
 						onPress={() => onToggle('dinner')}
 					>
 						<View style={styles.rowBetween}>
-							<Text style={styles.toggleBtnLabel}>DINNER</Text>
+							<Text style={[styles.toggleBtnLabel, { color: colors.textSecondary }]}>DINNER</Text>
 						</View>
-						<Text style={styles.toggleBtnDish} numberOfLines={1}>{menu.dinner.main || 'Rice/Roti'}</Text>
+						<Text style={[styles.toggleBtnDish, { color: colors.textPrimary }]} numberOfLines={1}>{menu.dinner.main || 'Rice/Roti'}</Text>
 					</TouchableOpacity>
 				)}
 			</View>
@@ -547,22 +541,22 @@ const styles = StyleSheet.create({
 		flexDirection: 'row',
 		backgroundColor: Theme.colors.surface,
 		padding: Theme.spacing.xs,
-		borderRadius: Theme.radius.lg,
-		margin: Theme.spacing.screen,
+		borderRadius: Theme.radius.pill,
+		marginHorizontal: Theme.spacing.screen,
+		marginTop: Theme.spacing.md,
 		marginBottom: 0,
 		borderWidth: 1,
 		borderColor: Theme.colors.border,
 	},
-	tab: { flex: 1, paddingVertical: Theme.spacing.md, alignItems: 'center', borderRadius: Theme.radius.sm },
+	tab: { flex: 1, paddingVertical: Theme.spacing.sm, alignItems: 'center', borderRadius: Theme.radius.pill },
 	tabItem: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
 	tabActive: {
-		backgroundColor: Theme.colors.surface,
-		borderColor: Theme.colors.primary,
+		backgroundColor: Theme.colors.surfaceElevated,
 	},
-	tabText: { ...Theme.typography.detailBold, color: Theme.colors.textMuted },
+	tabText: { ...Theme.typography.detailBold, color: Theme.colors.textMuted, letterSpacing: 0 },
 	tabTextActive: { color: Theme.colors.textPrimary },
 
-	scrollContent: { padding: Theme.spacing.screen, paddingBottom: 150 },
+	scrollContent: { padding: Theme.spacing.screen, paddingTop: Theme.spacing.md, paddingBottom: 150 },
 	rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 
 	// Production Panel
@@ -572,15 +566,22 @@ const styles = StyleSheet.create({
 		borderWidth: 1,
 		borderColor: Theme.colors.border,
 		overflow: 'hidden',
-		marginTop: Theme.spacing.md,
+		marginTop: Theme.spacing.sm,
 	},
 	heroSection: {
 		alignItems: 'center',
-		paddingVertical: Theme.spacing.massive,
+		paddingVertical: Theme.spacing.huge,
+		paddingHorizontal: Theme.spacing.lg,
+	},
+	heroEyebrow: {
+		...Theme.typography.detailBold,
+		color: Theme.colors.textMuted,
+		letterSpacing: 0,
+		marginBottom: Theme.spacing.xs,
 	},
 	heroCount: {
 		...Theme.typography.answerGiant,
-		fontSize: 64,
+		fontSize: 56,
 		color: Theme.colors.primary,
 	},
 	heroCountContainer: {
@@ -594,32 +595,31 @@ const styles = StyleSheet.create({
 		fontSize: 16,
 		opacity: 0.5,
 	},
-	heroIntelligence: {
-		alignItems: 'center',
-		marginTop: 8,
-		marginBottom: 16,
-	},
-	heroStatus: {
-		...Theme.typography.labelMedium,
-		color: Theme.colors.textSecondary,
-		fontSize: 13,
-		fontWeight: '800',
-	},
-	heroStatusRow: {
+	setupBanner: {
 		flexDirection: 'row',
 		alignItems: 'center',
-		gap: 8,
-		marginTop: 2,
+		justifyContent: 'space-between',
+		paddingHorizontal: Theme.spacing.lg,
+		paddingVertical: Theme.spacing.md,
+		backgroundColor: Theme.colors.surfaceElevated,
+		borderTopWidth: 1,
+		borderBottomWidth: 1,
+		borderColor: Theme.colors.border,
 	},
-	heroStatusDetail: {
+	setupBannerLeft: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: Theme.spacing.sm,
+	},
+	setupBannerText: {
 		...Theme.typography.detailBold,
-		color: Theme.colors.textMuted,
-		fontSize: 12,
+		color: Theme.colors.textPrimary,
+		letterSpacing: 0,
 	},
-	heroAction: {
+	setupBannerAction: {
 		...Theme.typography.detailBold,
 		color: Theme.colors.primary,
-		fontSize: 12,
+		letterSpacing: 0,
 	},
 	heroLabelWrapper: {
 		marginTop: 4,
@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
 	heroLabel: {
 		...Theme.typography.detailBold,
 		color: Theme.colors.textMuted,
-		letterSpacing: 2,
+		letterSpacing: 0,
 		opacity: 0.65,
 	},
 	tieredRow: {
@@ -643,33 +643,21 @@ const styles = StyleSheet.create({
 		paddingRight: Theme.spacing.lg,
 		paddingLeft: Theme.spacing.lg,
 		gap: Theme.spacing.md,
-		backgroundColor: 'rgba(255, 255, 255, 0.03)',
 		overflow: 'hidden',
 	},
-	tieredAccent: {
-		position: 'absolute',
-		left: 0,
-		top: 0,
-		bottom: 0,
-		width: 4,
+	mealDot: {
+		width: 10,
+		height: 10,
+		borderRadius: 5,
 	},
-	tieredAccentLunch: {
+	mealDotLunch: {
 		backgroundColor: Theme.colors.mealLunch,
-		opacity: 0.6,
 	},
-	tieredAccentDinner: {
+	mealDotDinner: {
 		backgroundColor: Theme.colors.mealDinner,
-		opacity: 0.6,
-	},
-	microIcon: {
-		opacity: 1,
-		marginLeft: 4,
 	},
 	tieredMeta: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		gap: 8,
-		width: 80,
+		flex: 1,
 	},
 	tieredLabel: {
 		...Theme.typography.labelMedium,
@@ -680,15 +668,14 @@ const styles = StyleSheet.create({
 		color: Theme.colors.textPrimary,
 		fontSize: 22,
 		fontWeight: '800',
-		marginRight: Theme.spacing.md,
 		lineHeight: 28,
 	},
 	tieredDish: {
 		...Theme.typography.detailBold,
 		color: Theme.colors.textMuted,
-		flex: 1,
 		fontSize: 13,
-		textAlign: 'right',
+		letterSpacing: 0,
+		marginTop: 2,
 	},
 	tomorrowRow: {
 		padding: Theme.spacing.lg,
@@ -706,14 +693,10 @@ const styles = StyleSheet.create({
 		borderTopWidth: 1,
 		borderTopColor: Theme.colors.border,
 	},
-	panelFooterUrgent: {
-		backgroundColor: 'rgba(231, 76, 60, 0.06)',
-		borderTopColor: 'rgba(231, 76, 60, 0.2)',
-	},
 	panelFooterText: {
 		...Theme.typography.detailBold,
 		color: Theme.colors.textMuted,
-		letterSpacing: 1,
+		letterSpacing: 0,
 	},
 	lastUpdatedText: {
 		...Theme.typography.detailBold,
@@ -721,9 +704,64 @@ const styles = StyleSheet.create({
 		fontSize: 10,
 		opacity: 0.4,
 		marginTop: 4,
+		letterSpacing: 0,
+	},
+	emptyState: {
+		alignItems: 'center',
+		paddingHorizontal: Theme.spacing.xxl,
+		paddingVertical: Theme.spacing.massive,
+	},
+	emptyIcon: {
+		width: 48,
+		height: 48,
+		borderRadius: 24,
+		alignItems: 'center',
+		justifyContent: 'center',
+		backgroundColor: Theme.colors.surfaceElevated,
+		marginBottom: Theme.spacing.lg,
+	},
+	emptyTitle: {
+		...Theme.typography.labelMedium,
+		color: Theme.colors.textPrimary,
+		fontSize: 20,
+	},
+	emptySubtitle: {
+		...Theme.typography.detail,
+		color: Theme.colors.textMuted,
+		textAlign: 'center',
+		marginTop: Theme.spacing.sm,
+		marginBottom: Theme.spacing.xl,
+	},
+	emptyActions: {
+		flexDirection: 'row',
+		gap: Theme.spacing.md,
+	},
+	primaryAction: {
+		backgroundColor: Theme.colors.primary,
+		borderRadius: Theme.radius.pill,
+		paddingHorizontal: Theme.spacing.xl,
+		paddingVertical: Theme.spacing.md,
+	},
+	primaryActionText: {
+		...Theme.typography.detailBold,
+		color: Theme.colors.textInverted,
+		letterSpacing: 0,
+	},
+	secondaryAction: {
+		backgroundColor: Theme.colors.surface,
+		borderRadius: Theme.radius.pill,
+		borderWidth: 1,
+		borderColor: Theme.colors.border,
+		paddingHorizontal: Theme.spacing.xl,
+		paddingVertical: Theme.spacing.md,
+	},
+	secondaryActionText: {
+		...Theme.typography.detailBold,
+		color: Theme.colors.primary,
+		letterSpacing: 0,
 	},
 
-	customerRow: { backgroundColor: 'transparent', borderBottomWidth: 1, borderBottomColor: Theme.colors.border, paddingVertical: Theme.spacing.md },
+	customerRow: { backgroundColor: 'transparent', borderBottomWidth: 1, paddingVertical: Theme.spacing.md },
 	customerInfo: { marginBottom: Theme.spacing.sm },
 	toggleGroup: { flexDirection: 'row', gap: Theme.spacing.md },
 	toggleBtn: {
@@ -731,17 +769,11 @@ const styles = StyleSheet.create({
 		paddingHorizontal: Theme.spacing.lg,
 		paddingVertical: Theme.spacing.md,
 		borderRadius: Theme.radius.xl,
-		backgroundColor: Theme.colors.bg,
 		borderWidth: 1,
-		borderColor: Theme.colors.border
 	},
-	toggleBtnOn: {
-		backgroundColor: Theme.colors.surfaceElevated,
-		borderColor: Theme.colors.primary,
-	},
-	toggleBtnLabel: { ...Theme.typography.detailBold, color: Theme.colors.textSecondary },
-	toggleBtnDish: { ...Theme.typography.labelMedium, color: Theme.colors.textPrimary, marginTop: Theme.spacing.xs },
-	emptyText: { textAlign: 'center', color: Theme.colors.textMuted, marginTop: Theme.spacing.massive, ...Theme.typography.labelMedium },
+	toggleBtnLabel: { ...Theme.typography.detailBold },
+	toggleBtnDish: { ...Theme.typography.labelMedium, marginTop: Theme.spacing.xs },
+	emptyText: { textAlign: 'center', marginTop: Theme.spacing.massive, ...Theme.typography.labelMedium },
 
 	// Modal styles
 	modalRow: {
@@ -762,7 +794,6 @@ const styles = StyleSheet.create({
 	},
 	modalEmptyText: {
 		...Theme.typography.labelMedium,
-		color: Theme.colors.textMuted,
 	},
 	modalCustomerInfo: {
 		flex: 1,
@@ -795,7 +826,6 @@ const styles = StyleSheet.create({
 	mealBadgeText: {
 		fontSize: 10,
 		fontWeight: '900',
-		color: Theme.colors.textSecondary,
 		letterSpacing: 0.5,
 	},
 });
