@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Sun, Moon, LucideIcon } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Theme } from '../../constants/Theme';
 import { useAppTheme } from '../../context/ThemeModeContext';
@@ -10,6 +10,7 @@ interface ScreenHeaderProps {
 	title: string;
 	subtitle?: string;
 	rightAction?: React.ReactNode;
+	persistentRightAction?: React.ReactNode;
 	style?: ViewStyle;
 	edgeToEdge?: boolean;
 	gutter?: number;
@@ -19,69 +20,114 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
 	title,
 	subtitle,
 	rightAction,
+	persistentRightAction,
 	style,
 	edgeToEdge = true,
 	gutter,
 }) => {
 	const insets = useSafeAreaInsets();
 	const { colors, isDark, toggleTheme } = useAppTheme();
-	const { contentPadding, isCompact, stacked, maxContentWidth } = useResponsiveLayout();
+	const { contentPadding, isCompact, maxContentWidth, scale, font, icon } = useResponsiveLayout();
 	const resolvedGutter = gutter ?? contentPadding;
+	const logoSize = scale(48, 0.9, 1.08);
+	const actionSize = scale(40, 0.92, 1.04);
+	const headerBodyHeight = scale(isCompact ? 68 : 74, 0.96, 1.04);
+	const actionCount = [persistentRightAction, rightAction].filter(Boolean).length + 1;
+	const actionRailWidth = actionSize * actionCount + Theme.spacing.sm * Math.max(0, actionCount - 1);
+	const brandTitleSize = font(isCompact ? 22 : 24, 0.94, 1.12);
+	const subtitleSize = font(isCompact ? 11 : 12, 0.94, 1.08);
+	const logoTextSize = font(18, 0.94, 1.08);
 
 	return (
 		<View
 			style={[
 				styles.container,
 				{
-					paddingTop: insets.top + Theme.spacing.sm,
+					paddingTop: insets.top + Theme.spacing.md,
 					paddingBottom: Theme.spacing.md,
 					paddingHorizontal: resolvedGutter,
+					minHeight: insets.top + headerBodyHeight,
 					backgroundColor: colors.bg,
-					borderBottomColor: colors.border,
+					borderBottomWidth: 0,
 				},
 				edgeToEdge && { marginHorizontal: -resolvedGutter },
 				style,
 			]}
 		>
-			<View style={[styles.contentWrap, { maxWidth: maxContentWidth }]}>
-				<View style={[styles.content, stacked && styles.contentStacked]}>
-				<View style={styles.brandRow}>
-					<View style={[styles.logoMark, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-						<Text style={[styles.logoText, { color: colors.primary }]}>DZ</Text>
-					</View>
-					<View style={styles.textContainer}>
-						<Text style={[styles.brandTitle, isCompact && styles.brandTitleCompact, { color: colors.textPrimary }]} numberOfLines={1}>
-							Desi Zaiqa
-						</Text>
-						<Text style={[styles.subtitle, isCompact && styles.subtitleCompact, { color: colors.textMuted }]} numberOfLines={stacked ? 2 : 1}>
-							{subtitle ? `${title} - ${subtitle}` : title}
-						</Text>
-					</View>
-				</View>
+				<View style={[styles.contentWrap, { maxWidth: maxContentWidth }]}>
+					<View style={[styles.content, { minHeight: actionSize }]}>
+						<View style={styles.brandRow}>
+							<View
+								style={[
+									styles.logoMark,
+									{
+										width: logoSize,
+										height: logoSize,
+										borderRadius: 18,
+										backgroundColor: colors.surface,
+										borderColor: colors.border,
+									},
+								]}
+							>
+								<Text style={[styles.logoText, { color: colors.primary, fontSize: logoTextSize }]}>DZ</Text>
+							</View>
+							<View style={[styles.textContainer, { paddingRight: scale(12, 0.9, 1.04) }]}>
+								<Text
+									style={[styles.brandTitle, { color: colors.textPrimary, fontSize: brandTitleSize }]}
+									numberOfLines={1}
+								>
+									Desi Zaiqa
+								</Text>
+								<Text
+									style={[styles.subtitle, { color: colors.textMuted, fontSize: subtitleSize }]}
+									numberOfLines={1}
+								>
+									{subtitle ? `${title} - ${subtitle}` : title}
+								</Text>
+							</View>
+						</View>
 
-				<View style={[styles.actions, stacked && styles.actionsStacked]}>
-					{!!rightAction && <View style={styles.actionContainer}>{rightAction}</View>}
-					<Pressable
-						onPress={toggleTheme}
-						style={[styles.themeToggle, { backgroundColor: colors.surface, borderColor: colors.border }]}
-						accessibilityRole="button"
-						accessibilityLabel={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
-					>
-						<MaterialCommunityIcons
-							name={isDark ? 'white-balance-sunny' : 'moon-waning-crescent'}
-							size={20}
-							color={colors.primary}
-						/>
-					</Pressable>
-				</View>
-			</View>
+						<View style={[styles.actions, { width: actionRailWidth }]}>
+							{persistentRightAction ? (
+								<View style={[styles.actionSlot, { width: actionSize, height: actionSize }]}>
+									{persistentRightAction}
+								</View>
+							) : null}
+							{rightAction ? (
+								<View style={[styles.actionSlot, { width: actionSize, height: actionSize }]}>
+									{rightAction}
+								</View>
+							) : null}
+							<Pressable
+								onPress={toggleTheme}
+								style={[
+									styles.themeToggle,
+									{
+										height: actionSize,
+										width: actionSize,
+										borderRadius: actionSize / 2,
+										backgroundColor: colors.surface,
+										borderColor: colors.border,
+									},
+								]}
+								accessibilityRole="button"
+								accessibilityLabel={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+							>
+								{isDark ? (
+									<Sun size={icon(20)} color={colors.primary} />
+								) : (
+									<Moon size={icon(20)} color={colors.primary} />
+								)}
+							</Pressable>
+						</View>
+					</View>
 			</View>
 		</View>
 	);
 };
 
 interface ScreenHeaderActionButtonProps {
-	icon: keyof typeof MaterialCommunityIcons.glyphMap;
+	icon: LucideIcon;
 	onPress: () => void;
 	accessibilityLabel: string;
 	variant?: 'default' | 'primary' | 'success' | 'danger';
@@ -94,6 +140,8 @@ export const ScreenHeaderActionButton: React.FC<ScreenHeaderActionButtonProps> =
 	variant = 'default',
 }) => {
 	const { colors } = useAppTheme();
+	const { scale, icon: iconSize } = useResponsiveLayout();
+	const buttonSize = scale(40, 0.92, 1.04);
 
 	const palette = {
 		default: {
@@ -116,29 +164,34 @@ export const ScreenHeaderActionButton: React.FC<ScreenHeaderActionButtonProps> =
 			borderColor: colors.danger,
 			iconColor: colors.danger,
 		},
-	}[variant];
+	};
+
+	const IconComponent = icon;
 
 	return (
 		<Pressable
 			onPress={onPress}
-			style={[
+			style={({ pressed }) => [
 				styles.headerIconButton,
 				{
-					backgroundColor: palette.backgroundColor,
-					borderColor: palette.borderColor,
+					height: buttonSize,
+					width: buttonSize,
+					borderRadius: buttonSize / 2,
+					backgroundColor: palette[variant].backgroundColor,
+					borderColor: palette[variant].borderColor,
+					opacity: pressed ? 0.7 : 1,
 				},
 			]}
 			accessibilityRole="button"
 			accessibilityLabel={accessibilityLabel}
 		>
-			<MaterialCommunityIcons name={icon} size={20} color={palette.iconColor} />
+			<IconComponent size={iconSize(20)} color={palette[variant].iconColor} />
 		</Pressable>
 	);
 };
 
 const styles = StyleSheet.create({
 	container: {
-		borderBottomWidth: 1,
 	},
 	contentWrap: {
 		width: '100%',
@@ -150,9 +203,6 @@ const styles = StyleSheet.create({
 		justifyContent: 'space-between',
 		gap: Theme.spacing.md,
 	},
-	contentStacked: {
-		alignItems: 'flex-start',
-	},
 	brandRow: {
 		flex: 1,
 		flexDirection: 'row',
@@ -160,9 +210,6 @@ const styles = StyleSheet.create({
 		minWidth: 0,
 	},
 	logoMark: {
-		width: 48,
-		height: 48,
-		borderRadius: Theme.radius.md,
 		alignItems: 'center',
 		justifyContent: 'center',
 		marginRight: Theme.spacing.md,
@@ -174,53 +221,36 @@ const styles = StyleSheet.create({
 		elevation: 2,
 	},
 	logoText: {
-		fontSize: 18,
 		fontWeight: '900',
 		letterSpacing: 0,
 	},
 	textContainer: {
 		flex: 1,
-		paddingRight: Theme.spacing.md,
 		minWidth: 0,
 	},
 	brandTitle: {
 		...Theme.typography.answer,
-		fontSize: 24,
+		fontSize: 26,
 		letterSpacing: 0,
-	},
-	brandTitleCompact: {
-		fontSize: 22,
 	},
 	subtitle: {
 		...Theme.typography.detailBold,
-		marginTop: 4,
+		marginTop: 2,
 		textTransform: 'uppercase',
 		letterSpacing: 0.7,
-	},
-	subtitleCompact: {
-		fontSize: 11,
-		letterSpacing: 0.4,
 	},
 	actions: {
 		flexDirection: 'row',
 		alignItems: 'center',
+		justifyContent: 'flex-end',
 		gap: Theme.spacing.sm,
 		flexShrink: 0,
 	},
-	actionsStacked: {
-		alignSelf: 'flex-end',
-	},
-	actionContainer: {
-		flexDirection: 'row',
+	actionSlot: {
 		alignItems: 'center',
-		justifyContent: 'flex-end',
-		gap: Theme.spacing.sm,
-		flexShrink: 1,
+		justifyContent: 'center',
 	},
 	themeToggle: {
-		height: 40,
-		width: 40,
-		borderRadius: 20,
 		borderWidth: 1,
 		justifyContent: 'center',
 		alignItems: 'center',
@@ -231,9 +261,6 @@ const styles = StyleSheet.create({
 		elevation: 1,
 	},
 	headerIconButton: {
-		height: 40,
-		width: 40,
-		borderRadius: 20,
 		borderWidth: 1,
 		alignItems: 'center',
 		justifyContent: 'center',

@@ -1,22 +1,24 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { collection, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { XCircle, Settings, Save, Copy, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { showToast } from '../components/system/feedback/AppToast';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { Badge } from '../components/ui/Badge';
+import { PremiumBottomSheet, type PremiumBottomSheetHandle } from '../components/ui/PremiumBottomSheet';
 import { Screen } from '../components/ui/Screen';
-import { ScreenHeader, ScreenHeaderActionButton } from '../components/ui/ScreenHeader';
-import { ModalBackdrop } from '../components/ui/ModalBackdrop';
+import { ScreenHeaderActionButton } from '../components/ui/ScreenHeader';
 import { useResponsiveLayout } from '../components/ui/useResponsiveLayout';
-import { Theme } from '../constants/Theme';
+import { useAppHeader } from '../context/HeaderContext';
+import { useOfflineSync } from '../context/OfflineSyncContext';
 import { useAppTheme } from '../context/ThemeModeContext';
-import { db } from '../firebase/config';
-import { getFirestoreErrorMessage } from '../utils/firestoreErrors';
-import { cloneDayMenu, createEmptyDayMenu, normalizeDayMenu, type MealSlot, type RiceSlot, type WeekMenu } from '../utils/menuLogic';
+import { createEmptyDayMenu, normalizeDayMenu, type MealSlot, type WeekMenu } from '../utils/menuLogic';
 import { DAYS, DayName, getDateForDayName, getDatesForWeek, getTodayName, getWeekId } from '../utils/weekLogic';
 
 type MenuCustomer = {
 	id: string;
+	isActive?: boolean;
 	mealsPerDay?: { lunch?: boolean; dinner?: boolean };
 };
 
@@ -28,17 +30,35 @@ type AttendanceRecord = {
 };
 
 export default function MenuScreen() {
-	const { colors, isDark } = useAppTheme();
-	const { contentPadding, maxContentWidth, stacked } = useResponsiveLayout();
+	const { colors } = useAppTheme();
+	const { setHeaderConfig } = useAppHeader();
+	const {
+		ready,
+		customers: allCustomers,
+		menuByDate,
+		attendanceByDate,
+		saveMenuDay: queueMenuDay,
+	} = useOfflineSync();
+	const { contentPadding, maxContentWidth } = useResponsiveLayout();
 	const weekId = getWeekId();
 	const todayName = getTodayName();
+	const weekDates = useMemo(() => getDatesForWeek(weekId), [weekId]);
+	const customers = useMemo(
+		() => allCustomers.filter((customer) => customer.isActive) as MenuCustomer[],
+		[allCustomers]
+	);
+	const remoteWeekMenu = useMemo(() => {
+		const next: WeekMenu = {};
+		weekDates.forEach((date, index) => {
+			const dayName = DAYS[index];
+			next[dayName] = normalizeDayMenu(menuByDate[date] ?? createEmptyDayMenu());
+		});
+		return next;
+	}, [menuByDate, weekDates]);
 
 	const [isEditing, setIsEditing] = useState(false);
-	const [weekMenu, setWeekMenu] = useState<WeekMenu>({});
-	const [loading, setLoading] = useState(true);
+	const [weekMenu, setWeekMenu] = useState<WeekMenu>(remoteWeekMenu);
 	const [saveBatch, setSaveBatch] = useState<Set<DayName>>(new Set());
-	const [customers, setCustomers] = useState<MenuCustomer[]>([]);
-	const [allAttendance, setAllAttendance] = useState<Record<string, Record<string, AttendanceRecord>>>({});
 
 	const [showCopyModal, setShowCopyModal] = useState(false);
 	const [copySelection, setCopySelection] = useState<Set<DayName>>(new Set());
@@ -46,76 +66,81 @@ export default function MenuScreen() {
 	const scrollRef = useRef<ScrollView>(null);
 	const layoutMap = useRef<Record<string, number>>({});
 	const [expandedDays, setExpandedDays] = useState<Set<DayName>>(new Set([todayName]));
-
-	const handleSnapshotError = (context: string, error: unknown) => {
-		console.error(`Firestore ${context} listener failed:`, error);
-		setLoading(false);
-		Alert.alert('Firestore access failed', getFirestoreErrorMessage(error, `Could not load ${context}.`));
-	};
+	const copySheetRef = useRef<PremiumBottomSheetHandle>(null);
 
 	useEffect(() => {
-		const dates = getDatesForWeek(weekId);
+		if (showCopyModal) {
+			copySheetRef.current?.present();
+		} else {
+			copySheetRef.current?.dismiss();
+		}
+	}, [showCopyModal]);
 
-		const unsubMenu = dates.map((date: string, idx: number) => {
-			const dayName = DAYS[idx];
-			return onSnapshot(
-				doc(db, "menu", date),
-				(docSnap) => {
-					const raw = docSnap.exists() ? docSnap.data() : {};
-					setWeekMenu(prev => ({ ...prev, [dayName]: normalizeDayMenu(raw) }));
-					if (idx === 6) {
-						setLoading(false);
-					}
-				},
-				(error) => handleSnapshotError(`menu for ${dayName}`, error)
-			);
+	useFocusEffect(
+		useCallback(() => {
+			setHeaderConfig({
+				title: 'Weekly Menu',
+				subtitle: `OPERATIONAL PLAN • WEEK ${weekId}`,
+				rightAction: (
+					<ScreenHeaderActionButton
+						icon={isEditing ? XCircle : Settings}
+						onPress={() => setIsEditing(!isEditing)}
+						accessibilityLabel={isEditing ? 'Close editing' : 'Edit weekly menu'}
+						variant={isEditing ? 'danger' : 'default'}
+					/>
+				),
+			});
+		}, [setHeaderConfig, isEditing, weekId])
+	);
+
+	useEffect(() => {
+		setWeekMenu((current) => {
+			if (isEditing && Object.keys(current).length > 0) {
+				return current;
+			}
+			return remoteWeekMenu;
+		});
+	}, [isEditing, remoteWeekMenu]);
+
+	const saveDay = async (dayName: DayName) => {
+		const date = getDateForDayName(dayName, weekId);
+		setSaveBatch(prev => {
+			const next = new Set(prev);
+			next.add(dayName);
+			return next;
 		});
 
-		const unsubCustomers = onSnapshot(
-			collection(db, "customers"),
-			(snap) => {
-				setCustomers(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() } as MenuCustomer)));
-			},
-			(error) => handleSnapshotError('customers', error)
-		);
-
-		const attendanceQuery = query(collection(db, "attendance"), where("date", "in", dates));
-		const unsubAttendance = onSnapshot(
-			attendanceQuery,
-			(snap) => {
-				const acc: Record<string, Record<string, AttendanceRecord>> = {};
-				snap.docs.forEach(doc => {
-					const data = doc.data() as AttendanceRecord;
-					if (!acc[data.date]) acc[data.date] = {};
-					acc[data.date][data.customerId] = data;
-				});
-				setAllAttendance(acc);
-			},
-			(error) => handleSnapshotError('attendance', error)
-		);
-
-		return () => {
-			unsubMenu.forEach((unsub: () => void) => unsub());
-			unsubCustomers();
-			unsubAttendance();
-		};
-	}, [weekId]);
-
-	const scrollToToday = useCallback(() => {
-		const y = layoutMap.current[todayName];
-		if (y !== undefined && scrollRef.current) {
-			scrollRef.current.scrollTo({ y: Math.max(0, y - 20), animated: true });
+		try {
+			await queueMenuDay(
+				date,
+				weekMenu[dayName] ?? createEmptyDayMenu(),
+				`Update ${dayName} menu`,
+				`${date} saved locally`
+			);
+		} catch {
+			showToast({
+				type: 'error',
+				title: 'Save failed',
+				message: `Could not save menu for ${dayName}.`,
+			});
+		} finally {
+			setSaveBatch(prev => {
+				const next = new Set(prev);
+				next.delete(dayName);
+				return next;
+			});
 		}
-	}, [todayName]);
+	};
 
-	// Auto-scroll logic
-	useEffect(() => {
-		if (!loading && Object.keys(layoutMap.current).length === 7) {
-			const timer = setTimeout(scrollToToday, 300);
-			return () => clearTimeout(timer);
-		}
-		return undefined;
-	}, [loading, scrollToToday]);
+	const updateMeal = (day: DayName, slot: 'lunch' | 'dinner', field: keyof MealSlot, val: any) => {
+		setWeekMenu(prev => ({
+			...prev,
+			[day]: {
+				...(prev[day] ?? createEmptyDayMenu()),
+				[slot]: { ...(prev[day]?.[slot] ?? createEmptyDayMenu()[slot]), [field]: val }
+			}
+		}));
+	};
 
 	const toggleDayExpansion = (day: DayName) => {
 		setExpandedDays(prev => {
@@ -126,285 +151,142 @@ export default function MenuScreen() {
 		});
 	};
 
-	const handleSelectiveCopy = (targetDays: Set<DayName>) => {
-		const todayMenuData = weekMenu[todayName];
-		if (!todayMenuData) return;
+	const performCopy = async () => {
+		if (copySelection.size === 0) return;
+		const sourceMenu = weekMenu[todayName];
 
-		const newWeekMenu = { ...weekMenu };
-		const newBatch = new Set(saveBatch);
-
-		targetDays.forEach((day: DayName) => {
-			newWeekMenu[day] = cloneDayMenu(todayMenuData);
-			newBatch.add(day);
-		});
-
-		setWeekMenu(newWeekMenu);
-		setSaveBatch(newBatch);
-		setShowCopyModal(false);
-	};
-
-	const getForecast = (day: DayName) => {
-		const date = getDateForDayName(day, weekId);
-		const dayAttendance = allAttendance[date] || {};
-		let lunch = 0, dinner = 0;
-
-		customers.forEach(c => {
-			const selection = dayAttendance[c.id];
-			const subL = c.mealsPerDay?.lunch !== false;
-			const subD = c.mealsPerDay?.dinner !== false;
-
-			if (subL && (!selection || selection.lunch !== false)) lunch++;
-			if (subD && (!selection || selection.dinner !== false)) dinner++;
-		});
-		return { lunch, dinner, total: lunch + dinner };
-	};
-
-	const updateMeal = <K extends keyof MealSlot,>(day: DayName, meal: 'lunch' | 'dinner', field: K, value: MealSlot[K]) => {
-		setWeekMenu(prev => ({
-			...prev,
-			[day]: (() => {
-				const currentDay = prev[day] ?? createEmptyDayMenu();
-				return {
-					...currentDay,
-					[meal]: { ...currentDay[meal], [field]: value },
-				};
-			})()
-		}));
-		setSaveBatch(prev => new Set(prev).add(day));
-	};
-
-	const updateRice = <K extends keyof RiceSlot,>(day: DayName, meal: 'lunch' | 'dinner', field: K, value: RiceSlot[K]) => {
-		setWeekMenu(prev => ({
-			...prev,
-			[day]: (() => {
-				const currentDay = prev[day] ?? createEmptyDayMenu();
-				return {
-					...currentDay,
-					[meal]: {
-						...currentDay[meal],
-						rice: { ...currentDay[meal].rice, [field]: value },
-					},
-				};
-			})()
-		}));
-		setSaveBatch(prev => new Set(prev).add(day));
-	};
-
-	const handleSave = async () => {
-		try {
-			const promises = Array.from(saveBatch).flatMap(day => {
-				const date = getDateForDayName(day, weekId);
-				const dayData = weekMenu[day];
-				if (!dayData) return [];
-				return [setDoc(doc(db, "menu", date), {
-					...dayData,
-					updatedAt: new Date().toISOString()
-				}, { merge: true })];
+		if (!sourceMenu) {
+			showToast({
+				type: 'warning',
+				title: 'Nothing to copy',
+				message: 'Create today\'s menu before copying it to other days.',
 			});
-			await Promise.all(promises);
-			setSaveBatch(new Set());
-		} catch (error) {
-			console.error("Error saving week menu:", error);
+			return;
+		}
+
+		try {
+			await Promise.all(
+				[...copySelection].map((day) => {
+					const date = getDateForDayName(day, weekId);
+					return queueMenuDay(
+						date,
+						sourceMenu,
+						`Copy menu to ${day}`,
+						`${date} copied from ${todayName}`
+					);
+				})
+			);
+			setShowCopyModal(false);
+			setCopySelection(new Set());
+			showToast({
+				type: 'success',
+				title: 'Menu copied',
+				message: `${copySelection.size} day${copySelection.size === 1 ? '' : 's'} updated locally.`,
+			});
+		} catch {
+			showToast({
+				type: 'error',
+				title: 'Copy failed',
+				message: 'Could not batch copy the menu.',
+			});
 		}
 	};
 
-	if (loading) return <View style={[styles.centered, { backgroundColor: colors.bg }]}><ActivityIndicator size="large" color={colors.primary} /></View>;
+	const getServingCounts = (day: DayName) => {
+		let l = 0, d = 0;
+		const date = getDateForDayName(day, weekId);
+		const dayAttendance = Object.fromEntries(
+			(attendanceByDate[date] ?? []).map((record) => [record.customerId, record as AttendanceRecord])
+		);
+		customers.forEach(c => {
+			const subL = c.mealsPerDay?.lunch !== false;
+			const subD = c.mealsPerDay?.dinner !== false;
+			const att = dayAttendance[c.id];
+			if (subL && (!att || att.lunch !== false)) l++;
+			if (subD && (!att || att.dinner !== false)) d++;
+		});
+		return { l, d };
+	};
+
+	if (!ready) return <View style={[styles.centered, { backgroundColor: colors.bg }]}><ActivityIndicator size="large" color={colors.primary} /></View>;
 
 	return (
-		<Screen scrollable={false}>
-			<ScreenHeader
-				edgeToEdge={false}
-				title="Weekly Menu"
-				subtitle={`OPERATIONAL PLAN • WEEK ${weekId}`}
-				rightAction={
-					<ScreenHeaderActionButton
-						icon={isEditing ? "close-circle" : "cog"}
-						onPress={() => setIsEditing(!isEditing)}
-						accessibilityLabel={isEditing ? 'Close editing' : 'Edit weekly menu'}
-						variant={isEditing ? 'danger' : 'default'}
-					/>
-				}
-			/>
-
-			{saveBatch.size > 0 && (
-				<View style={styles.floatingAction}>
-					<Button
-						variant="primary"
-						title={`SAVE CHANGES (${saveBatch.size})`}
-						iconLeft="content-save-check"
-						onPress={handleSave}
-						fullWidth
-					/>
-				</View>
-			)}
-
-			<ScrollView
+		<Screen scrollable={false} maxContentWidth={maxContentWidth}>
+			<ScrollView 
 				ref={scrollRef}
-				contentContainerStyle={[
-					styles.scrollContent,
-					{
-						paddingHorizontal: contentPadding,
-						width: '100%',
-						maxWidth: maxContentWidth,
-						alignSelf: 'center',
-					},
-				]}
-				showsVerticalScrollIndicator={false}
+				contentContainerStyle={[styles.scrollContent, { paddingHorizontal: contentPadding }]}
 			>
-				{DAYS.map((day: DayName) => {
-					const dayData = weekMenu[day] ?? createEmptyDayMenu();
-					const isToday = day === todayName;
-					const forecast = getForecast(day);
-					const isExpanded = expandedDays.has(day) || isEditing;
+				{DAYS.map(dayName => {
+					const isExpanded = expandedDays.has(dayName);
+					const isToday = dayName === todayName;
+					const counts = getServingCounts(dayName);
+					const menu = weekMenu[dayName] || createEmptyDayMenu();
 
 					return (
-						<View
-							key={day}
-							style={[
-								styles.dayCard,
-								!isToday && { borderBottomColor: colors.border },
-								isToday && styles.dayCardToday,
-								isToday && { backgroundColor: colors.surfaceElevated, borderColor: colors.success },
-								!isToday && styles.dayCardQuiet
-							]}
-							onLayout={(e) => {
-								layoutMap.current[day] = e.nativeEvent.layout.y;
-							}}
+						<View 
+							key={dayName} 
+							style={[styles.dayCard, { borderColor: colors.border, backgroundColor: colors.surface }]}
+							onLayout={e => { layoutMap.current[dayName] = e.nativeEvent.layout.y; }}
 						>
-							<TouchableOpacity
-								style={styles.dayHeader}
-								onPress={() => toggleDayExpansion(day)}
+							<TouchableOpacity 
+								style={styles.dayHeader} 
+								onPress={() => toggleDayExpansion(dayName)}
 								activeOpacity={0.7}
 							>
-								<View>
-									<Text style={[styles.dayTitle, { color: colors.textPrimary }]}>{day}</Text>
-									<Text style={[styles.forecastLabel, { color: isToday ? colors.textMuted : forecast.total > 10 ? colors.warning : colors.textMuted }]}>
-										DEMAND: LUN {forecast.lunch} | DIN {forecast.dinner}
-									</Text>
+								<View style={styles.dayInfo}>
+									<Text style={[styles.dayLabel, { color: isToday ? colors.primary : colors.textPrimary }]}>{dayName.toUpperCase()}</Text>
+									<Text style={[styles.dateLabel, { color: colors.textMuted }]}>{getDateForDayName(dayName, weekId)}</Text>
 								</View>
-								<View style={styles.dayHeaderRight}>
-									{isToday && <Text style={styles.todayBadge}>TODAY</Text>}
-									<MaterialCommunityIcons
-										name={isExpanded ? "chevron-up" : "chevron-down"}
-										size={24}
-										color={isToday ? colors.textPrimary : colors.textMuted}
-									/>
+								<View style={styles.headerRight}>
+									{!isExpanded && (
+										<View style={styles.servingSummary}>
+											<Text style={[styles.servingText, { color: colors.textSecondary }]}>L: {counts.l} | D: {counts.d}</Text>
+										</View>
+									)}
+									{isExpanded ? <ChevronUp size={20} color={colors.textMuted} /> : <ChevronDown size={20} color={colors.textMuted} />}
 								</View>
 							</TouchableOpacity>
 
-							{isExpanded ? (
-								<View style={styles.cardExpandedContent}>
-									{isToday && (
-										<Button
-											title="DUPLICATE TODAY..."
-											iconLeft="content-duplicate"
-											onPress={() => {
-												setCopySelection(new Set(DAYS.filter((d: DayName) => d !== todayName)));
-												setShowCopyModal(true);
-											}}
-											style={{ marginBottom: Theme.spacing.xl }}
-										/>
+							{isExpanded && (
+								<View style={styles.dayContent}>
+									<MealEditor 
+										label="Lunch" 
+										slot={menu.lunch!} 
+										isEditing={isEditing} 
+										count={counts.l} 
+										onChange={(f: any, v: any) => updateMeal(dayName, 'lunch', f, v)}
+										colors={colors}
+									/>
+									<MealEditor 
+										label="Dinner" 
+										slot={menu.dinner!} 
+										isEditing={isEditing} 
+										count={counts.d} 
+										onChange={(f: any, v: any) => updateMeal(dayName, 'dinner', f, v)}
+										colors={colors}
+									/>
+
+									{isEditing && (
+										<View style={styles.dayActions}>
+											{isToday && (
+												<Button 
+													title="Copy to Others" 
+													variant="secondary" 
+													iconLeft={Copy}
+													onPress={() => setShowCopyModal(true)} 
+													style={styles.actionBtn}
+												/>
+											)}
+											<Button 
+												title="Save Changes" 
+												variant="primary" 
+												iconLeft={Save}
+												onPress={() => saveDay(dayName)} 
+												loading={saveBatch.has(dayName)}
+												style={styles.actionBtn}
+											/>
+										</View>
 									)}
-
-									<View style={[styles.mealsRow, stacked && styles.mealsRowStacked]}>
-										{(['lunch', 'dinner'] as const).map(meal => {
-											const slot = dayData[meal];
-											return (
-												<View key={meal} style={styles.mealColumn}>
-													<Text style={[styles.mealLabel, isToday && styles.mealLabelToday]}>
-														{meal === 'lunch' ? "LUNCH" : "DINNER"}
-													</Text>
-
-													{isEditing ? (
-														<View style={styles.editCard}>
-															<Input
-																value={slot.main}
-																onChangeText={(v) => updateMeal(day, meal, 'main', v)}
-																placeholder="Set Main Dish..."
-																containerStyle={{ marginBottom: 0 }}
-															/>
-															<View style={styles.row}>
-															<Text style={[styles.label, { color: colors.textSecondary }]}>Roti</Text>
-															<Switch
-																value={slot.roti}
-																onValueChange={(v) => updateMeal(day, meal, 'roti', v)}
-																trackColor={{ false: colors.border, true: colors.primary }}
-															/>
-															</View>
-															<View style={styles.row}>
-															<Text style={[styles.label, { color: colors.textSecondary }]}>Rice</Text>
-															<Switch
-																value={slot.rice.enabled}
-																onValueChange={(v) => updateRice(day, meal, 'enabled', v)}
-																trackColor={{ false: colors.border, true: colors.primary }}
-															/>
-															</View>
-															{slot.rice.enabled && (
-																<Input
-																	value={slot.rice.type}
-																	onChangeText={(v) => updateRice(day, meal, 'type', v)}
-																	placeholder="Rice Type (Plain/Biryani)"
-																	containerStyle={{ marginBottom: 0 }}
-																/>
-															)}
-															<Input
-																value={slot.extra}
-																onChangeText={(v) => updateMeal(day, meal, 'extra', v)}
-																placeholder="Secondary Side/Salad"
-																containerStyle={{ marginBottom: 0 }}
-															/>
-														</View>
-													) : (
-														<TouchableOpacity
-															style={styles.viewCard}
-															onPress={() => setIsEditing(true)}
-														>
-															{slot.main ? (
-																<Text style={[styles.mainValue, { color: colors.textPrimary }]} numberOfLines={2}>
-																	{slot.main}
-																</Text>
-															) : (
-																<View style={styles.notSetContainer}>
-																	<MaterialCommunityIcons name="alert-circle-outline" size={18} color={colors.danger} />
-																	<Text style={[styles.notSetWarning, { color: colors.danger }]}>Not Set</Text>
-																</View>
-															)}
-															<View style={styles.servingInfo}>
-																<Text style={[styles.servingText, { color: colors.textSecondary }]}>
-																	{slot.roti ? "Roti" : "No Roti"}
-																</Text>
-															</View>
-															<View style={styles.servingInfo}>
-																<Text style={[styles.servingText, { color: colors.textSecondary }]}>
-																	{slot.rice.enabled ? (slot.rice.type || "Rice") : "No Rice"}
-																</Text>
-															</View>
-															{slot.extra ? (
-																<View style={styles.servingInfo}>
-																	<Text style={[styles.extraText, { color: colors.textSecondary }]}>{slot.extra}</Text>
-																</View>
-															) : null}
-														</TouchableOpacity>
-													)}
-												</View>
-											);
-										})}
-									</View>
-								</View>
-							) : (
-								<View style={[styles.summaryRow, stacked && styles.summaryRowStacked]}>
-									<View style={styles.summaryMeal}>
-										<MaterialCommunityIcons name="weather-sunny" size={12} color={isToday ? colors.textPrimary : colors.textMuted} />
-										<Text style={[styles.summaryText, { color: isToday ? colors.textPrimary : colors.textSecondary }]} numberOfLines={1}>
-											{dayData.lunch.main || '---'}
-										</Text>
-									</View>
-									<View style={styles.summaryMeal}>
-										<MaterialCommunityIcons name="weather-night" size={12} color={isToday ? colors.textPrimary : colors.textMuted} />
-										<Text style={[styles.summaryText, { color: isToday ? colors.textPrimary : colors.textSecondary }]} numberOfLines={1}>
-											{dayData.dinner.main || '---'}
-										</Text>
-									</View>
 								</View>
 							)}
 						</View>
@@ -412,179 +294,83 @@ export default function MenuScreen() {
 				})}
 			</ScrollView>
 
-			{/* Selective Copy Modal */}
-			{showCopyModal && (
-				<View style={styles.modalOverlay}>
-					<ModalBackdrop intensity={30} />
-					<View style={[styles.modalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-						<Text style={[styles.modalTitle, { color: colors.textPrimary }]}>Select Target Days</Text>
-						<Text style={[styles.modalSub, { color: colors.textSecondary }]}>{"Copy Today's Menu to these days:"}</Text>
-
-						<View style={styles.dayGrid}>
-							{DAYS.map((d: DayName) => {
-								if (d === todayName) return null;
-								const isSel = copySelection.has(d);
-								return (
-									<TouchableOpacity
-										key={d}
-										style={[
-											styles.dayChip,
-											{ backgroundColor: colors.bg, borderColor: colors.border },
-											isSel && { backgroundColor: colors.primary, borderColor: colors.primary },
-										]}
-										onPress={() => {
-											setCopySelection(prev => {
-												const next = new Set(prev);
-												if (next.has(d)) next.delete(d);
-												else next.add(d);
-												return next;
-											});
-										}}
-									>
-										<Text style={[styles.dayChipText, { color: isSel ? colors.textInverted : colors.textPrimary }]}>{d}</Text>
-										{isSel && <MaterialCommunityIcons name="check-circle" size={14} color={colors.textInverted} />}
-									</TouchableOpacity>
-								);
-							})}
-						</View>
-
-						<View style={[styles.modalFooter, stacked && styles.modalFooterStacked]}>
-							<Button
-								variant="ghost"
-								title="CANCEL"
-								onPress={() => setShowCopyModal(false)}
-							/>
-							<Button
-								variant="primary"
-								title={`APPLY TO ${copySelection.size} DAYS`}
-								onPress={() => handleSelectiveCopy(copySelection)}
-							/>
-						</View>
+			<PremiumBottomSheet ref={copySheetRef} onDismiss={() => setShowCopyModal(false)} title="Copy Today's Menu" subtitle="Select target days">
+				<View style={[styles.copyModal, { backgroundColor: colors.surface }]}>
+					<View style={styles.copyGrid}>
+						{DAYS.filter(d => d !== todayName).map(day => (
+							<TouchableOpacity 
+								key={day} 
+								style={[styles.copyDay, copySelection.has(day) && { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}
+								onPress={() => setCopySelection(prev => {
+									const next = new Set(prev);
+									if (next.has(day)) next.delete(day);
+									else next.add(day);
+									return next;
+								})}
+							>
+								<Text style={[styles.copyDayText, { color: copySelection.has(day) ? colors.primary : colors.textPrimary }]}>{day}</Text>
+								{copySelection.has(day) && <CheckCircle2 size={14} color={colors.primary} />}
+							</TouchableOpacity>
+						))}
 					</View>
+					<Button title={`Copy to ${copySelection.size} Days`} onPress={performCopy} fullWidth style={{ marginTop: 20 }} />
 				</View>
-			)}
+			</PremiumBottomSheet>
 		</Screen>
 	);
 }
 
+const MealEditor = ({ label, slot, isEditing, count, onChange, colors }: any) => (
+	<View style={styles.mealBlock}>
+		<View style={styles.mealHeader}>
+			<Text style={[styles.mealLabel, { color: colors.primary }]}>{label}</Text>
+			<Badge label={`${count} Servings`} variant="neutral" />
+		</View>
+		{isEditing ? (
+			<View style={styles.editStack}>
+				<Input label="Main Dish" value={slot?.main || ''} onChangeText={v => onChange('main', v)} placeholder="e.g. Chicken Karahi" />
+				<Input label="Side Dish" value={slot?.extra || ''} onChangeText={v => onChange('extra', v)} placeholder="e.g. Daal Mash" />
+			</View>
+		) : (
+			<View style={styles.viewStack}>
+				<Text style={[styles.dishMain, { color: colors.textPrimary }]}>{slot?.main || 'No main dish set'}</Text>
+				<Text style={[styles.dishSide, { color: colors.textSecondary }]}>{slot?.extra || 'No side dish set'}</Text>
+			</View>
+		)}
+	</View>
+);
+
 const styles = StyleSheet.create({
-	scrollContent: { paddingBottom: 150 },
-
-	dayCard: {
-		padding: Theme.spacing.lg,
-		marginBottom: Theme.spacing.sm,
-		borderBottomWidth: 1,
-		borderBottomColor: Theme.colors.border,
-	},
-	dayCardQuiet: {
-		backgroundColor: 'transparent',
-		borderWidth: 0,
-	},
-	dayCardToday: {
-		backgroundColor: Theme.colors.surfaceElevated,
-		borderColor: Theme.colors.success,
-		borderWidth: 2,
-		borderRadius: Theme.radius.xl,
-		marginBottom: Theme.spacing.lg,
-	},
-	dayHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Theme.spacing.sm },
-	dayHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
-	dayTitle: { ...Theme.typography.answer, color: Theme.colors.textPrimary },
-	forecastLabel: { ...Theme.typography.detailBold, color: Theme.colors.textMuted, marginTop: Theme.spacing.xs },
-	demandHigh: { color: Theme.colors.warning, fontWeight: '900' },
-	todayBadge: {
-		backgroundColor: Theme.colors.success,
-		color: Theme.colors.textInverted, // Stay dark on light status badge
-		paddingHorizontal: Theme.spacing.md,
-		paddingVertical: Theme.spacing.xs,
-		borderRadius: Theme.radius.sm,
-		...Theme.typography.detailBold,
-		overflow: 'hidden'
-	},
-
-	summaryRow: {
-		marginTop: Theme.spacing.sm,
-		paddingTop: Theme.spacing.sm,
-		borderTopWidth: 1,
-		borderTopColor: Theme.colors.border,
-		flexDirection: 'row',
-		gap: Theme.spacing.lg
-	},
-	summaryRowStacked: {
-		flexDirection: 'column',
-	},
-	summaryMeal: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
-	summaryText: { ...Theme.typography.detail, color: Theme.colors.textSecondary },
-
-	cardExpandedContent: { marginTop: Theme.spacing.md },
-
-	mealsRow: { flexDirection: 'row', gap: Theme.spacing.xl },
-	mealsRowStacked: { flexDirection: 'column' },
-	mealColumn: { flex: 1 },
-	mealLabel: { ...Theme.typography.detailBold, color: Theme.colors.danger, marginBottom: Theme.spacing.xs },
-	mealLabelToday: { color: Theme.colors.danger },
-
-	// View Mode
-	viewCard: { minHeight: 40 },
-	mainValue: { ...Theme.typography.labelMedium, color: Theme.colors.textPrimary },
-	notSetContainer: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm },
-	notSetWarning: { ...Theme.typography.labelMedium, color: Theme.colors.danger, fontStyle: 'italic' },
-	servingInfo: { flexDirection: 'row', alignItems: 'center', gap: Theme.spacing.sm, marginTop: Theme.spacing.xs },
-	servingText: { ...Theme.typography.labelMedium, color: Theme.colors.textSecondary },
-	extraText: { ...Theme.typography.detail, color: Theme.colors.textSecondary, fontStyle: 'italic' },
-
-	// Edit Mode
-	editCard: { gap: Theme.spacing.md, marginTop: Theme.spacing.sm },
-	row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: Theme.spacing.xs },
-	label: { ...Theme.typography.labelMedium, color: Theme.colors.textSecondary },
-
-	// Helpers
-	textWhite: { color: Theme.colors.textPrimary },
-	textMutedDark: { color: Theme.colors.textMuted },
 	centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-
-	// Modal
-	modalOverlay: {
-		...StyleSheet.absoluteFillObject,
-		backgroundColor: Theme.colors.overlay,
-		justifyContent: 'center',
-		alignItems: 'center',
-		zIndex: 1000
-	},
-	modalContent: {
-		backgroundColor: Theme.colors.surface,
-		width: '85%',
-		maxWidth: 560,
-		borderRadius: Theme.radius.xl,
-		padding: Theme.spacing.xl,
-		borderWidth: 1,
-		borderColor: Theme.colors.border,
-	},
-	modalTitle: { ...Theme.typography.labelMedium, color: Theme.colors.textPrimary },
-	modalSub: { ...Theme.typography.detail, color: Theme.colors.textSecondary, marginTop: Theme.spacing.xs, marginBottom: Theme.spacing.xl },
-	dayGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: Theme.spacing.md, marginBottom: Theme.spacing.xl },
-	dayChip: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		gap: Theme.spacing.sm,
-		paddingHorizontal: Theme.spacing.lg,
-		paddingVertical: Theme.spacing.md,
-		backgroundColor: Theme.colors.bg,
-		borderRadius: Theme.radius.lg,
-		borderWidth: 1,
-		borderColor: Theme.colors.border
-	},
-	dayChipActive: { backgroundColor: Theme.colors.primary, borderColor: Theme.colors.primary },
-	dayChipText: { ...Theme.typography.labelMedium, color: Theme.colors.textPrimary },
-	modalFooter: { flexDirection: 'row', justifyContent: 'flex-end', gap: Theme.spacing.md },
-	modalFooterStacked: { flexDirection: 'column' },
-	floatingAction: {
-		position: 'absolute',
-		bottom: 100,
-		left: Theme.spacing.screen,
-		right: Theme.spacing.screen,
-		zIndex: 10,
-	},
+	scrollContent: { paddingVertical: 20, paddingBottom: 150 },
+	dayCard: { borderRadius: 16, borderWidth: 1, marginBottom: 12, overflow: 'hidden' },
+	dayHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16 },
+	dayInfo: { gap: 2 },
+	dayLabel: { fontSize: 16, fontWeight: '900' },
+	dateLabel: { fontSize: 11, fontWeight: '600', textTransform: 'uppercase' },
+	headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+	servingSummary: { paddingHorizontal: 8, paddingVertical: 4, backgroundColor: '#f0f0f0', borderRadius: 6 },
+	servingText: { fontSize: 10, fontWeight: '700' },
+	dayContent: { padding: 16, paddingTop: 0, gap: 20 },
+	mealBlock: { gap: 8 },
+	mealHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+	mealLabel: { fontSize: 13, fontWeight: '800', textTransform: 'uppercase' },
+	editStack: { gap: 8 },
+	viewStack: { gap: 4, padding: 12, backgroundColor: '#f9f9f9', borderRadius: 12 },
+	dishMain: { fontSize: 16, fontWeight: '800' },
+	dishSide: { fontSize: 14, fontWeight: '600' },
+	riceSection: { gap: 12 },
+	riceLabel: { fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
+	riceGrid: { flexDirection: 'row', gap: 12 },
+	riceItem: { flex: 1, gap: 4 },
+	riceItemLabel: { fontSize: 12, fontWeight: '600' },
+	riceValue: { fontSize: 16, fontWeight: '800' },
+	dayActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
+	actionBtn: { flex: 1 },
+	copyModal: { padding: 24, borderRadius: 24, width: '90%', alignSelf: 'center' },
+	modalTitle: { fontSize: 20, fontWeight: '900', marginBottom: 8 },
+	modalSub: { fontSize: 14, fontWeight: '600', marginBottom: 16 },
+	copyGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+	copyDay: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 100, borderWidth: 1, borderColor: '#eee' },
+	copyDayText: { fontSize: 13, fontWeight: '700' },
 });
-
-

@@ -25,7 +25,7 @@ export const ModalBackdrop: React.FC<ModalBackdropProps> = ({
 				style={[
 					StyleSheet.absoluteFillObject,
 					{
-						backgroundColor: isDark ? 'rgba(4, 4, 4, 0.44)' : 'rgba(24, 18, 12, 0.20)',
+						backgroundColor: isDark ? 'rgba(4, 4, 4, 0.55)' : 'rgba(0, 0, 0, 0.35)',
 					},
 				]}
 			/>

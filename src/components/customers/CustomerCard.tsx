@@ -1,6 +1,7 @@
 import { ChevronRight, ChevronUp, CalendarCheck, Navigation2, MapPin, Wallet } from 'lucide-react-native';
 import { FontAwesome } from '@expo/vector-icons';
-import { Alert, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { showToast } from '../system/feedback/AppToast';
 import { Badge } from '../ui/Badge';
 import { Card } from '../ui/Card';
 import { UserAvatar } from '../ui/UserAvatar';
@@ -74,7 +75,7 @@ export function CustomerCard({
 			if (supported) {
 				Linking.openURL(link);
 			} else {
-				Alert.alert('Cannot open link', 'The map link may be invalid.');
+				showToast({ type: 'error', title: 'Cannot open link', message: 'The map link may be invalid.' });
 			}
 		});
 	};
@@ -82,13 +83,13 @@ export function CustomerCard({
 	const openWhatsApp = async () => {
 		const rawPhone = customer.phone?.trim();
 		if (!rawPhone) {
-			Alert.alert('No phone number', 'Add a phone number for this customer first.');
+			showToast({ type: 'warning', title: 'No phone number', message: 'Add a phone number for this customer first.' });
 			return;
 		}
 
 		const digits = rawPhone.replace(/\D/g, '');
 		if (!digits) {
-			Alert.alert('Invalid phone', 'This customer phone number is not valid for WhatsApp.');
+			showToast({ type: 'warning', title: 'Invalid phone', message: 'This customer phone number is not valid for WhatsApp.' });
 			return;
 		}
 
@@ -110,7 +111,7 @@ export function CustomerCard({
 
 			await Linking.openURL(webUrl);
 		} catch {
-			Alert.alert('Cannot open WhatsApp', 'Please check the customer phone number.');
+			showToast({ type: 'error', title: 'Cannot open WhatsApp', message: 'Please check the customer phone number.' });
 		}
 	};
 

@@ -1,19 +1,20 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LucideIcon } from 'lucide-react-native';
 import React, { useRef } from 'react';
-import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, TextStyle, ViewStyle } from 'react-native';
+import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 import { Theme } from '../../constants/Theme';
 import { useAppTheme } from '../../context/ThemeModeContext';
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
+
 interface ButtonProps {
 	title: string;
 	onPress: () => void;
 	variant?: ButtonVariant;
 	size?: ButtonSize;
-	iconLeft?: keyof typeof MaterialCommunityIcons.glyphMap;
-	iconRight?: keyof typeof MaterialCommunityIcons.glyphMap;
+	iconLeft?: LucideIcon;
+	iconRight?: LucideIcon;
 	disabled?: boolean;
 	loading?: boolean;
 	fullWidth?: boolean;
@@ -74,23 +75,23 @@ export function Button({
 				) : (
 					<>
 						{iconLeft && (
-							<MaterialCommunityIcons
-								name={iconLeft}
-								size={iconSizes[size]}
-								color={variantStyle.text.color as string}
-								style={styles.iconLeft}
-							/>
+							<View style={styles.iconLeft}>
+								{React.createElement(iconLeft, {
+									size: iconSizes[size],
+									color: variantStyle.text.color as string,
+								})}
+							</View>
 						)}
 						<Text style={[styles.textBase, textSizes[size], variantStyle.text, textStyle]}>
 							{title}
 						</Text>
 						{iconRight && (
-							<MaterialCommunityIcons
-								name={iconRight}
-								size={iconSizes[size]}
-								color={variantStyle.text.color as string}
-								style={styles.iconRight}
-							/>
+							<View style={styles.iconRight}>
+								{React.createElement(iconRight, {
+									size: iconSizes[size],
+									color: variantStyle.text.color as string,
+								})}
+							</View>
 						)}
 					</>
 				)}

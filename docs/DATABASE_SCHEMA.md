@@ -71,10 +71,47 @@ This document defines the structure, data types, and relationships for the Mess 
 | `date` | Timestamp | Receipt date or save date fallback. |
 | `monthTag` | string | `"YYYY-MM"` — used for monthly aggregation queries. |
 | `currency` | string | Usually `DHS`. |
-| `source` | string | `receipt-scan` or future manual-entry source. |
+| `source` | string | `ocr_scanner` or future manual-entry source. |
 | `note` | string | Optional scanner/operator note. |
 | `confidence` | number | OCR confidence estimate between `0` and `1`. |
 | `items` | array | Extracted line items: `{ name, amount, quantity }[]`. |
+| `receiptDate` | string | Parsed receipt date in `YYYY-MM-DD` form. |
+| `paymentMethod` | string | Parsed payment hint such as `Card` or `Cash`. |
+| `rawText` | string | Full OCR text captured locally from the receipt image. |
+| `imageUri` | string | Persisted local image URI used for OCR and later review. |
+| `localReceiptId` | string | SQLite queue identifier used to dedupe local and synced receipt records. |
+
+### Local Receipt Queue (SQLite)
+**Purpose**: Offline-first staging area for receipt scans before Firestore sync.
+
+Each queued record stores the same parsed expense payload plus:
+- local queue `status` (`pending`, `failed`, `synced`)
+- `syncError` for the last failed Firestore write
+- `createdAt` / `updatedAt` timestamps for queue ordering and retry logic
+
+### General Offline Cache + Sync Queue (SQLite)
+**Purpose**: Keep the app readable and writable while offline, then reconcile local changes back to Firestore.
+
+Local SQLite tables mirror the core live entities:
+- `customers`
+- `payments`
+- `expenses`
+- `menu_entries`
+- `attendance_entries`
+
+Each cached row stores:
+- serialized document payload
+- `dirty` flag for unsynced local edits
+- `deleted` flag for optimistic local removals
+- `updatedAt` for freshness and merge ordering
+
+The shared `sync_queue` table stores:
+- operation kind such as `customer_create`, `attendance_batch_upsert`, `menu_upsert`, `payment_record`, `payment_delete`, and `expense_delete`
+- target entity id
+- serialized mutation payload
+- queue status (`pending` or `failed`)
+- retry count and last error text
+- human-readable title and subtitle used by the global queue inspector
 
 ---
 

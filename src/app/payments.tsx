@@ -1,8 +1,8 @@
-import { addDoc, collection, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { AlertTriangle, Clock3, type LucideIcon, Users, Wallet } from 'lucide-react-native';
+import { showToast } from '../components/system/feedback/AppToast';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -11,10 +11,9 @@ import { Screen } from '../components/ui/Screen';
 import { useResponsiveLayout } from '../components/ui/useResponsiveLayout';
 import { Theme } from '../constants/Theme';
 import { useAppHeader } from '../context/HeaderContext';
+import { useOfflineSync } from '../context/OfflineSyncContext';
 import { useAppTheme } from '../context/ThemeModeContext';
-import { db } from '../firebase/config';
 import { getDaysLeft, getDueAmount, toDate } from '../utils/customerLogic';
-import { getFirestoreErrorMessage } from '../utils/firestoreErrors';
 
 type Payment = {
 	id: string;
@@ -35,15 +34,8 @@ type PaymentRow = Payment & {
 export default function PaymentsScreen() {
 	const { colors } = useAppTheme();
 	const { setHeaderConfig } = useAppHeader();
+	const { ready, customers, recordPayment: queuePayment } = useOfflineSync();
 	const { contentPadding, maxContentWidth, maxReadableWidth, stacked, font } = useResponsiveLayout();
-	const [payments, setPayments] = useState<Payment[]>([]);
-	const [loading, setLoading] = useState(true);
-
-	const handleSnapshotError = (error: unknown) => {
-		console.error('Firestore payments listener failed:', error);
-		setLoading(false);
-		Alert.alert('Firestore access failed', getFirestoreErrorMessage(error, 'Could not load payments.'));
-	};
 
 	useFocusEffect(
 		useCallback(() => {
@@ -54,29 +46,8 @@ export default function PaymentsScreen() {
 		}, [setHeaderConfig])
 	);
 
-	useEffect(() => {
-		const q = query(collection(db, 'customers'), where('isActive', '==', true));
-
-		const unsubscribe = onSnapshot(
-			q,
-			(querySnapshot) => {
-				const paymentsArray: Payment[] = [];
-				querySnapshot.forEach((snapshotDoc) => {
-					const data = snapshotDoc.data();
-					if (getDueAmount(data.pricePerMonth, data.totalPaid) > 0) {
-						paymentsArray.push({ id: snapshotDoc.id, ...data } as Payment);
-					}
-				});
-				setPayments(paymentsArray);
-				setLoading(false);
-			},
-			handleSnapshotError
-		);
-
-		return () => unsubscribe();
-	}, []);
-
-	const paymentRows: PaymentRow[] = payments
+	const paymentRows: PaymentRow[] = customers
+		.filter((customer) => customer.isActive && getDueAmount(customer.pricePerMonth, customer.totalPaid) > 0)
 		.map((payment) => {
 			const dueAmount = getDueAmount(payment.pricePerMonth, payment.totalPaid);
 			const daysLeft = getDaysLeft(toDate(payment.endDate));
@@ -112,38 +83,26 @@ export default function PaymentsScreen() {
 
 	const recordPayment = async (customer: PaymentRow) => {
 		try {
-			const today = new Date();
-			const currentEndDate = toDate(customer.endDate);
-			let newEndDate = new Date(currentEndDate);
-
-			if (today > currentEndDate) {
-				newEndDate = new Date(today);
-			}
-
-			newEndDate.setDate(newEndDate.getDate() + 30);
-
-			const monthTag = today.toISOString().slice(0, 7);
-			await addDoc(collection(db, 'payments'), {
+			await queuePayment({
 				customerId: customer.id,
 				customerName: customer.name,
 				amount: customer.pricePerMonth,
-				date: today,
-				method: 'cash',
-				monthTag,
-			});
-
-			const customerRef = doc(db, 'customers', customer.id);
-			await updateDoc(customerRef, {
-				totalPaid: (customer.totalPaid || 0) + customer.pricePerMonth,
-				endDate: newEndDate,
+				totalPaid: customer.totalPaid,
+				currentEndDate: customer.endDate,
 			});
 		} catch (error) {
 			console.error('Error recording payment:', error);
-			Alert.alert('Could not record payment', getFirestoreErrorMessage(error, 'Payment could not be recorded.'));
+			showToast({
+				type: 'error',
+				title: 'Could not record payment',
+				message: error instanceof Error && error.message.trim()
+					? error.message.trim()
+					: 'Payment could not be recorded locally.',
+			});
 		}
 	};
 
-	if (loading) {
+	if (!ready) {
 		return (
 			<View style={[styles.loadingContainer, { backgroundColor: colors.bg }]}>
 				<ActivityIndicator size="large" color={colors.primary} />

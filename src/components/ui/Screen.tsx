@@ -35,7 +35,7 @@ export const Screen: React.FC<ScreenProps> = ({
 	style,
 	contentContainerStyle,
 	scrollable = true,
-	edges = ['top', 'left', 'right'], // Navigation usually handles bottom
+	edges = ['left', 'right'], // Global header handles top, Navigation handles bottom
 	backgroundColor = Theme.colors.bg,
 	keyboardOffset = 0,
 	centerContent = true,

@@ -1,9 +1,9 @@
 import { Users, CalendarCheck, PlusCircle, Sun, Moon, ChefHat, Bell, LucideIcon, ChevronRight, UtensilsCrossed, Sparkles, Clock3 } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { collection, doc, onSnapshot, query, setDoc, where } from 'firebase/firestore';
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import Animated, { FadeInDown, FadeInUp, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { showToast } from '../components/system/feedback/AppToast';
 import { PremiumBottomSheet, type PremiumBottomSheetHandle } from '../components/ui/PremiumBottomSheet';
 import { CustomerIntelligenceDetail } from '../components/ui/CustomerIntelligenceDetail';
 import { Screen } from '../components/ui/Screen';
@@ -12,10 +12,9 @@ import { UserIdentity } from '../components/ui/UserIdentity';
 import { useResponsiveLayout } from '../components/ui/useResponsiveLayout';
 import { Theme } from '../constants/Theme';
 import { useAppHeader } from '../context/HeaderContext';
+import { useOfflineSync } from '../context/OfflineSyncContext';
 import { useAppTheme } from '../context/ThemeModeContext';
-import { db } from '../firebase/config';
 import { getDaysLeft, getDueAmount, toDate } from '../utils/customerLogic';
-import { getFirestoreErrorMessage } from '../utils/firestoreErrors';
 import { createEmptyDayMenu, normalizeDayMenu, type DayMenu } from '../utils/menuLogic';
 import { formatISO } from '../utils/weekLogic';
 
@@ -39,21 +38,69 @@ export default function Index() {
 	const router = useRouter();
 	const { colors } = useAppTheme();
 	const { setHeaderConfig } = useAppHeader();
-	const { maxReadableWidth, isCompact, scale, font, icon } = useResponsiveLayout();
+	const { ready, customers: allCustomers, menuByDate, attendanceByDate, saveAttendanceBatch } = useOfflineSync();
+	const { maxReadableWidth, scale, icon } = useResponsiveLayout();
 	const todayDate = formatISO(new Date());
-	const heroCountSize = font(isCompact ? 46 : 54, 0.88, 1.12);
 
 	const [activeTab, setActiveTab] = useState<'dashboard' | 'attendance'>('dashboard');
-	const [todayMenu, setTodayMenu] = useState<DayMenu>(createEmptyDayMenu());
-	const [customers, setCustomers] = useState<Customer[]>([]);
-	const [attendance, setAttendance] = useState<AttendanceState>({});
-	const [stats, setStats] = useState({ activeCount: 0, paymentsDue: 0, lunchCount: 0, dinnerCount: 0, dailyCapacity: 0 });
 	const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-	const [loading, setLoading] = useState(true);
 	const [activeModal, setActiveModal] = useState<'lunch' | 'dinner' | 'total' | null>(null);
 	const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 	const breakdownSheetRef = useRef<PremiumBottomSheetHandle>(null);
 	const intelligenceSheetRef = useRef<PremiumBottomSheetHandle>(null);
+	
+	const customers = useMemo(
+		() => allCustomers.filter((customer) => customer.isActive),
+		[allCustomers]
+	);
+	const todayMenu: DayMenu = useMemo(
+		() => normalizeDayMenu(menuByDate[todayDate] ?? createEmptyDayMenu()),
+		[menuByDate, todayDate]
+	);
+	const attendance = useMemo<AttendanceState>(() => {
+		const state: AttendanceState = {};
+		for (const record of attendanceByDate[todayDate] ?? []) {
+			state[record.customerId] = {
+				lunch: record.lunch ?? true,
+				dinner: record.dinner ?? true,
+			};
+		}
+		return state;
+	}, [attendanceByDate, todayDate]);
+	
+	const stats = useMemo(() => {
+		let lunchCount = 0;
+		let dinnerCount = 0;
+		let dailyCapacity = 0;
+		let paymentsDue = 0;
+
+		for (const customer of customers) {
+			if (getDueAmount(customer.pricePerMonth, customer.totalPaid) > 0) {
+				paymentsDue += 1;
+			}
+
+			const selection = attendance[customer.id];
+			const subscribedLunch = customer.mealsPerDay?.lunch !== false;
+			const subscribedDinner = customer.mealsPerDay?.dinner !== false;
+
+			if (subscribedLunch) {
+				if (!selection || selection.lunch !== false) lunchCount += 1;
+				dailyCapacity += 1;
+			}
+			if (subscribedDinner) {
+				if (!selection || selection.dinner !== false) dinnerCount += 1;
+				dailyCapacity += 1;
+			}
+		}
+
+		return {
+			activeCount: customers.length,
+			paymentsDue,
+			lunchCount,
+			dinnerCount,
+			dailyCapacity,
+		};
+	}, [attendance, customers]);
 
 	useEffect(() => {
 		if (activeModal !== null) {
@@ -71,17 +118,6 @@ export default function Index() {
 		}
 	}, [selectedCustomer]);
 
-	const handleSnapshotError = (context: string, error: unknown) => {
-		console.error(`Firestore ${context} listener failed:`, error);
-		setLoading(false);
-		Alert.alert('Firestore access failed', getFirestoreErrorMessage(error, `Could not load ${context}.`));
-	};
-
-	const totalScale = useSharedValue(1);
-	const totalAnimatedStyle = useAnimatedStyle(() => ({
-		transform: [{ scale: totalScale.value }]
-	}));
-
 	useFocusEffect(
 		useCallback(() => {
 			setHeaderConfig({ title: 'Home' });
@@ -89,67 +125,11 @@ export default function Index() {
 	);
 
 	useEffect(() => {
-		const unsubMenu = onSnapshot(
-			doc(db, "menu", todayDate),
-			(snap) => {
-				setTodayMenu(normalizeDayMenu(snap.exists() ? snap.data() : {}));
-			},
-			(error) => handleSnapshotError('menu', error)
-		);
-
-		const unsubCustomers = onSnapshot(
-			query(collection(db, "customers"), where("isActive", "==", true)),
-			(snap) => {
-				const active: Customer[] = [];
-				let due = 0;
-				snap.forEach(d => {
-					const data = { id: d.id, ...d.data() } as Customer;
-					active.push(data);
-					if (getDueAmount(data.pricePerMonth, data.totalPaid) > 0) due++;
-				});
-				setCustomers(active);
-				setStats(prev => ({ ...prev, activeCount: active.length, paymentsDue: due }));
-				setLoading(false);
-			},
-			(error) => handleSnapshotError('customers', error)
-		);
-
-		const unsubAttendance = onSnapshot(
-			query(collection(db, "attendance"), where("date", "==", todayDate)),
-			(snap) => {
-				const state: AttendanceState = {};
-				snap.forEach(d => {
-					const data = d.data();
-					state[data.customerId] = { lunch: data.lunch, dinner: data.dinner };
-				});
-				setAttendance(state);
-			},
-			(error) => handleSnapshotError('attendance', error)
-		);
-
-		return () => { unsubMenu(); unsubCustomers(); unsubAttendance(); };
-	}, [todayDate]);
-
-	useEffect(() => {
-		let lCount = 0, dCount = 0;
-		let capacity = 0;
-		customers.forEach(c => {
-			const selection = attendance[c.id];
-			const subscribedLunch = c.mealsPerDay?.lunch !== false;
-			const subscribedDinner = c.mealsPerDay?.dinner !== false;
-
-			if (subscribedLunch) {
-				if (!selection || selection.lunch !== false) lCount++;
-				capacity++;
-			}
-			if (subscribedDinner) {
-				if (!selection || selection.dinner !== false) dCount++;
-				capacity++;
-			}
-		});
-		setStats(prev => ({ ...prev, lunchCount: lCount, dinnerCount: dCount, dailyCapacity: capacity }));
+		if (!ready) {
+			return;
+		}
 		setLastUpdated(new Date());
-	}, [customers, attendance]);
+	}, [attendance, customers, ready, todayMenu]);
 
 	const [timeAgo, setTimeAgo] = useState('just now');
 	useEffect(() => {
@@ -168,19 +148,33 @@ export default function Index() {
 		const newValue = !current[meal];
 
 		try {
-			await setDoc(doc(db, "attendance", `${todayDate}_${customerId}`), {
-				customerId,
-				date: todayDate,
-				...current,
-				[meal]: newValue,
-				updatedAt: new Date().toISOString()
-			}, { merge: true });
+			const customer = customers.find((entry) => entry.id === customerId);
+			await saveAttendanceBatch(
+				[
+					{
+						id: `${todayDate}_${customerId}`,
+						customerId,
+						name: customer?.name ?? '',
+						date: todayDate,
+						...current,
+						[meal]: newValue,
+						updatedAt: new Date().toISOString(),
+					},
+				],
+				customer?.name ? `Update ${customer.name}` : 'Update attendance',
+				`${meal === 'lunch' ? 'Lunch' : 'Dinner'} toggle saved locally`
+			);
 		} catch (e) {
 			console.error("Error toggling attendance:", e);
+			showToast({
+				type: 'error',
+				title: 'Could not update attendance',
+				message: e instanceof Error && e.message.trim() ? e.message.trim() : 'Attendance could not be saved locally.',
+			});
 		}
 	};
 
-	if (loading) return <View style={[styles.centered, { backgroundColor: colors.bg }]}><ActivityIndicator size="large" color={colors.primary} /></View>;
+	if (!ready) return <View style={[styles.centered, { backgroundColor: colors.bg }]}><ActivityIndicator size="large" color={colors.primary} /></View>;
 
 	const totalServings = stats.lunchCount + stats.dinnerCount;
 	const hasActiveCustomers = stats.dailyCapacity > 0;
@@ -203,7 +197,7 @@ export default function Index() {
 	return (
 		<>
 			<Screen backgroundColor={colors.bg} maxContentWidth={maxReadableWidth}>
-				<View style={[styles.tabBar, { marginTop: scale(12, 0.92, 1.08), padding: 4, backgroundColor: colors.surface, borderColor: colors.border }]}>
+				<View style={[styles.tabBar, { marginTop: scale(12, 0.92, 1.08), padding: 4, backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
 					<TouchableOpacity
 						style={[styles.tab, activeTab === 'dashboard' && { backgroundColor: colors.primary + '10' }]}
 						onPress={() => setActiveTab('dashboard')}
@@ -211,7 +205,7 @@ export default function Index() {
 					>
 						<View style={styles.tabItem}>
 							<ChefHat size={icon(18)} color={activeTab === 'dashboard' ? colors.primary : colors.textMuted} />
-							<Text style={[styles.tabText, { color: activeTab === 'dashboard' ? colors.textPrimary : colors.textMuted }]}>Plan</Text>
+							<Text style={[styles.tabText, { color: activeTab === 'dashboard' ? colors.primary : colors.textMuted }]}>Plan</Text>
 						</View>
 					</TouchableOpacity>
 					<TouchableOpacity
@@ -221,7 +215,7 @@ export default function Index() {
 					>
 						<View style={styles.tabItem}>
 							<CalendarCheck size={icon(18)} color={activeTab === 'attendance' ? colors.primary : colors.textMuted} />
-							<Text style={[styles.tabText, { color: activeTab === 'attendance' ? colors.textPrimary : colors.textMuted }]}>Attendance</Text>
+							<Text style={[styles.tabText, { color: activeTab === 'attendance' ? colors.primary : colors.textMuted }]}>Attendance</Text>
 						</View>
 					</TouchableOpacity>
 				</View>
@@ -229,107 +223,115 @@ export default function Index() {
 				{activeTab === 'dashboard' ? (
 					<Animated.View entering={FadeInUp.duration(220)} style={styles.scrollContent}>
 						<View style={styles.dashboardStack}>
-							<View style={[styles.signalRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-								<View style={styles.signalCopy}>
-									<View style={[styles.signalIconWrap, { backgroundColor: colors.primary + '12' }]}>
-										<Sparkles size={14} color={colors.primary} />
-									</View>
-									<View>
-										<Text style={[styles.signalTitle, { color: colors.textPrimary }]}>Today&apos;s pulse</Text>
-										<Text style={[styles.signalSubtitle, { color: colors.textSecondary }]}>{readinessTone}</Text>
-									</View>
+							
+							{/* Pulse Card */}
+							<View style={[styles.pulseRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+								<View style={[styles.pulseIconWrap, { backgroundColor: colors.primary + '15' }]}>
+									<Sparkles size={16} color={colors.primary} />
 								</View>
-								<View style={[styles.refreshPill, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+								<View style={styles.pulseCopyWrap}>
+									<Text style={[styles.pulseTitle, { color: colors.textPrimary }]}>Today&apos;s pulse</Text>
+									<Text style={[styles.pulseSubtitle, { color: colors.textSecondary }]}>{readinessTone}</Text>
+								</View>
+								<View style={[styles.pulseTimePill, { borderColor: colors.border }]}>
 									<Clock3 size={12} color={colors.textMuted} />
-									<Text style={[styles.refreshText, { color: colors.textSecondary }]}>{timeAgo}</Text>
+									<Text style={[styles.pulseTimeText, { color: colors.textSecondary }]}>{timeAgo}</Text>
 								</View>
 							</View>
 
-						<Animated.View entering={FadeInDown.delay(100)} style={[styles.productionPanel, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-							<View style={styles.heroAmbientWrap} pointerEvents="none">
-								<View style={[styles.heroGlow, styles.heroGlowPrimary]} />
-								<View style={[styles.heroGlow, styles.heroGlowDinner]} />
-							</View>
 							{hasActiveCustomers ? (
 								<>
-									<Animated.View style={totalAnimatedStyle}>
-										<TouchableOpacity 
-											style={styles.heroSection}
-											onPress={() => setActiveModal('total')}
-											activeOpacity={0.9}
-										>
-											<View style={styles.heroTopRow}>
-												<View style={styles.heroTitleWrap}>
-													<Text style={[styles.heroLabel, { color: colors.textSecondary }]}>Today&apos;s production</Text>
+									{/* Main Hero Panel */}
+									<Animated.View entering={FadeInDown.delay(100)} style={[styles.heroCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+										{/* Ambient Blobs */}
+										<View style={styles.ambientWrap} pointerEvents="none">
+											<View style={[styles.blobOrange, { backgroundColor: colors.primary + '15' }]} />
+											<View style={[styles.blobPurple, { backgroundColor: Theme.colors.mealDinner + '10' }]} />
+										</View>
+
+										{/* Content */}
+										<View style={styles.heroContent}>
+											<View style={styles.heroHeader}>
+												<View>
+													<Text style={[styles.heroEyebrow, { color: colors.textSecondary }]}>TODAY&apos;S PRODUCTION</Text>
 													<Text style={[styles.heroTone, { color: colors.textPrimary }]}>{productionTone}</Text>
 												</View>
-												<View style={[styles.heroStatusPill, { backgroundColor: menuReady ? colors.success + '14' : colors.warning + '16' }]}>
-													<Text style={[styles.heroStatusText, { color: menuReady ? colors.success : colors.warning }]}>
-														{menuReady ? 'Menu ready' : 'Action needed'}
+												<View style={[styles.heroStatusPill, { backgroundColor: menuReady ? colors.success + '1A' : colors.primary + '1A' }]}>
+													<Text style={[styles.heroStatusText, { color: menuReady ? colors.success : colors.primary }]}>
+														{menuReady ? 'MENU READY' : 'ACTION NEEDED'}
 													</Text>
 												</View>
 											</View>
 
-											<View style={styles.heroBodyRow}>
-												<View style={styles.heroMain}>
-													<Text style={[styles.heroCount, { color: colors.primary, fontSize: heroCountSize }]}>{totalServings}</Text>
-													<Text style={[styles.heroSuffix, { color: colors.textMuted }]}>of {stats.dailyCapacity}</Text>
-												</View>
-												<View style={styles.heroSummaryCol}>
-													<View style={[styles.heroSummaryCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-														<Text style={[styles.heroSummaryValue, { color: colors.textPrimary }]}>{stats.activeCount}</Text>
-														<Text style={[styles.heroSummaryLabel, { color: colors.textSecondary }]}>active customers</Text>
+											<View style={styles.heroBody}>
+												<TouchableOpacity 
+													style={styles.heroMainMetric} 
+													activeOpacity={0.8}
+													onPress={() => setActiveModal('total')}
+												>
+													<Text style={[styles.heroGiantNumber, { color: colors.primary }]}>{totalServings}</Text>
+													<Text style={[styles.heroOfText, { color: colors.textMuted }]}>of {stats.dailyCapacity}</Text>
+												</TouchableOpacity>
+												
+												<View style={styles.heroStatsCol}>
+													<View style={[styles.miniStatCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+														<Text style={[styles.miniStatValue, { color: colors.textPrimary }]}>{stats.activeCount}</Text>
+														<Text style={[styles.miniStatLabel, { color: colors.textSecondary }]}>ACTIVE CUSTOMERS</Text>
 													</View>
-													<View style={[styles.heroSummaryCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-														<Text style={[styles.heroSummaryValue, { color: colors.textPrimary }]}>{stats.paymentsDue}</Text>
-														<Text style={[styles.heroSummaryLabel, { color: colors.textSecondary }]}>pending dues</Text>
+													<View style={[styles.miniStatCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+														<Text style={[styles.miniStatValue, { color: colors.textPrimary }]}>{stats.paymentsDue}</Text>
+														<Text style={[styles.miniStatLabel, { color: colors.textSecondary }]}>PENDING DUES</Text>
 													</View>
 												</View>
 											</View>
+										</View>
 
-											<View style={styles.heroSubtextRow}>
-												<Text style={[styles.heroSubtext, { color: colors.textSecondary }]}>Open serving list</Text>
-												<ChevronRight size={14} color={colors.textMuted} />
-											</View>
+										<TouchableOpacity 
+											style={[styles.heroFooterRow, { borderTopColor: colors.border }]}
+											activeOpacity={0.8}
+											onPress={() => setActiveModal('total')}
+										>
+											<Text style={[styles.heroFooterText, { color: colors.textSecondary }]}>Open serving list</Text>
+											<ChevronRight size={16} color={colors.textMuted} />
 										</TouchableOpacity>
 									</Animated.View>
 
-									<View style={[styles.metricGrid, isCompact && styles.metricGridCompact]}>
-										<DashboardMetric 
+									{/* Meal Split Row */}
+									<View style={styles.mealsRow}>
+										<MealCard 
 											icon={Sun} 
-											label="Lunch" 
-											supporting="scheduled today"
-											value={stats.lunchCount} 
-											color={colors.primary} 
+											title="LUNCH" 
+											subtitle="scheduled today"
+											value={stats.lunchCount}
+											color={colors.primary}
+											bgColor={colors.surface}
+											borderColor={colors.border}
 											onPress={() => setActiveModal('lunch')}
 										/>
-										<DashboardMetric 
+										<MealCard 
 											icon={Moon} 
-											label="Dinner" 
-											supporting="scheduled today"
-											value={stats.dinnerCount} 
-											color={Theme.colors.mealDinner} 
+											title="DINNER" 
+											subtitle="scheduled today"
+											value={stats.dinnerCount}
+											color={Theme.colors.mealDinner}
+											bgColor={colors.surface}
+											borderColor={colors.border}
 											onPress={() => setActiveModal('dinner')}
 										/>
 									</View>
 
-									<View style={[styles.panelFooter, { borderTopColor: colors.border, backgroundColor: colors.surfaceElevated }]}>
-										<View style={styles.footerLeft}>
-											<Text style={[styles.footerEyebrow, { color: colors.textSecondary }]}>Live overview</Text>
-											<Text style={[styles.footerInfoText, { color: colors.textPrimary }]}>
-												{stats.activeCount} active customers
-											</Text>
+									{/* Live Overview Footer */}
+									<View style={[styles.overviewPanel, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+										<View>
+											<Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>LIVE OVERVIEW</Text>
+											<Text style={[styles.overviewValue, { color: colors.textPrimary }]}>{stats.activeCount} active customers</Text>
 										</View>
 										{stats.paymentsDue > 0 ? (
-											<View style={[styles.alertPill, { backgroundColor: colors.danger + '12', borderColor: colors.danger + '18' }]}>
+											<View style={[styles.duePill, { backgroundColor: colors.danger + '1A' }]}>
 												<Bell size={12} color={colors.danger} />
-												<Text style={{ color: colors.danger, fontWeight: '800', fontSize: 11 }}>{stats.paymentsDue} due</Text>
+												<Text style={[styles.duePillText, { color: colors.danger }]}>{stats.paymentsDue} due</Text>
 											</View>
-										) : (
-											<View style={[styles.alertPill, { backgroundColor: colors.success + '10', borderColor: colors.success + '16' }]}>
-												<Text style={{ color: colors.success, fontWeight: '800', fontSize: 11 }}>all settled</Text>
-											</View>
-										)}
+										) : null}
 									</View>
 								</>
 							) : (
@@ -345,7 +347,6 @@ export default function Index() {
 									</TouchableOpacity>
 								</View>
 							)}
-						</Animated.View>
 						</View>
 					</Animated.View>
 				) : (
@@ -381,7 +382,7 @@ export default function Index() {
 					modalServings.map((s, i) => (
 						<View key={`${s.customer.id}_${s.meal}`} style={[styles.modalRow, i < modalServings.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
 							<UserIdentity name={s.customer.name} onPress={() => setSelectedCustomer(s.customer)} size={32} />
-							<View style={[styles.mealPill, { backgroundColor: s.meal === 'LUNCH' ? colors.primary + '15' : Theme.colors.mealDinner + '15' }]}>
+							<View style={[styles.mealModalPill, { backgroundColor: s.meal === 'LUNCH' ? colors.primary + '15' : Theme.colors.mealDinner + '15' }]}>
 								<Text style={{ color: s.meal === 'LUNCH' ? colors.primary : Theme.colors.mealDinner, fontWeight: '700', fontSize: 10 }}>{s.meal}</Text>
 							</View>
 						</View>
@@ -409,34 +410,47 @@ export default function Index() {
 	);
 }
 
-function DashboardMetric({
+function MealCard({
 	icon: Icon,
-	label,
-	supporting,
+	title,
+	subtitle,
 	value,
 	color,
+	bgColor,
+	borderColor,
 	onPress,
 }: {
 	icon: LucideIcon;
-	label: string;
-	supporting: string;
+	title: string;
+	subtitle: string;
 	value: number;
 	color: string;
+	bgColor: string;
+	borderColor: string;
 	onPress: () => void;
 }) {
 	const { colors } = useAppTheme();
-	const { font } = useResponsiveLayout();
 	return (
-		<TouchableOpacity onPress={onPress} activeOpacity={0.84} style={[styles.metricCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-			<View style={[styles.metricIconBox, { backgroundColor: color + '12' }]}>
-				<Icon size={20} color={color} />
+		<TouchableOpacity 
+			activeOpacity={0.84} 
+			onPress={onPress}
+			style={[styles.mealCard, { backgroundColor: bgColor, borderColor }]}
+		>
+			<View style={styles.mealCardTop}>
+				<Text style={[styles.mealCardValue, { color: colors.textPrimary }]}>{value}</Text>
 			</View>
-			<View style={styles.metricContent}>
-				<Text style={[styles.metricValue, { color: colors.textPrimary, fontSize: font(24, 0.94, 1.1) }]}>{value}</Text>
-				<Text style={[styles.metricLabel, { color: colors.textPrimary, fontSize: font(11, 0.94, 1.06) }]}>{label}</Text>
-				<Text style={[styles.metricHint, { color: colors.textSecondary }]}>{supporting}</Text>
+			<View style={styles.mealCardBottom}>
+				<View style={[styles.mealIconCircle, { backgroundColor: color + '15' }]}>
+					<Icon size={18} color={color} />
+				</View>
+				<View>
+					<Text style={[styles.mealCardTitle, { color: colors.textPrimary }]}>{title}</Text>
+					<View style={{flexDirection: 'row', alignItems: 'center', gap: 2}}>
+						<Text style={[styles.mealCardSubtitle, { color: colors.textSecondary }]}>{subtitle}</Text>
+						<ChevronRight size={12} color={colors.textMuted} />
+					</View>
+				</View>
 			</View>
-			<ChevronRight size={16} color={colors.textMuted} />
 		</TouchableOpacity>
 	);
 }
@@ -463,7 +477,7 @@ const CustomerAttendanceRow = ({ customer, menu, attendance, onToggle, onAvatarP
 			<View style={styles.toggleGroup}>
 				{subLunch && (
 					<TouchableOpacity 
-						style={[styles.toggleBtn, { borderColor: colors.border, backgroundColor: colors.surfaceElevated }, sel.lunch && { borderColor: colors.primary, backgroundColor: colors.primary + '10' }]}
+						style={[styles.toggleBtn, { borderColor: colors.border, backgroundColor: colors.surfaceElevated }, sel.lunch && { borderColor: colors.primary, backgroundColor: colors.primary + '15' }]}
 						onPress={() => onToggle('lunch')}
 						activeOpacity={0.82}
 					>
@@ -473,7 +487,7 @@ const CustomerAttendanceRow = ({ customer, menu, attendance, onToggle, onAvatarP
 				)}
 				{subDinner && (
 					<TouchableOpacity 
-						style={[styles.toggleBtn, { borderColor: colors.border, backgroundColor: colors.surfaceElevated }, sel.dinner && { borderColor: Theme.colors.mealDinner, backgroundColor: Theme.colors.mealDinner + '10' }]}
+						style={[styles.toggleBtn, { borderColor: colors.border, backgroundColor: colors.surfaceElevated }, sel.dinner && { borderColor: Theme.colors.mealDinner, backgroundColor: Theme.colors.mealDinner + '15' }]}
 						onPress={() => onToggle('dinner')}
 						activeOpacity={0.82}
 					>
@@ -488,259 +502,106 @@ const CustomerAttendanceRow = ({ customer, menu, attendance, onToggle, onAvatarP
 
 const styles = StyleSheet.create({
 	centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+	scrollContent: { paddingVertical: 16, paddingBottom: 140 },
+	dashboardStack: { gap: 16, paddingHorizontal: 16 },
+
+	// Tab Bar
 	tabBar: {
 		flexDirection: 'row',
-		borderRadius: 100,
+		borderRadius: 999,
 		borderWidth: 1,
-		shadowColor: '#201812',
+		marginHorizontal: 16,
+		shadowColor: '#1A162B',
 		shadowOpacity: 0.05,
-		shadowRadius: 12,
+		shadowRadius: 16,
 		shadowOffset: { width: 0, height: 6 },
 		elevation: 2,
 	},
-	tab: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: 100 },
+	tab: { flex: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 999 },
 	tabItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-	tabText: { fontWeight: '700', fontSize: 13 },
-	scrollContent: { paddingVertical: 20, paddingBottom: 120 },
-	dashboardStack: { gap: 14 },
-	signalRow: {
-		borderRadius: 18,
-		borderWidth: 1,
-		paddingHorizontal: 14,
-		paddingVertical: 12,
-		flexDirection: 'row',
-		alignItems: 'center',
-		justifyContent: 'space-between',
-	},
-	signalCopy: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		gap: 10,
-		flex: 1,
-	},
-	signalIconWrap: {
-		width: 32,
-		height: 32,
-		borderRadius: 12,
-		alignItems: 'center',
-		justifyContent: 'center',
-	},
-	signalTitle: {
-		fontSize: 13,
-		fontWeight: '800',
-	},
-	signalSubtitle: {
-		fontSize: 12,
-		fontWeight: '600',
-		marginTop: 2,
-	},
-	refreshPill: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		gap: 6,
-		paddingHorizontal: 10,
-		paddingVertical: 7,
-		borderRadius: 999,
-		borderWidth: 1,
-	},
-	refreshText: {
-		fontSize: 11,
-		fontWeight: '700',
-	},
-	productionPanel: {
-		borderRadius: 20,
-		borderWidth: 1,
-		overflow: 'hidden',
-		shadowColor: '#201812',
-		shadowOpacity: 0.08,
-		shadowRadius: 18,
-		shadowOffset: { width: 0, height: 10 },
-		elevation: 4,
-		position: 'relative',
-	},
-	heroAmbientWrap: {
-		...StyleSheet.absoluteFillObject,
-	},
-	heroGlow: {
-		position: 'absolute',
-		borderRadius: 999,
-		opacity: 0.9,
-	},
-	heroGlowPrimary: {
-		width: 220,
-		height: 220,
-		right: -70,
-		top: -70,
-		backgroundColor: 'rgba(255, 107, 53, 0.10)',
-	},
-	heroGlowDinner: {
-		width: 180,
-		height: 180,
-		left: -60,
-		bottom: 100,
-		backgroundColor: 'rgba(124, 58, 237, 0.08)',
-	},
-	heroSection: {
-		paddingHorizontal: 18,
-		paddingTop: 18,
-		paddingBottom: 16,
-		borderBottomWidth: 1,
-	},
-	heroTopRow: {
-		flexDirection: 'row',
-		justifyContent: 'space-between',
-		alignItems: 'flex-start',
-		gap: 12,
-	},
-	heroTitleWrap: {
-		flex: 1,
-		minWidth: 0,
-	},
-	heroLabel: {
-		fontSize: 12,
-		fontWeight: '800',
-		textTransform: 'uppercase',
-		letterSpacing: 0.9,
-	},
-	heroTone: {
-		fontSize: 18,
-		fontWeight: '900',
-		marginTop: 4,
-	},
-	heroStatusPill: {
-		paddingHorizontal: 10,
-		paddingVertical: 8,
-		borderRadius: 999,
-	},
-	heroStatusText: {
-		fontSize: 11,
-		fontWeight: '800',
-		textTransform: 'uppercase',
-		letterSpacing: 0.4,
-	},
-	heroBodyRow: {
-		marginTop: 18,
-		flexDirection: 'row',
-		alignItems: 'stretch',
-		justifyContent: 'space-between',
-		gap: 12,
-	},
-	heroMain: {
-		flex: 1,
-		justifyContent: 'flex-end',
-		flexDirection: 'row',
-		alignItems: 'baseline',
-		gap: 6,
-	},
-	heroCount: { fontWeight: '900' },
-	heroSuffix: { fontWeight: '700', fontSize: 16 },
-	heroSummaryCol: {
-		width: 122,
-		gap: 8,
-	},
-	heroSummaryCard: {
-		borderRadius: 16,
-		borderWidth: 1,
-		paddingHorizontal: 12,
-		paddingVertical: 11,
-	},
-	heroSummaryValue: {
-		fontSize: 20,
-		fontWeight: '900',
-	},
-	heroSummaryLabel: {
-		fontSize: 11,
-		fontWeight: '700',
-		textTransform: 'uppercase',
-		marginTop: 2,
-	},
-	heroSubtextRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 16 },
-	heroSubtext: { fontSize: 12, fontWeight: '800' },
-	metricGrid: { flexDirection: 'row', paddingHorizontal: 16, paddingBottom: 16, gap: 12 },
-	metricGridCompact: { flexDirection: 'column' },
-	metricCard: {
-		flex: 1,
+	tabText: { fontWeight: '800', fontSize: 13 },
+
+	// Pulse Card
+	pulseRow: {
 		flexDirection: 'row',
 		alignItems: 'center',
 		padding: 14,
-		borderRadius: 18,
+		borderRadius: 20,
 		borderWidth: 1,
-		gap: 12,
-		shadowColor: '#201812',
+		shadowColor: '#1A162B',
 		shadowOpacity: 0.04,
-		shadowRadius: 10,
-		shadowOffset: { width: 0, height: 6 },
-		elevation: 1,
+		shadowRadius: 12,
+		shadowOffset: { width: 0, height: 4 },
+		elevation: 2,
 	},
-	metricIconBox: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-	metricContent: { flex: 1 },
-	metricValue: { fontWeight: '900' },
-	metricLabel: { fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4 },
-	metricHint: { fontSize: 12, fontWeight: '600', marginTop: 2 },
-	panelFooter: {
-		flexDirection: 'row',
-		justifyContent: 'space-between',
-		alignItems: 'center',
-		padding: 16,
-		borderTopWidth: 1,
-		backgroundColor: 'rgba(255,255,255,0.55)',
+	pulseIconWrap: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+	pulseCopyWrap: { flex: 1, paddingHorizontal: 12 },
+	pulseTitle: { fontSize: 14, fontWeight: '800' },
+	pulseSubtitle: { fontSize: 12, fontWeight: '600', marginTop: 2 },
+	pulseTimePill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1 },
+	pulseTimeText: { fontSize: 11, fontWeight: '700' },
+
+	// Hero Card
+	heroCard: {
+		borderRadius: 24,
+		borderWidth: 1,
+		overflow: 'hidden',
+		shadowColor: '#1A162B',
+		shadowOpacity: 0.06,
+		shadowRadius: 20,
+		shadowOffset: { width: 0, height: 10 },
+		elevation: 3,
 	},
-	footerLeft: { gap: 2 },
-	footerEyebrow: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.7 },
-	footerInfoText: { fontSize: 15, fontWeight: '800' },
-	alertPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 100, borderWidth: 1 },
+	ambientWrap: { ...StyleSheet.absoluteFillObject },
+	blobOrange: { position: 'absolute', width: 280, height: 280, right: -60, top: -80, borderRadius: 999 },
+	blobPurple: { position: 'absolute', width: 240, height: 240, left: -80, bottom: -40, borderRadius: 999 },
+	heroContent: { padding: 20 },
+	heroHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+	heroEyebrow: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.8 },
+	heroTone: { fontSize: 20, fontWeight: '900', marginTop: 4 },
+	heroStatusPill: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
+	heroStatusText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+	heroBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 32 },
+	heroMainMetric: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+	heroGiantNumber: { fontSize: 72, fontWeight: '900', letterSpacing: -2, lineHeight: 72 },
+	heroOfText: { fontSize: 16, fontWeight: '700', marginBottom: 10 },
+	heroStatsCol: { width: 130, gap: 10 },
+	miniStatCard: { padding: 12, borderRadius: 16, borderWidth: 1 },
+	miniStatValue: { fontSize: 18, fontWeight: '900' },
+	miniStatLabel: { fontSize: 9, fontWeight: '800', marginTop: 2 },
+	heroFooterRow: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 16, borderTopWidth: 1, backgroundColor: 'rgba(255,255,255,0.4)' },
+	heroFooterText: { fontSize: 13, fontWeight: '800' },
+
+	// Meals Row
+	mealsRow: { flexDirection: 'row', gap: 12 },
+	mealCard: { flex: 1, padding: 16, borderRadius: 20, borderWidth: 1, shadowColor: '#1A162B', shadowOpacity: 0.04, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2 },
+	mealCardTop: { paddingBottom: 16 },
+	mealCardValue: { fontSize: 32, fontWeight: '900', letterSpacing: -0.5 },
+	mealCardBottom: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+	mealIconCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+	mealCardTitle: { fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
+	mealCardSubtitle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+
+	// Overview Panel
+	overviewPanel: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 18, borderRadius: 20, borderWidth: 1, marginTop: 4, shadowColor: '#1A162B', shadowOpacity: 0.03, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+	overviewLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
+	overviewValue: { fontSize: 16, fontWeight: '900', marginTop: 4 },
+	duePill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
+	duePillText: { fontSize: 11, fontWeight: '800' },
+
 	emptyState: { alignItems: 'center', padding: 40, gap: 12 },
 	emptyTitle: { fontSize: 18, fontWeight: '800' },
 	primaryAction: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 100 },
 	primaryActionText: { color: 'white', fontWeight: '800' },
 	modalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12 },
-	mealPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+	mealModalPill: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
 	modalEmpty: { alignItems: 'center', padding: 40 },
-	customerRow: {
-		borderWidth: 1,
-		borderRadius: 18,
-		padding: 14,
-		marginBottom: 12,
-		gap: 12,
-		shadowColor: '#201812',
-		shadowOpacity: 0.04,
-		shadowRadius: 10,
-		shadowOffset: { width: 0, height: 6 },
-		elevation: 1,
-	},
-	customerRowTop: {
-		flexDirection: 'row',
-		alignItems: 'flex-start',
-		justifyContent: 'space-between',
-		gap: 12,
-	},
-	customerRowPill: {
-		borderWidth: 1,
-		borderRadius: 999,
-		paddingHorizontal: 10,
-		paddingVertical: 6,
-	},
-	customerRowPillText: {
-		fontSize: 10,
-		fontWeight: '800',
-		textTransform: 'uppercase',
-		letterSpacing: 0.5,
-	},
+	
+	customerRow: { borderWidth: 1, borderRadius: 18, padding: 14, marginBottom: 12, gap: 12, shadowColor: '#1A162B', shadowOpacity: 0.04, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2 },
+	customerRowTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
+	customerRowPill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
+	customerRowPillText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
 	toggleGroup: { flexDirection: 'row', gap: 10, flexWrap: 'wrap' },
-	toggleBtn: {
-		flex: 1,
-		minWidth: 120,
-		minHeight: 44,
-		borderRadius: 16,
-		borderWidth: 1,
-		alignItems: 'center',
-		justifyContent: 'center',
-		flexDirection: 'row',
-		gap: 8,
-		paddingHorizontal: 12,
-	},
-	toggleBtnText: {
-		fontSize: 13,
-		fontWeight: '800',
-	},
+	toggleBtn: { flex: 1, minWidth: 120, minHeight: 44, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 12 },
+	toggleBtnText: { fontSize: 13, fontWeight: '800' },
 });

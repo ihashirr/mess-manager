@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MapPin, CalendarCheck, Banknote, UserPen, Trash2 } from 'lucide-react-native';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Theme } from '../../constants/Theme';
@@ -43,7 +43,7 @@ export const CustomerIntelligenceDetail: React.FC<CustomerIntelligenceDetailProp
 
 				{customer.address?.location && (
 					<View style={styles.addressContainer}>
-						<MaterialCommunityIcons name="map-marker-outline" size={14} color={colors.textMuted} />
+						<MapPin size={14} color={colors.textMuted} />
 						<Text style={[styles.addressText, { color: colors.textMuted }]}>
 							{customer.address.flat ? `${customer.address.flat}, ` : ''}{customer.address.location}
 						</Text>
@@ -90,19 +90,19 @@ export const CustomerIntelligenceDetail: React.FC<CustomerIntelligenceDetailProp
 			<View style={styles.bottomSection}>
 				<View style={styles.actionGrid}>
 					<TouchableOpacity style={styles.actionItem} onPress={() => onAction('attendance')}>
-						<MaterialCommunityIcons name="calendar-check" size={18} color={colors.primary} />
+						<CalendarCheck size={18} color={colors.primary} />
 						<Text style={[styles.actionText, { color: colors.primary }]}>Set Week</Text>
 					</TouchableOpacity>
 					<TouchableOpacity style={styles.actionItem} onPress={() => onAction('payment')}>
-						<MaterialCommunityIcons name="cash-register" size={18} color={colors.primary} />
+						<Banknote size={18} color={colors.primary} />
 						<Text style={[styles.actionText, { color: colors.primary }]}>Record Payment</Text>
 					</TouchableOpacity>
 					<TouchableOpacity style={styles.actionItem} onPress={() => onAction('edit')}>
-						<MaterialCommunityIcons name="account-edit-outline" size={18} color={colors.textSecondary} />
+						<UserPen size={18} color={colors.textSecondary} />
 						<Text style={[styles.actionText, { color: colors.textSecondary }]}>Edit</Text>
 					</TouchableOpacity>
 					<TouchableOpacity style={styles.actionItem} onPress={() => onAction('delete')}>
-						<MaterialCommunityIcons name="delete-outline" size={18} color={colors.danger} />
+						<Trash2 size={18} color={colors.danger} />
 						<Text style={[styles.actionText, { color: colors.danger }]}>Delete</Text>
 					</TouchableOpacity>
 				</View>

@@ -1,8 +1,9 @@
-import { Alert, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
-import { deleteDoc, doc, getDoc, onSnapshot, query, setDoc, where, collection, addDoc } from 'firebase/firestore';
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { UserPlus, Search, Users, CheckCircle2, XCircle, Clock, Sun, Moon, LucideIcon, Sparkles } from 'lucide-react-native';
+import { useConfirmDialog } from '../components/system/dialogs/ConfirmDialog';
+import { showToast } from '../components/system/feedback/AppToast';
 import { PremiumBottomSheet, type PremiumBottomSheetHandle } from '../components/ui/PremiumBottomSheet';
 import { CustomerIntelligenceDetail } from '../components/ui/CustomerIntelligenceDetail';
 import { Screen } from '../components/ui/Screen';
@@ -13,16 +14,16 @@ import { CustomerFormModal } from '../components/customers/CustomerFormModal';
 import { type Customer, type CustomerFormValues } from '../components/customers/types';
 import { Theme } from '../constants/Theme';
 import { useAppHeader } from '../context/HeaderContext';
+import { useOfflineSync } from '../context/OfflineSyncContext';
 import { useAppTheme } from '../context/ThemeModeContext';
-import { db } from '../firebase/config';
 import { getDaysLeft, getDueAmount, toDate } from '../utils/customerLogic';
-import { getFirestoreErrorMessage, isFirestorePermissionDenied } from '../utils/firestoreErrors';
-import { normalizeDayMenu, type WeekMenu } from '../utils/menuLogic';
+import { type WeekMenu } from '../utils/menuLogic';
 import { DAYS, type DayName, emptyWeekAttendance, getDatesForWeek, getWeekId } from '../utils/weekLogic';
 
 type CustomerFilter = 'All' | 'Active' | 'Expired' | 'Lunch' | 'Dinner';
 
 const CUSTOMER_FILTERS: CustomerFilter[] = ['All', 'Active', 'Expired', 'Lunch', 'Dinner'];
+let localCustomerCounter = 0;
 
 const matchesCustomerSearch = (customer: Customer, normalizedQuery: string) => {
 	if (!normalizedQuery) {
@@ -54,10 +55,18 @@ const matchesCustomerFilter = (customer: Customer, filter: CustomerFilter) => {
 
 export default function CustomersScreen() {
 	const { colors } = useAppTheme();
+	const { confirm } = useConfirmDialog();
 	const { setHeaderConfig } = useAppHeader();
+	const {
+		ready,
+		customers,
+		menuByDate,
+		attendanceByDate,
+		addCustomer: saveCustomerOffline,
+		deleteCustomer: queueDeleteCustomer,
+		saveAttendanceBatch,
+	} = useOfflineSync();
 	const { contentPadding, maxContentWidth, maxReadableWidth, scale, font, icon } = useResponsiveLayout();
-	const [customers, setCustomers] = useState<Customer[]>([]);
-	const [loading, setLoading] = useState(true);
 	const [savingCustomer, setSavingCustomer] = useState(false);
 	const [expandedId, setExpandedId] = useState<string | null>(null);
 	const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -66,9 +75,19 @@ export default function CustomersScreen() {
 	const [searchQuery, setSearchQuery] = useState('');
 	const [activeFilter, setActiveFilter] = useState<CustomerFilter>('All');
 	const [weekAttendance, setWeekAttendance] = useState<Record<DayName, { lunch: boolean; dinner: boolean }>>(emptyWeekAttendance());
-	const [weekMenu, setWeekMenu] = useState<WeekMenu>({});
 	const weekId = getWeekId();
-	const [firestoreAlertShown, setFirestoreAlertShown] = useState(false);
+	const weekDates = useMemo(() => getDatesForWeek(weekId), [weekId]);
+	const weekMenu = useMemo(() => {
+		const next: WeekMenu = {};
+		weekDates.forEach((date, index) => {
+			const dayName = DAYS[index];
+			const menu = menuByDate[date];
+			if (menu) {
+				next[dayName] = menu;
+			}
+		});
+		return next;
+	}, [menuByDate, weekDates]);
 
 	useEffect(() => {
 		if (selectedCustomer) {
@@ -79,21 +98,10 @@ export default function CustomersScreen() {
 	}, [selectedCustomer]);
 
 	const showAsyncError = (title: string, error: unknown) => {
-		const message = error instanceof Error ? error.message : 'Please try again.';
+		const message = error instanceof Error && error.message.trim() ? error.message.trim() : 'Please try again.';
 		console.error(title, error);
-		Alert.alert(title, message);
+		showToast({ type: 'error', title, message });
 	};
-
-	const handleSnapshotError = useCallback((context: string, error: unknown) => {
-		if (!isFirestorePermissionDenied(error)) {
-			console.error(`Firestore ${context} listener failed:`, error);
-		}
-		setLoading(false);
-		if (!firestoreAlertShown) {
-			setFirestoreAlertShown(true);
-			Alert.alert('Firestore access failed', getFirestoreErrorMessage(error, `Could not load ${context}.`));
-		}
-	}, [firestoreAlertShown]);
 
 	useFocusEffect(
 		useCallback(() => {
@@ -114,54 +122,14 @@ export default function CustomersScreen() {
 		}, [setHeaderConfig])
 	);
 
-	useEffect(() => {
-		const customerQuery = query(collection(db, 'customers'), where('isActive', '==', true));
-
-		const unsubscribe = onSnapshot(
-			customerQuery,
-			(querySnapshot) => {
-				const customersArray: Customer[] = [];
-				querySnapshot.forEach((customerDoc) => {
-					customersArray.push({ id: customerDoc.id, ...customerDoc.data() } as Customer);
-				});
-				setCustomers(customersArray);
-				setLoading(false);
-			},
-			(error) => handleSnapshotError('customers', error)
-		);
-
-		return () => unsubscribe();
-	}, [handleSnapshotError]);
-
-	useEffect(() => {
-		const dates = getDatesForWeek(weekId);
-
-		const unsubscribeList = dates.map((date, index) => {
-			const dayName = DAYS[index];
-			return onSnapshot(
-				doc(db, 'menu', date),
-				(snapshot) => {
-					const data = snapshot.exists() ? snapshot.data() : {};
-					setWeekMenu((current) => ({
-						...current,
-						[dayName]: normalizeDayMenu(data),
-					}));
-				},
-				(error) => handleSnapshotError(`menu for ${dayName}`, error)
-			);
-		});
-
-		return () => unsubscribeList.forEach((unsubscribe) => unsubscribe());
-	}, [weekId, handleSnapshotError]);
-
 	const handleAddCustomer = async (values: CustomerFormValues) => {
 		if (!values.name.trim()) {
-			Alert.alert('Missing name', 'Please enter a customer name.');
+			showToast({ type: 'warning', title: 'Missing name', message: 'Please enter a customer name.' });
 			return;
 		}
 
 		if (!values.isLunch && !values.isDinner) {
-			Alert.alert('Missing plan', 'Select at least one meal plan before saving.');
+			showToast({ type: 'warning', title: 'Missing plan', message: 'Select at least one meal plan before saving.' });
 			return;
 		}
 
@@ -169,7 +137,7 @@ export default function CustomersScreen() {
 		const endDate = new Date(values.endDate);
 
 		if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-			Alert.alert('Invalid dates', 'Use valid YYYY-MM-DD dates for the start and end fields.');
+			showToast({ type: 'warning', title: 'Invalid dates', message: 'Use valid YYYY-MM-DD dates for the start and end fields.' });
 			return;
 		}
 
@@ -177,6 +145,7 @@ export default function CustomersScreen() {
 
 		try {
 			const payload = {
+				id: createLocalCustomerId(),
 				name: values.name.trim(),
 				phone: values.phone.trim(),
 				address: {
@@ -193,9 +162,10 @@ export default function CustomersScreen() {
 				isActive: true,
 			};
 
-			await addDoc(collection(db, 'customers'), payload);
+			await saveCustomerOffline(payload);
 
 			addCustomerSheetRef.current?.dismiss();
+			showToast({ type: 'success', title: 'Customer saved', message: `${payload.name} is queued for sync.` });
 		} catch (error) {
 			showAsyncError('Could not add customer', error);
 		} finally {
@@ -205,28 +175,27 @@ export default function CustomersScreen() {
 
 	const handleDeleteCustomer = async (id: string) => {
 		try {
-			await deleteDoc(doc(db, 'customers', id));
+			const customer = customers.find((entry) => entry.id === id);
+			await queueDeleteCustomer(id, customer?.name);
 		} catch (error) {
 			showAsyncError('Could not remove customer', error);
 		}
 	};
 
-	const handleDeleteCustomerRequest = (customer: Customer) => {
-		Alert.alert(
-			'Delete customer',
-			`Remove ${customer.name} from customers?`,
-			[
-				{ text: 'Cancel', style: 'cancel' },
-				{
-					text: 'Delete',
-					style: 'destructive',
-					onPress: async () => {
-						setSelectedCustomer(null);
-						await handleDeleteCustomer(customer.id);
-					},
-				},
-			]
-		);
+	const handleDeleteCustomerRequest = async (customer: Customer) => {
+		const confirmed = await confirm({
+			title: 'Delete customer',
+			message: `Remove ${customer.name} from customers? This will be queued locally until Firestore confirms it.`,
+			confirmLabel: 'Delete',
+			tone: 'danger',
+		});
+
+		if (!confirmed) {
+			return;
+		}
+
+		setSelectedCustomer(null);
+		await handleDeleteCustomer(customer.id);
 	};
 
 	const handleOpenAttendance = async (customerId: string) => {
@@ -235,58 +204,48 @@ export default function CustomersScreen() {
 			return;
 		}
 
-		const dates = getDatesForWeek(weekId);
 		const attendance = emptyWeekAttendance();
-
-		try {
-			const snapshots = await Promise.all(
-				dates.map((date) => getDoc(doc(db, 'attendance', `${date}_${customerId}`)))
-			);
-
-			snapshots.forEach((snapshot, index) => {
-				if (!snapshot.exists()) {
-					return;
-				}
-
-				const dayName = DAYS[index];
-				attendance[dayName] = {
-					lunch: snapshot.data().lunch ?? true,
-					dinner: snapshot.data().dinner ?? true,
-				};
-			});
-		} catch (error) {
-			setWeekAttendance(emptyWeekAttendance());
-			showAsyncError('Could not load attendance', error);
-			return;
-		}
+		weekDates.forEach((date, index) => {
+			const dayName = DAYS[index];
+			const record = attendanceByDate[date]?.find((entry) => entry.customerId === customerId);
+			if (!record) {
+				return;
+			}
+			attendance[dayName] = {
+				lunch: record.lunch ?? true,
+				dinner: record.dinner ?? true,
+			};
+		});
 
 		setWeekAttendance(attendance);
 		setExpandedId(customerId);
 	};
 
 	const handleSaveAttendance = async (customerId: string) => {
-		const dates = getDatesForWeek(weekId);
-
 		try {
-			await Promise.all(
-				dates.map((date, index) => {
-					const dayName = DAYS[index];
-					const selection = weekAttendance[dayName];
-					return setDoc(
-						doc(db, 'attendance', `${date}_${customerId}`),
-						{
-							customerId,
-							date,
-							lunch: selection.lunch,
-							dinner: selection.dinner,
-							updatedAt: new Date().toISOString(),
-						},
-						{ merge: true }
-					);
-				})
+			const customer = customers.find((entry) => entry.id === customerId);
+			const records = weekDates.map((date, index) => {
+				const dayName = DAYS[index];
+				const selection = weekAttendance[dayName];
+				return {
+					id: `${date}_${customerId}`,
+					customerId,
+					name: customer?.name ?? '',
+					date,
+					lunch: selection.lunch,
+					dinner: selection.dinner,
+					updatedAt: new Date().toISOString(),
+				};
+			});
+
+			await saveAttendanceBatch(
+				records,
+				customer?.name ? `Update ${customer.name}` : 'Update attendance',
+				`${records.length} day records saved locally`
 			);
 
 			setExpandedId(null);
+			showToast({ type: 'success', title: 'Attendance saved', message: `${records.length} day records updated locally.` });
 		} catch (error) {
 			showAsyncError('Could not save attendance', error);
 		}
@@ -328,7 +287,7 @@ export default function CustomersScreen() {
 		setActiveFilter('All');
 	};
 
-	if (loading) {
+	if (!ready) {
 		return (
 			<View style={[styles.loadingContainer, { backgroundColor: colors.bg }]}>
 				<ActivityIndicator size="large" color={colors.primary} />
@@ -515,6 +474,11 @@ export default function CustomersScreen() {
 			</PremiumBottomSheet>
 		</Screen>
 	);
+}
+
+function createLocalCustomerId() {
+	localCustomerCounter += 1;
+	return `customer-${Date.now()}-${localCustomerCounter}`;
 }
 
 function StatPill({ icon: Icon, label, count, color }: { icon: LucideIcon, label: string, count: number, color: string }) {

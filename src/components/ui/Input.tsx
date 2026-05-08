@@ -7,22 +7,24 @@ interface InputProps extends TextInputProps {
 	label?: string;
 	error?: string;
 	containerStyle?: ViewStyle | ViewStyle[];
+	bottomSheet?: boolean;
 }
 
-export function Input({ label, error, containerStyle, onFocus, onBlur, ...props }: InputProps) {
+export function Input({ label, error, containerStyle, onFocus, onBlur, bottomSheet = false, ...props }: InputProps) {
 	const [isFocused, setIsFocused] = useState(false);
 	const { colors, isDark } = useAppTheme();
+
 
 	return (
 		<View style={[styles.container, containerStyle]}>
 			{label && <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>}
 			<TextInput
 				placeholderTextColor={colors.textMuted}
-				onFocus={(e) => {
+				onFocus={(e: any) => {
 					setIsFocused(true);
 					onFocus?.(e);
 				}}
-				onBlur={(e) => {
+				onBlur={(e: any) => {
 					setIsFocused(false);
 					onBlur?.(e);
 				}}
@@ -56,6 +58,7 @@ const styles = StyleSheet.create({
 		borderRadius: Theme.radius.md,
 		padding: Theme.spacing.md,
 		minHeight: 48,
+		...Theme.shadows.input,
 	},
 	errorText: {
 		...Theme.typography.detail,

@@ -45,34 +45,80 @@ export const UI_SPEC = {
 
 export type ResponsiveUiMetrics = {
 	width: number;
+	height: number;
+	fontScale: number;
+	shortEdge: number;
 	isCompact: boolean;
 	isMediumUp: boolean;
 	isWide: boolean;
+	isTextDense: boolean;
 	contentPadding: number;
 	maxContentWidth: number;
 	maxReadableWidth: number;
 	stacked: boolean;
 	gridColumns: 1 | 2;
+	scale: (value: number, minFactor?: number, maxFactor?: number) => number;
+	verticalScale: (value: number, minFactor?: number, maxFactor?: number) => number;
+	font: (value: number, minFactor?: number, maxFactor?: number) => number;
+	icon: (value: number, minFactor?: number, maxFactor?: number) => number;
 };
 
-export const getResponsiveUiMetrics = (width: number): ResponsiveUiMetrics => {
+const BASE_WIDTH = 390;
+const BASE_HEIGHT = 844;
+
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+const round = (value: number) => Math.round(value * 10) / 10;
+
+export const getResponsiveUiMetrics = (
+	width: number,
+	height: number,
+	fontScale = 1
+): ResponsiveUiMetrics => {
 	const compactWidth = UI_SPEC.RESPONSIVE.compactWidth;
 	const mediumWidth = UI_SPEC.RESPONSIVE.mediumWidth;
 	const wideWidth = UI_SPEC.RESPONSIVE.wideWidth;
+	const shortEdge = Math.min(width, height);
+	const widthRatio = shortEdge / BASE_WIDTH;
+	const heightRatio = height / BASE_HEIGHT;
 
-	const isCompact = width <= compactWidth;
+	const scaleValue = (
+		value: number,
+		ratio: number,
+		minFactor: number,
+		maxFactor: number
+	) => round(clamp(value * ratio, value * minFactor, value * maxFactor));
+
+	const scale = (value: number, minFactor = 0.9, maxFactor = 1.2) =>
+		scaleValue(value, widthRatio, minFactor, maxFactor);
+	const verticalScale = (value: number, minFactor = 0.9, maxFactor = 1.18) =>
+		scaleValue(value, heightRatio, minFactor, maxFactor);
+	const font = (value: number, minFactor = 0.94, maxFactor = 1.18) =>
+		scaleValue(value, widthRatio, minFactor, maxFactor);
+	const icon = (value: number, minFactor = 0.94, maxFactor = 1.14) =>
+		scaleValue(value, widthRatio, minFactor, maxFactor);
+
+	const isTextDense = fontScale >= 1.15;
+	const isCompact = width <= compactWidth || isTextDense;
 	const isMediumUp = width >= mediumWidth;
 	const isWide = width >= wideWidth;
 
 	return {
 		width,
+		height,
+		fontScale,
+		shortEdge,
 		isCompact,
 		isMediumUp,
 		isWide,
-		contentPadding: isCompact ? 14 : isMediumUp ? 24 : 20,
+		isTextDense,
+		contentPadding: scale(isCompact ? 14 : isMediumUp ? 24 : 20, 0.9, 1.15),
 		maxContentWidth: UI_SPEC.RESPONSIVE.maxContentWidth,
 		maxReadableWidth: UI_SPEC.RESPONSIVE.maxReadableWidth,
-		stacked: width < 640,
-		gridColumns: width < 640 ? 1 : 2,
+		stacked: width < 640 || fontScale >= 1.12,
+		gridColumns: width < 640 || fontScale >= 1.12 ? 1 : 2,
+		scale,
+		verticalScale,
+		font,
+		icon,
 	};
 };

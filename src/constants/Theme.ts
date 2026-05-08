@@ -7,13 +7,13 @@ export const Theme = {
 		warning: '#F39C12',    // Bright Amber
 
 		// Structural
-		bg: '#F8F6F2',         // Soft Porcelain
-		surface: '#FFFFFF',    // White
-		surfaceElevated: '#F4EEE6', // Warm Sand Tint
-		border: '#E8DDD0',     // Soft Sand Border
-		textPrimary: '#1F1B16',   // Warm Charcoal
-		textSecondary: '#62574C', // Toasted Taupe
-		textMuted: '#9A8D80',     // Quiet Neutral
+		bg: '#F6F7FA',         // iOS-style cool gray background
+		surface: '#FFFFFF',    // Pure White
+		surfaceElevated: '#F8F9FA', // Warm off-white for inset surfaces
+		border: '#E5E5EA',     // Slightly stronger border for definition
+		textPrimary: '#1A1A1C',   // Deeper Charcoal
+		textSecondary: '#525256', // Darker Gray
+		textMuted: '#8E8E93',     // iOS Muted Gray
 		textInverted: '#FFFFFF',
 
 		// Meal Semantics
@@ -33,7 +33,7 @@ export const Theme = {
 		xxl: 24,
 		huge: 32,
 		massive: 40,
-		screen: 20, // Standard screen padding
+		screen: 16, 
 	},
 
 	radius: {
@@ -57,6 +57,11 @@ export const Theme = {
 			fontSize: 40,
 			fontWeight: '900' as const,
 			letterSpacing: -1,
+		},
+		heroGiant: {
+			fontSize: 68,
+			fontWeight: '900' as const,
+			letterSpacing: -2,
 		},
 		// Tier B - Section Label (Medium, Slightly Muted)
 		label: {
@@ -85,8 +90,29 @@ export const Theme = {
 		},
 	},
 
-	// Flat Modern: Shadows removed in favor of borders and contrast
-	shadows: {},
+	shadows: {
+		card: {
+			shadowColor: '#1A162B',
+			shadowOffset: { width: 0, height: 12 },
+			shadowOpacity: 0.04,
+			shadowRadius: 28,
+			elevation: 4,
+		},
+		modal: {
+			shadowColor: '#000',
+			shadowOffset: { width: 0, height: 8 },
+			shadowOpacity: 0.15,
+			shadowRadius: 24,
+			elevation: 12,
+		},
+		input: {
+			shadowColor: '#000',
+			shadowOffset: { width: 0, height: 1 },
+			shadowOpacity: 0.04,
+			shadowRadius: 3,
+			elevation: 1,
+		},
+	},
 
 	// Layer 2: Behavioral Physics
 	elevation: {

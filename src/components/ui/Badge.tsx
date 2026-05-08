@@ -1,4 +1,5 @@
 import React from 'react';
+import { LucideIcon } from 'lucide-react-native';
 import { StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 import { Theme } from '../../constants/Theme';
 import { useAppTheme } from '../../context/ThemeModeContext';
@@ -8,11 +9,12 @@ export type BadgeVariant = 'success' | 'warning' | 'danger' | 'neutral';
 interface BadgeProps {
 	label: string;
 	variant?: BadgeVariant;
+	icon?: LucideIcon;
 	style?: ViewStyle | ViewStyle[];
 	textStyle?: TextStyle | TextStyle[];
 }
 
-export function Badge({ label, variant = 'neutral', style, textStyle }: BadgeProps) {
+export function Badge({ label, variant = 'neutral', icon: Icon, style, textStyle }: BadgeProps) {
 	const { colors, isDark } = useAppTheme();
 	const palette = {
 		success: {
@@ -35,6 +37,11 @@ export function Badge({ label, variant = 'neutral', style, textStyle }: BadgePro
 
 	return (
 		<View style={[styles.container, palette[variant].container, style]}>
+			{Icon && (
+				<View style={styles.iconContainer}>
+					<Icon size={12} color={palette[variant].text.color as string} />
+				</View>
+			)}
 			<Text style={[styles.text, palette[variant].text, textStyle]}>{label}</Text>
 		</View>
 	);
@@ -46,6 +53,11 @@ const styles = StyleSheet.create({
 		paddingVertical: 6,
 		borderRadius: Theme.radius.full,
 		alignSelf: 'flex-start',
+		flexDirection: 'row',
+		alignItems: 'center',
+	},
+	iconContainer: {
+		marginRight: 4,
 	},
 	text: {
 		...Theme.typography.detailBold,

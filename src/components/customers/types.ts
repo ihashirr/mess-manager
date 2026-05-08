@@ -8,6 +8,7 @@ export type Customer = {
 		location: string;
 		flat: string;
 	};
+	mapLink?: string;
 	mealsPerDay: { lunch: boolean; dinner: boolean };
 	plan?: string;
 	pricePerMonth: number;
@@ -23,6 +24,7 @@ export type CustomerFormValues = {
 	phone: string;
 	location: string;
 	flat: string;
+	mapLink: string;
 	isLunch: boolean;
 	isDinner: boolean;
 	price: string;
@@ -41,6 +43,7 @@ export const createInitialCustomerFormValues = (): CustomerFormValues => {
 		phone: '',
 		location: '',
 		flat: '',
+		mapLink: '',
 		isLunch: true,
 		isDinner: false,
 		price: '350',

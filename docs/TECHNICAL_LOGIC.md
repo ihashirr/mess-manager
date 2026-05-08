@@ -10,10 +10,10 @@ This document covers the architecture, data model, and screen-by-screen logic fo
 | :--- | :--- |
 | **Database** | Firebase Firestore |
 | **Real-time updates** | `onSnapshot` listeners — no manual refresh needed |
-| **State** | Per-screen independent fetching, no global store |
+| **State** | Shared offline sync provider with per-screen derived views |
 | **Derived logic** | All status fields computed at runtime (never stored) |
 | **Deadlines** | No cutoff — full editability for past and today's records |
-| **Data mode** | Live Firestore only — no in-repo mock database path |
+| **Data mode** | Local-first SQLite cache + Firestore sync queue, no in-repo mock database path |
 
 > "Stored numbers rot. Derived numbers stay honest."
 
@@ -84,17 +84,20 @@ This document covers the architecture, data model, and screen-by-screen logic fo
   - **Expenses**: Sum of receipt totals saved into the expense ledger.
   - **Net Cash**: `Collected − Expenses`.
   - **Progress**: `min(100, collected/expected * 100)` — capped to prevent overflow.
-- **Receipt OCR**: Uses image capture/import plus AI extraction to detect merchant name, totals, and visible line items from receipts before saving.
-- **Expense History**: Lists saved receipts with OCR confidence and line-item preview.
+- **Receipt OCR**: Uses image capture/import plus on-device ML Kit text recognition, then a deterministic local parser extracts merchant name, totals, payment method, date, and visible line items before save.
+- **Local Receipt Queue**: Receipt saves go to SQLite first with `rawText`, parsed fields, confidence, and image URI, then sync to Firestore when the write succeeds.
+- **Expense History**: Lists synced receipts plus any local pending queue entries so finance totals still reflect unsynced deductions.
 - **Transaction History**: Lists all this month's payments, with orphaned ones grayed out and labeled "(Deleted Customer)".
 - **Delete Transaction**: Calls `deleteDoc` on `payments/{id}` — dashboard updates instantly.
 - **Delete Expense**: Calls `deleteDoc` on `expenses/{id}` — net cash updates instantly.
 
-### 6. Live Data Contract
-**Purpose**: Keep the app production-bound and consistent across screens.
-- All operational screens read from Firestore directly.
-- Customer, attendance, payment, expense, and menu mutations write straight to Firestore.
-- There is no bundled mock dataset or local in-memory fallback path.
+### 6. Offline Data Contract
+**Purpose**: Keep the app production-bound, but still usable with no connection.
+- All operational screens read from the shared local SQLite cache first.
+- Firestore snapshot listeners continuously refresh that cache when the network is available.
+- Customer, attendance, payment, menu, and delete mutations land locally first and are then pushed through the sync queue.
+- Receipt-scanned expenses still use their dedicated SQLite receipt queue and appear in the same queue inspector.
+- There is no bundled mock dataset or local in-memory demo path.
 
 ---
 

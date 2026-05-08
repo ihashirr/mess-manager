@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { ChevronRight } from 'lucide-react-native';
 import Animated, {
 	useAnimatedStyle,
 	useSharedValue,
@@ -69,7 +69,7 @@ export const UserIdentity: React.FC<UserIdentityProps> = ({
 			</View>
 			{onPress ? (
 				<View style={[styles.hintIcon, { backgroundColor: colors.surfaceElevated }]}>
-					<MaterialCommunityIcons name="chevron-right" size={16} color={colors.textMuted} />
+					<ChevronRight size={16} color={colors.textMuted} />
 				</View>
 			) : null}
 		</AnimatedPressable>
