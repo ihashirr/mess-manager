@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { BarChart3, Search, SlidersHorizontal, UserPlus, X } from 'lucide-react-native';
+import AnimatedReanimated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
+import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useConfirmDialog } from '../components/system/dialogs/ConfirmDialog';
 import { showToast } from '../components/system/feedback/AppToast';
 import { PremiumBottomSheet, type PremiumBottomSheetHandle } from '../components/ui/PremiumBottomSheet';
@@ -661,8 +663,8 @@ export default function CustomersScreen() {
 				ref={statsSheetRef}
 				title="Customer Summary"
 				subtitle="Live operating snapshot"
-				snapPoints={['56%']}
-				scrollable={false}
+				snapPoints={['70%', '95%']}
+				scrollable={true}
 				policy="passive"
 				onDismiss={sheetController.close}
 			>
@@ -713,105 +715,101 @@ function StatsSummarySheet({
 	};
 }) {
 	const { colors } = useAppTheme();
+	const { font, scale } = useResponsiveLayout();
 
 	return (
 		<View style={styles.statsSheet}>
-			<LayeredSurface
-				radius={24}
-				contentStyle={styles.statsHeroRow}
-				borderColor={colors.primary + '18'}
-				tintColor={colors.primary + '08'}
-				shadowColor="rgba(255, 107, 53, 0.16)"
-				distance={12}
-			>
-				<View>
-					<Text style={[styles.statsHeroLabel, { color: colors.textMuted }]}>Pending revenue</Text>
-					<Text style={[styles.statsHeroValue, { color: colors.textPrimary }]}>DHS {stats.pending}</Text>
+			{/* Master Hero Card */}
+			<AnimatedReanimated.View entering={FadeInUp.delay(100).springify().damping(18).stiffness(200)}>
+				<View style={[styles.masterHeroCard, { backgroundColor: colors.primary, borderRadius: scale(24, 0.9, 1.1), padding: scale(Theme.spacing.xl, 0.85, 1.15) }]}>
+					<Text style={[styles.heroCardEyebrow, { color: 'rgba(255,255,255,0.7)', fontSize: font(12, 0.9, 1.1) }]}>PENDING REVENUE</Text>
+					<Text style={[styles.heroCardValue, { color: '#FFF', fontSize: font(42, 0.85, 1.2) }]}>DHS {stats.pending}</Text>
+					<View style={styles.heroCardFooter}>
+						<View style={[styles.heroCardBadge, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+							<Text style={[styles.heroCardBadgeText, { color: '#FFF', fontSize: font(11, 0.9, 1.1) }]}>{stats.due} accounts due</Text>
+						</View>
+						<Text style={[styles.heroCardSub, { color: 'rgba(255,255,255,0.8)', fontSize: font(13, 0.9, 1.1) }]}>{stats.total} total ledger</Text>
+					</View>
 				</View>
-				<View style={[styles.statsHeroBadge, { backgroundColor: colors.primary + '14', borderColor: colors.primary + '26' }]}>
-					<View style={[styles.statsHeroDot, { backgroundColor: colors.primary }]} />
-					<Text style={[styles.statsHeroBadgeText, { color: colors.primary }]}>{stats.due} due</Text>
+			</AnimatedReanimated.View>
+
+			{/* Financial Health Row */}
+			<AnimatedReanimated.View entering={FadeInUp.delay(200).springify().damping(18).stiffness(200)}>
+				<Text style={[styles.dashboardSectionTitle, { color: colors.textSecondary, fontSize: font(11, 0.9, 1.1) }]}>FINANCIAL HEALTH</Text>
+				<View style={styles.financialRow}>
+					<View style={[styles.financePill, { backgroundColor: colors.surfaceElevated, padding: scale(Theme.spacing.md, 0.9, 1.1), borderRadius: scale(20, 0.9, 1.1) }]}>
+						<MaterialCommunityIcons name="cash-multiple" size={font(24, 0.9, 1.2)} color={colors.warning} />
+						<View style={styles.financePillContent}>
+							<Text style={[styles.financePillValue, { color: colors.warning, fontSize: font(22, 0.9, 1.15) }]}>{stats.due}</Text>
+							<Text style={[styles.financePillLabel, { color: colors.textMuted, fontSize: font(10, 0.9, 1.1) }]}>Due Today</Text>
+						</View>
+					</View>
+					<View style={[styles.financePill, { backgroundColor: colors.surfaceElevated, padding: scale(Theme.spacing.md, 0.9, 1.1), borderRadius: scale(20, 0.9, 1.1) }]}>
+						<MaterialCommunityIcons name="check-decagram" size={font(24, 0.9, 1.2)} color={colors.success} />
+						<View style={styles.financePillContent}>
+							<Text style={[styles.financePillValue, { color: colors.success, fontSize: font(22, 0.9, 1.15) }]}>{Math.max(stats.active - stats.due, 0)}</Text>
+							<Text style={[styles.financePillLabel, { color: colors.textMuted, fontSize: font(10, 0.9, 1.1) }]}>Settled Active</Text>
+						</View>
+					</View>
 				</View>
-			</LayeredSurface>
+			</AnimatedReanimated.View>
 
-			<StatsSection
-				title="Financial"
-				accent={colors.primary}
-				items={[
-					{ label: 'Due today', value: stats.due.toString(), tone: colors.warning },
-					{ label: 'Settled active', value: Math.max(stats.active - stats.due, 0).toString(), tone: colors.success },
-				]}
-			/>
-
-			<StatsSection
-				title="Operations"
-				accent={colors.success}
-				items={[
-					{ label: 'Active', value: stats.active.toString(), tone: colors.success },
-					{ label: 'Expiring', value: stats.expiring.toString(), tone: colors.warning },
-					{ label: 'Expired', value: stats.expired.toString(), tone: colors.danger },
-					{ label: 'Total ledger', value: stats.total.toString(), tone: colors.textSecondary },
-				]}
-			/>
-
-			<StatsSection
-				title="Meal Load"
-				accent={colors.mealDinner}
-				items={[
-					{ label: 'Lunch', value: stats.lunch.toString(), tone: colors.mealLunch },
-					{ label: 'Dinner', value: stats.dinner.toString(), tone: colors.mealDinner },
-				]}
-			/>
-		</View>
-	);
-}
-
-function StatsSection({
-	title,
-	accent,
-	items,
-}: {
-	title: string;
-	accent: string;
-	items: { label: string; value: string; tone: string }[];
-}) {
-	const { colors } = useAppTheme();
-
-	return (
-		<LayeredSurface
-			radius={22}
-			contentStyle={styles.statsSection}
-			surfaceColor={colors.surfaceElevated}
-			borderColor={colors.border}
-			tintColor={accent + '08'}
-			shadowColor="rgba(32, 24, 18, 0.10)"
-			distance={10}
-		>
-			<View style={styles.statsSectionHeader}>
-				<View style={[styles.statsSectionIndicator, { backgroundColor: accent + '18' }]}>
-					<View style={[styles.statsSectionIndicatorCore, { backgroundColor: accent }]} />
+			{/* Operational Status */}
+			<AnimatedReanimated.View entering={FadeInUp.delay(300).springify().damping(18).stiffness(200)}>
+				<Text style={[styles.dashboardSectionTitle, { color: colors.textSecondary, fontSize: font(11, 0.9, 1.1) }]}>OPERATIONAL STATUS</Text>
+				<View style={[styles.operationsList, { backgroundColor: colors.surfaceElevated, borderRadius: scale(24, 0.9, 1.1), paddingHorizontal: scale(Theme.spacing.lg, 0.9, 1.1) }]}>
+					<View style={[styles.operationListItem, { paddingVertical: scale(Theme.spacing.md, 0.9, 1.1) }]}>
+						<View style={[styles.opIconWrap, { backgroundColor: colors.success + '18', width: scale(32), height: scale(32), borderRadius: scale(16) }]}>
+							<FontAwesome name="check" size={font(14, 0.9, 1.2)} color={colors.success} />
+						</View>
+						<Text style={[styles.opListLabel, { color: colors.textPrimary, fontSize: font(15, 0.9, 1.15) }]}>Active subscriptions</Text>
+						<Text style={[styles.opListValue, { color: colors.success, fontSize: font(18, 0.9, 1.15) }]}>{stats.active}</Text>
+					</View>
+					<View style={[styles.opDivider, { backgroundColor: colors.border, marginLeft: scale(48) }]} />
+					<View style={[styles.operationListItem, { paddingVertical: scale(Theme.spacing.md, 0.9, 1.1) }]}>
+						<View style={[styles.opIconWrap, { backgroundColor: colors.warning + '18', width: scale(32), height: scale(32), borderRadius: scale(16) }]}>
+							<FontAwesome name="clock-o" size={font(14, 0.9, 1.2)} color={colors.warning} />
+						</View>
+						<Text style={[styles.opListLabel, { color: colors.textPrimary, fontSize: font(15, 0.9, 1.15) }]}>Expiring soon</Text>
+						<Text style={[styles.opListValue, { color: colors.warning, fontSize: font(18, 0.9, 1.15) }]}>{stats.expiring}</Text>
+					</View>
+					<View style={[styles.opDivider, { backgroundColor: colors.border, marginLeft: scale(48) }]} />
+					<View style={[styles.operationListItem, { paddingVertical: scale(Theme.spacing.md, 0.9, 1.1) }]}>
+						<View style={[styles.opIconWrap, { backgroundColor: colors.danger + '18', width: scale(32), height: scale(32), borderRadius: scale(16) }]}>
+							<FontAwesome name="exclamation" size={font(14, 0.9, 1.2)} color={colors.danger} />
+						</View>
+						<Text style={[styles.opListLabel, { color: colors.textPrimary, fontSize: font(15, 0.9, 1.15) }]}>Expired accounts</Text>
+						<Text style={[styles.opListValue, { color: colors.danger, fontSize: font(18, 0.9, 1.15) }]}>{stats.expired}</Text>
+					</View>
 				</View>
-				<Text style={[styles.statsSectionTitle, { color: colors.textSecondary }]}>{title}</Text>
-			</View>
-			<View style={styles.statsMetricGrid}>
-				{items.map((item) => (
-					<StatsMetric key={`${title}-${item.label}`} {...item} />
-				))}
-			</View>
-		</LayeredSurface>
-	);
-}
+			</AnimatedReanimated.View>
 
-function StatsMetric({ label, value, tone }: { label: string; value: string; tone: string }) {
-	const { colors } = useAppTheme();
-
-	return (
-		<View style={[styles.statsMetric, { backgroundColor: colors.surface, borderColor: tone + '18' }]}>
-			<View style={[styles.statsMetricMarker, { backgroundColor: tone + '18' }]}>
-				<View style={[styles.statsMetricMarkerCore, { backgroundColor: tone }]} />
-			</View>
-			<Text style={[styles.statsMetricValue, { color: tone }]}>{value}</Text>
-			<Text style={[styles.statsMetricLabel, { color: colors.textMuted }]} numberOfLines={1}>{label}</Text>
+			{/* Meal Load Segmented Bar */}
+			<AnimatedReanimated.View entering={FadeInUp.delay(400).springify().damping(18).stiffness(200)}>
+				<Text style={[styles.dashboardSectionTitle, { color: colors.textSecondary, fontSize: font(11, 0.9, 1.1) }]}>MEAL DISTRIBUTION</Text>
+				<View style={[styles.mealDistributionCard, { backgroundColor: colors.surfaceElevated, borderRadius: scale(24, 0.9, 1.1), padding: scale(Theme.spacing.lg, 0.9, 1.1) }]}>
+					<View style={styles.mealLabels}>
+						<View>
+							<Text style={[styles.mealLabelText, { color: colors.textPrimary, fontSize: font(15, 0.9, 1.15) }]}>Lunch</Text>
+							<Text style={[styles.mealValueText, { color: colors.mealLunch, fontSize: font(24, 0.9, 1.15) }]}>{stats.lunch}</Text>
+						</View>
+						<View style={{ alignItems: 'flex-end' }}>
+							<Text style={[styles.mealLabelText, { color: colors.textPrimary, fontSize: font(15, 0.9, 1.15) }]}>Dinner</Text>
+							<Text style={[styles.mealValueText, { color: colors.mealDinner, fontSize: font(24, 0.9, 1.15) }]}>{stats.dinner}</Text>
+						</View>
+					</View>
+					<View style={[styles.mealBarTrack, { height: scale(12, 0.8, 1.5) }]}>
+						{stats.lunch + stats.dinner > 0 ? (
+							<>
+								<View style={[styles.mealBarFill, { backgroundColor: colors.mealLunch, flex: stats.lunch, borderTopLeftRadius: 99, borderBottomLeftRadius: 99, marginRight: 2 }]} />
+								<View style={[styles.mealBarFill, { backgroundColor: colors.mealDinner, flex: stats.dinner, borderTopRightRadius: 99, borderBottomRightRadius: 99 }]} />
+							</>
+						) : (
+							<View style={[styles.mealBarFill, { backgroundColor: colors.border, flex: 1, borderRadius: 99 }]} />
+						)}
+					</View>
+				</View>
+			</AnimatedReanimated.View>
 		</View>
 	);
 }
@@ -1018,100 +1016,137 @@ const styles = StyleSheet.create({
 		paddingHorizontal: Theme.spacing.lg,
 		paddingVertical: Theme.spacing.lg,
 	},
-	statsHeroLabel: {
-		...Theme.typography.detailBold,
-		fontSize: 11,
-		textTransform: 'uppercase',
-		letterSpacing: 0.6,
+	masterHeroCard: {
+		borderRadius: 24,
+		padding: Theme.spacing.xl,
+		marginBottom: Theme.spacing.md,
+		shadowColor: '#000',
+		shadowOffset: { width: 0, height: 8 },
+		shadowOpacity: 0.15,
+		shadowRadius: 12,
+		elevation: 8,
 	},
-	statsHeroValue: {
-		fontSize: 30,
+	heroCardEyebrow: {
+		...Theme.typography.detailBold,
+		fontSize: 12,
+		letterSpacing: 1,
+	},
+	heroCardValue: {
+		fontSize: 42,
 		fontWeight: '900',
-		letterSpacing: -0.6,
-		marginTop: 3,
+		letterSpacing: -1,
+		marginTop: 4,
+		marginBottom: Theme.spacing.lg,
 	},
-	statsHeroBadge: {
+	heroCardFooter: {
 		flexDirection: 'row',
 		alignItems: 'center',
-		gap: 7,
-		borderWidth: 1,
-		borderRadius: 999,
-		paddingHorizontal: Theme.spacing.md,
-		paddingVertical: 8,
-	},
-	statsHeroDot: {
-		width: 7,
-		height: 7,
-		borderRadius: 999,
-	},
-	statsHeroBadgeText: {
-		...Theme.typography.detailBold,
-		fontSize: 11,
-	},
-	statsSection: {
-		padding: Theme.spacing.md,
-		gap: Theme.spacing.sm,
-	},
-	statsSectionHeader: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		gap: Theme.spacing.sm,
-		minHeight: 22,
-	},
-	statsSectionIndicator: {
-		width: 20,
-		height: 20,
-		borderRadius: 10,
-		alignItems: 'center',
-		justifyContent: 'center',
-	},
-	statsSectionIndicatorCore: {
-		width: 7,
-		height: 7,
-		borderRadius: 999,
-	},
-	statsSectionTitle: {
-		...Theme.typography.detailBold,
-		fontSize: 11,
-		textTransform: 'uppercase',
-		letterSpacing: 0.65,
-	},
-	statsMetricGrid: {
-		flexDirection: 'row',
-		flexWrap: 'wrap',
-		gap: Theme.spacing.sm,
-	},
-	statsMetric: {
-		flexGrow: 1,
-		flexBasis: '47%',
-		minHeight: 78,
-		borderWidth: 1,
-		borderRadius: 18,
-		padding: Theme.spacing.md,
 		justifyContent: 'space-between',
 	},
-	statsMetricMarker: {
-		width: 20,
-		height: 20,
-		borderRadius: 10,
+	heroCardBadge: {
+		paddingHorizontal: 12,
+		paddingVertical: 6,
+		borderRadius: 99,
+	},
+	heroCardBadgeText: {
+		...Theme.typography.detailBold,
+		fontSize: 11,
+	},
+	heroCardSub: {
+		...Theme.typography.detail,
+		fontSize: 13,
+	},
+	dashboardSectionTitle: {
+		...Theme.typography.detailBold,
+		fontSize: 11,
+		letterSpacing: 1,
+		marginBottom: Theme.spacing.sm,
+		marginLeft: 4,
+		marginTop: Theme.spacing.sm,
+	},
+	financialRow: {
+		flexDirection: 'row',
+		gap: Theme.spacing.sm,
+		marginBottom: Theme.spacing.md,
+	},
+	financePill: {
+		flex: 1,
+		flexDirection: 'row',
 		alignItems: 'center',
-		justifyContent: 'center',
-		marginBottom: 2,
+		padding: Theme.spacing.md,
+		borderRadius: 20,
+		gap: Theme.spacing.md,
 	},
-	statsMetricMarkerCore: {
-		width: 7,
-		height: 7,
-		borderRadius: 999,
+	financePillContent: {
+		flex: 1,
 	},
-	statsMetricValue: {
-		fontSize: 21,
-		fontWeight: '900',
-		letterSpacing: -0.35,
+	financePillValue: {
+		fontSize: 22,
+		fontWeight: '800',
+		letterSpacing: -0.5,
 	},
-	statsMetricLabel: {
+	financePillLabel: {
 		...Theme.typography.detailBold,
 		fontSize: 10,
-		letterSpacing: 0,
 		marginTop: 2,
+	},
+	operationsList: {
+		borderRadius: 24,
+		paddingHorizontal: Theme.spacing.lg,
+		marginBottom: Theme.spacing.md,
+	},
+	operationListItem: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		paddingVertical: Theme.spacing.md,
+		gap: Theme.spacing.md,
+	},
+	opIconWrap: {
+		width: 32,
+		height: 32,
+		borderRadius: 16,
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	opListLabel: {
+		flex: 1,
+		fontSize: 15,
+		fontWeight: '600',
+	},
+	opListValue: {
+		fontSize: 18,
+		fontWeight: '800',
+	},
+	opDivider: {
+		height: StyleSheet.hairlineWidth,
+		marginLeft: 48,
+	},
+	mealDistributionCard: {
+		borderRadius: 24,
+		padding: Theme.spacing.lg,
+		marginBottom: Theme.spacing.xl,
+	},
+	mealLabels: {
+		flexDirection: 'row',
+		justifyContent: 'space-between',
+		marginBottom: Theme.spacing.md,
+	},
+	mealLabelText: {
+		fontSize: 15,
+		fontWeight: '700',
+	},
+	mealValueText: {
+		fontSize: 24,
+		fontWeight: '900',
+		letterSpacing: -0.5,
+	},
+	mealBarTrack: {
+		height: 12,
+		flexDirection: 'row',
+		borderRadius: 99,
+		overflow: 'hidden',
+	},
+	mealBarFill: {
+		height: '100%',
 	},
 });

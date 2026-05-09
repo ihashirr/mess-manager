@@ -47,7 +47,7 @@ const SHEET_POLICY_CONFIG = {
     enableContentPanningGesture: true,
   },
   operational: {
-    backdropPressBehavior: 'none',
+    backdropPressBehavior: 'close',
     enablePanDownToClose: true,
     enableContentPanningGesture: true,
   },
@@ -324,12 +324,14 @@ const styles = StyleSheet.create({
     ...Theme.typography.labelMedium,
     textTransform: 'uppercase',
     letterSpacing: 0.9,
+    lineHeight: 22,
   },
   subtitle: {
     ...Theme.typography.detail,
-    marginTop: 4,
+    marginTop: 6,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
+    lineHeight: 14,
   },
   scrollContent: {
     paddingHorizontal: Theme.spacing.xl,
