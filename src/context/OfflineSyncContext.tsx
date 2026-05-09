@@ -87,6 +87,7 @@ type OfflineSyncContextValue = {
 	recordPayment: (input: PaymentRecordInput) => Promise<void>;
 	deletePayment: (paymentId: string, customerName?: string) => Promise<void>;
 	deleteExpense: (expenseId: string, expenseTitle?: string) => Promise<void>;
+	updateExpense: (expense: ExpenseEntry) => Promise<void>;
 	deleteQueuedReceipt: (localId: string) => Promise<void>;
 };
 
@@ -209,6 +210,26 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
 			}
 			case 'expense_delete': {
 				await deleteDoc(doc(db, 'expenses', operation.entityId));
+				return;
+			}
+			case 'expense_upsert': {
+				const payload = operation.payload as { expense: ExpenseEntry };
+				await setDoc(doc(db, 'expenses', operation.entityId), {
+					title: payload.expense.title,
+					merchantName: payload.expense.merchantName,
+					total: payload.expense.total,
+					date: payload.expense.receiptDate ? new Date(`${payload.expense.receiptDate}T12:00:00`) : new Date(),
+					monthTag: payload.expense.monthTag,
+					currency: payload.expense.currency || 'DHS',
+					source: payload.expense.source || 'manual',
+					note: payload.expense.note || '',
+					items: payload.expense.items || [],
+					confidence: payload.expense.confidence || 1,
+					rawText: payload.expense.rawText || '',
+					imageUri: payload.expense.imageUri || '',
+					paymentMethod: payload.expense.paymentMethod || '',
+					receiptDate: payload.expense.receiptDate || '',
+				}, { merge: true });
 				return;
 			}
 			default:
@@ -565,6 +586,25 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
 		void runSync(true);
 	}, [refreshOfflineState, runSync]);
 
+	const updateExpense = useCallback(async (expense: ExpenseEntry) => {
+		await enqueueSyncOperation({
+			id: createLocalId('queue-expense-update', localCounterRef),
+			entityType: 'expense',
+			entityId: expense.id,
+			kind: 'expense_upsert',
+			title: `Update ${expense.title || expense.merchantName}`,
+			subtitle: 'Expense update queued for Firestore',
+			payload: { expense },
+			status: 'pending',
+			attempts: 0,
+			error: '',
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
+		});
+		await refreshOfflineState();
+		void runSync(true);
+	}, [refreshOfflineState, runSync]);
+
 	const deleteQueuedReceipt = useCallback(async (localId: string) => {
 		await deleteQueuedReceiptExpense(localId);
 		await refreshOfflineState();
@@ -622,6 +662,7 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
 		recordPayment,
 		deletePayment,
 		deleteExpense,
+		updateExpense,
 		deleteQueuedReceipt,
 	}), [
 		addCustomer,
@@ -644,6 +685,7 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
 		state.pendingQueueCount,
 		state.queuedReceipts,
 		syncBusy,
+		updateExpense,
 	]);
 
 	return (

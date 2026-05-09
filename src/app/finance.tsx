@@ -1,9 +1,12 @@
-import {
 	Banknote,
 	Camera,
 	CloudOff,
 	CreditCard,
+	Edit2,
+	FilePlus,
 	ImagePlus,
+	Minus,
+	Plus,
 	ReceiptText,
 	RefreshCw,
 	Store,
@@ -84,6 +87,7 @@ export default function FinanceScreen() {
 		refreshOfflineState,
 		deletePayment: queueDeletePayment,
 		deleteExpense: queueDeleteExpense,
+		updateExpense,
 		deleteQueuedReceipt,
 	} = useOfflineSync();
 	const { contentPadding, maxContentWidth } = useResponsiveLayout();
@@ -98,6 +102,7 @@ export default function FinanceScreen() {
 	const [receiptDraft, setReceiptDraft] = useState<ReceiptExpenseDraft | null>(null);
 	const [showRawText, setShowRawText] = useState(false);
 	const [selectedExpense, setSelectedExpense] = useState<ExpenseEntry | null>(null);
+	const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
 	const scannerSheetRef = useRef<PremiumBottomSheetHandle>(null);
 	const expenseSheetRef = useRef<PremiumBottomSheetHandle>(null);
 	const financeCustomers = useMemo(
@@ -138,18 +143,73 @@ export default function FinanceScreen() {
 		setScannerOpen(true);
 	}, [scannerConfigMessage, scannerEnabled]);
 
+	const handleOpenManualEntry = useCallback(() => {
+		setEditingExpenseId(null);
+		setScannerError('');
+		setReceiptPreviewUri(null);
+		setShowRawText(false);
+		setReceiptDraft({
+			merchantName: '',
+			expenseTitle: 'Manual Expense',
+			total: 0,
+			subtotal: null,
+			tax: null,
+			currency: 'DHS',
+			receiptDate: new Date().toISOString().slice(0, 10),
+			paymentMethod: 'Cash',
+			items: [],
+			note: '',
+			confidence: 1,
+			rawText: '',
+			imageUri: '',
+		});
+		setScannerOpen(true);
+	}, []);
+
+	const handleEditExpense = useCallback((expense: ExpenseEntry) => {
+		setEditingExpenseId(expense.id);
+		setScannerError('');
+		setReceiptPreviewUri(expense.imageUri || null);
+		setShowRawText(false);
+		setReceiptDraft({
+			merchantName: expense.merchantName || '',
+			expenseTitle: expense.title || '',
+			total: expense.total || 0,
+			subtotal: null,
+			tax: null,
+			currency: expense.currency || 'DHS',
+			receiptDate: expense.receiptDate || (expense.date ? new Date(expense.date as string).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10)),
+			paymentMethod: expense.paymentMethod || '',
+			items: expense.items ? [...expense.items] : [],
+			note: expense.note || '',
+			confidence: expense.confidence ?? 1,
+			rawText: expense.rawText || '',
+			imageUri: expense.imageUri || '',
+		});
+		expenseSheetRef.current?.dismiss();
+		setTimeout(() => setScannerOpen(true), 350);
+	}, []);
+
 	useFocusEffect(
 		useCallback(() => {
 			setHeaderConfig({
 				title: 'Finance Panel',
 				subtitle: `${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })} Summary`,
 				rightAction: (
-					<ScreenHeaderActionButton
-						icon={ReceiptText}
-						onPress={handleOpenScanner}
-						accessibilityLabel="Scan receipt"
-						variant={scannerEnabled ? 'primary' : 'default'}
-					/>
+					<View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+						<ScreenHeaderActionButton
+							icon={FilePlus}
+							onPress={handleOpenManualEntry}
+							accessibilityLabel="Manual entry"
+							variant="default"
+						/>
+						<ScreenHeaderActionButton
+							icon={ReceiptText}
+							onPress={handleOpenScanner}
+							accessibilityLabel="Scan receipt"
+							variant={scannerEnabled ? 'primary' : 'default'}
+						/>
+					</View>
 				),
 			});
 			void runSync(true);
@@ -240,6 +300,7 @@ export default function FinanceScreen() {
 	const launchReceiptFlow = async (source: 'camera' | 'library') => {
 		setScannerError('');
 		setReceiptDraft(null);
+		setEditingExpenseId(null);
 		setReceiptPreviewUri(null);
 		setShowRawText(false);
 
@@ -292,17 +353,43 @@ export default function FinanceScreen() {
 		setScannerError('');
 
 		try {
-			const result = await saveReceiptDraftToQueue(receiptDraft);
-			await refreshOfflineState();
-			closeScanner();
+			if (editingExpenseId) {
+				await updateExpense({
+					id: editingExpenseId,
+					title: receiptDraft.expenseTitle,
+					merchantName: receiptDraft.merchantName,
+					total: receiptDraft.total,
+					date: receiptDraft.receiptDate,
+					monthTag: currentMonthTag,
+					currency: receiptDraft.currency,
+					source: receiptDraft.rawText ? 'ocr' : 'manual',
+					note: receiptDraft.note,
+					items: receiptDraft.items,
+					confidence: receiptDraft.confidence,
+					paymentMethod: receiptDraft.paymentMethod,
+					receiptDate: receiptDraft.receiptDate,
+					rawText: receiptDraft.rawText,
+					imageUri: receiptDraft.imageUri,
+				});
+				closeScanner();
+				showToast({
+					type: 'success',
+					title: 'Expense updated',
+					message: 'The modifications have been queued for sync.',
+				});
+			} else {
+				const result = await saveReceiptDraftToQueue(receiptDraft);
+				await refreshOfflineState();
+				closeScanner();
 
-			showToast({
-				type: 'success',
-				title: result.syncState === 'synced' ? 'Expense saved' : 'Saved to local queue',
-				message: result.syncState === 'synced'
-					? 'The receipt was stored locally and synced to Firestore.'
-					: 'The receipt is stored in SQLite and will sync to Firestore when the connection succeeds.',
-			});
+				showToast({
+					type: 'success',
+					title: result.syncState === 'synced' ? 'Expense saved' : 'Saved to local queue',
+					message: result.syncState === 'synced'
+						? 'The receipt was stored locally and synced to Firestore.'
+						: 'The receipt is stored in SQLite and will sync to Firestore when the connection succeeds.',
+				});
+			}
 		} catch (error) {
 			if (error instanceof Error && error.message.trim()) {
 				setScannerError(error.message.trim());
@@ -374,6 +461,31 @@ export default function FinanceScreen() {
 				...current,
 				[field]: numeric,
 			};
+		});
+	};
+
+	const addDraftItem = () => {
+		setReceiptDraft((current) => current ? {
+			...current,
+			items: [...current.items, { name: '', amount: 0, quantity: null }]
+		} : current);
+	};
+
+	const updateDraftItem = (index: number, field: keyof ReceiptLineItem, value: any) => {
+		setReceiptDraft((current) => {
+			if (!current) return current;
+			const newItems = [...current.items];
+			newItems[index] = { ...newItems[index], [field]: value };
+			return { ...current, items: newItems };
+		});
+	};
+
+	const removeDraftItem = (index: number) => {
+		setReceiptDraft((current) => {
+			if (!current) return current;
+			const newItems = [...current.items];
+			newItems.splice(index, 1);
+			return { ...current, items: newItems };
 		});
 	};
 
@@ -649,11 +761,13 @@ export default function FinanceScreen() {
 							) : null}
 
 							<Card style={[styles.detailCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-								<Text style={[styles.detailTitle, { color: colors.textPrimary }]}>Detected summary</Text>
+								<Text style={[styles.detailTitle, { color: colors.textPrimary }]}>
+									{receiptDraft.rawText ? 'Detected summary' : 'Manual summary'}
+								</Text>
 								<View style={styles.detailRow}>
 									<Text style={[styles.detailLabel, { color: colors.textMuted }]}>Merchant</Text>
 									<Text style={[styles.detailSecondary, { color: colors.textSecondary }]}>
-										{receiptDraft.merchantName || 'Not detected'}
+										{receiptDraft.merchantName || 'Not specified'}
 									</Text>
 								</View>
 								<View style={styles.detailRow}>
@@ -719,40 +833,70 @@ export default function FinanceScreen() {
 								multiline
 							/>
 
-							{receiptDraft.items.length > 0 ? (
-								<Card style={[styles.detailCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-									<Text style={[styles.detailTitle, { color: colors.textPrimary }]}>Line items</Text>
-									{receiptDraft.items.map((item, index) => (
-										<View key={`${item.name}-${index}`} style={styles.detailRow}>
-											<Text style={[styles.detailPrimary, { color: colors.textPrimary }]}>{item.name}</Text>
-											<Text style={[styles.detailSecondary, { color: colors.textSecondary }]}>
-												{item.quantity ? `${item.quantity} x ` : ''}
-												{item.amount !== null ? formatAmount(item.amount) : 'No amount'}
-											</Text>
+							<Card style={[styles.detailCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+								<Text style={[styles.detailTitle, { color: colors.textPrimary }]}>Line items</Text>
+								{receiptDraft.items.map((item, index) => (
+									<View key={index} style={[styles.itemEditorRow, { borderBottomColor: colors.border }]}>
+										<View style={styles.itemEditorInputs}>
+											<Input
+												label="Item Name"
+												value={item.name}
+												onChangeText={(val) => updateDraftItem(index, 'name', val)}
+											/>
+											<View style={{ flexDirection: 'row', gap: Theme.spacing.sm }}>
+												<View style={{ flex: 1 }}>
+													<Input
+														label="Qty"
+														value={stringifyAmount(item.quantity)}
+														keyboardType="decimal-pad"
+														onChangeText={(val) => updateDraftItem(index, 'quantity', parseDraftAmount(val))}
+													/>
+												</View>
+												<View style={{ flex: 2 }}>
+													<Input
+														label="Price"
+														value={stringifyAmount(item.amount)}
+														keyboardType="decimal-pad"
+														onChangeText={(val) => updateDraftItem(index, 'amount', parseDraftAmount(val))}
+													/>
+												</View>
+											</View>
 										</View>
-									))}
+										<TouchableOpacity onPress={() => removeDraftItem(index)} style={styles.itemDeleteBtn}>
+											<Minus size={16} color={colors.danger} />
+										</TouchableOpacity>
+									</View>
+								))}
+								<Button
+									title="Add Line Item"
+									iconLeft={Plus}
+									variant="secondary"
+									onPress={addDraftItem}
+									style={{ marginTop: Theme.spacing.sm }}
+								/>
+							</Card>
+
+							{receiptDraft.rawText ? (
+								<Card style={[styles.detailCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+									<View style={styles.detailHeaderRow}>
+										<Text style={[styles.detailTitle, { color: colors.textPrimary }]}>Raw OCR text</Text>
+										<TouchableOpacity onPress={() => setShowRawText((current) => !current)}>
+											<Text style={[styles.rawToggleText, { color: colors.primary }]}>
+												{showRawText ? 'Hide' : 'Show'}
+											</Text>
+										</TouchableOpacity>
+									</View>
+									{showRawText ? (
+										<Text style={[styles.rawText, { color: colors.textSecondary }]}>{receiptDraft.rawText}</Text>
+									) : (
+										<Text style={[styles.secondaryText, { color: colors.textMuted }]}>
+											Open this only when the detected fields still look wrong.
+										</Text>
+									)}
 								</Card>
 							) : null}
 
-							<Card style={[styles.detailCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-								<View style={styles.detailHeaderRow}>
-									<Text style={[styles.detailTitle, { color: colors.textPrimary }]}>Raw OCR text</Text>
-									<TouchableOpacity onPress={() => setShowRawText((current) => !current)}>
-										<Text style={[styles.rawToggleText, { color: colors.primary }]}>
-											{showRawText ? 'Hide' : 'Show'}
-										</Text>
-									</TouchableOpacity>
-								</View>
-								{showRawText ? (
-									<Text style={[styles.rawText, { color: colors.textSecondary }]}>{receiptDraft.rawText}</Text>
-								) : (
-									<Text style={[styles.secondaryText, { color: colors.textMuted }]}>
-										Open this only when the detected fields still look wrong.
-									</Text>
-								)}
-							</Card>
-
-							<Button title="Save Receipt" onPress={saveExpense} loading={savingExpense} fullWidth />
+							<Button title={editingExpenseId ? "Update Expense" : "Save Receipt"} onPress={saveExpense} loading={savingExpense} fullWidth />
 						</View>
 					) : null}
 				</View>
@@ -816,12 +960,25 @@ export default function FinanceScreen() {
 								</Card>
 							) : null}
 
-							<Button 
-								title="Close Details" 
-								variant="secondary" 
-								onPress={() => expenseSheetRef.current?.dismiss()} 
-								fullWidth 
-							/>
+							<View style={{ flexDirection: 'row', gap: Theme.spacing.md, marginTop: Theme.spacing.sm }}>
+								<View style={{ flex: 1 }}>
+									<Button 
+										title="Edit Expense" 
+										iconLeft={Edit2}
+										variant="primary" 
+										onPress={() => handleEditExpense(selectedExpense)} 
+										fullWidth 
+									/>
+								</View>
+								<View style={{ flex: 1 }}>
+									<Button 
+										title="Close" 
+										variant="secondary" 
+										onPress={() => expenseSheetRef.current?.dismiss()} 
+										fullWidth 
+									/>
+								</View>
+							</View>
 						</View>
 					</View>
 				) : null}
