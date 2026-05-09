@@ -1,5 +1,7 @@
-import { MapPin, Banknote, UserPen, Trash2, Navigation2, FileText, Phone, MessageCircle, ExternalLink } from 'lucide-react-native';
+import { MapPin, Banknote, UserPen, Trash2, FileText, ExternalLink } from 'lucide-react-native';
+import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
+import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 import { StyleSheet, Text, TouchableOpacity, View, Linking } from 'react-native';
 import { Theme } from '../../constants/Theme';
 import { useAppTheme } from '../../context/ThemeModeContext';
@@ -19,7 +21,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 	return (
 		<View style={styles.section}>
 			<Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>{title}</Text>
-			<View style={[styles.sectionContent, { borderColor: colors.border, backgroundColor: colors.surfaceElevated }]}>
+			<View style={styles.sectionContent}>
 				{children}
 			</View>
 		</View>
@@ -74,41 +76,47 @@ export const CustomerIntelligenceDetail: React.FC<CustomerIntelligenceDetailProp
 	return (
 		<View style={styles.container}>
 			{/* Top Operational Hero */}
-			<View style={[styles.hero, { borderColor: colors.border, backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.6)' }]}>
+			<Animated.View 
+				entering={FadeInDown.delay(100).springify().damping(18).stiffness(200)}
+				style={[styles.hero, { borderColor: colors.border, backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.6)' }]}
+			>
 				<View style={styles.heroTop}>
 					<View style={[styles.heroAvatar, { backgroundColor: colors.primary + '18' }]}>
 						<Text style={[styles.heroAvatarText, { color: colors.primary }]}>{initials}</Text>
 					</View>
 					<View style={styles.heroIdentity}>
 						<Text style={[styles.heroName, { color: colors.textPrimary }]} numberOfLines={1}>{customer.name}</Text>
-						<Text style={[styles.heroPlan, { color: colors.textSecondary }]}>{planLabel} • {customer.address?.location || 'No Location'}</Text>
+						<Text style={[styles.heroPlan, { color: colors.textSecondary }]}>{planLabel} • DHS {customer.pricePerMonth || 0}/mo</Text>
 						<Text style={[styles.heroMetaValue, { color: statusTone, marginTop: 4 }]}>● {statusText} • {daysLeft}d left</Text>
 					</View>
 				</View>
-			</View>
+			</Animated.View>
 
 			{/* Quick Action Strip */}
-			<View style={styles.actionStrip}>
-				<TouchableOpacity style={[styles.stripBtn, { backgroundColor: '#E8F8F5' }]} onPress={openWhatsApp}>
-					<MessageCircle size={16} color="#27AE60" />
-					<Text style={[styles.stripBtnText, { color: '#27AE60' }]}>WhatsApp</Text>
+			<Animated.View 
+				entering={FadeInUp.delay(150).springify().damping(18).stiffness(200)}
+				style={styles.actionStrip}
+			>
+				<TouchableOpacity style={[styles.stripBtn, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)' }]} onPress={openWhatsApp}>
+					<FontAwesome name="whatsapp" size={17} color={isDark ? '#54E58B' : '#27AE60'} />
+					<Text style={[styles.stripBtnText, { color: colors.textPrimary }]}>WhatsApp</Text>
 				</TouchableOpacity>
-				<TouchableOpacity style={[styles.stripBtn, { backgroundColor: '#EBF5FB' }]} onPress={openMaps}>
-					<Navigation2 size={16} color="#2980B9" />
-					<Text style={[styles.stripBtnText, { color: '#2980B9' }]}>Route</Text>
+				<TouchableOpacity style={[styles.stripBtn, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)' }]} onPress={openMaps}>
+					<MaterialCommunityIcons name="map-marker-path" size={17} color={isDark ? '#63B3ED' : '#2980B9'} />
+					<Text style={[styles.stripBtnText, { color: colors.textPrimary }]}>Route</Text>
 				</TouchableOpacity>
-				<TouchableOpacity style={[styles.stripBtn, { backgroundColor: '#F2F3F4' }]} onPress={makeCall}>
-					<Phone size={16} color="#5D6D7E" />
-					<Text style={[styles.stripBtnText, { color: '#5D6D7E' }]}>Call</Text>
+				<TouchableOpacity style={[styles.stripBtn, { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)' }]} onPress={makeCall}>
+					<MaterialCommunityIcons name="phone-outline" size={17} color={isDark ? '#A0AEC0' : '#5D6D7E'} />
+					<Text style={[styles.stripBtnText, { color: colors.textPrimary }]}>Call</Text>
 				</TouchableOpacity>
-				<TouchableOpacity style={[styles.stripBtn, { backgroundColor: colors.primary + '15' }]} onPress={() => onAction({ type: 'customer.payment', customerId: customer.id })}>
-					<Banknote size={16} color={colors.primary} />
-					<Text style={[styles.stripBtnText, { color: colors.primary }]}>Pay</Text>
+				<TouchableOpacity style={[styles.stripBtn, { backgroundColor: colors.primary }]} onPress={() => onAction({ type: 'customer.payment', customerId: customer.id })}>
+					<Banknote size={17} color={colors.textInverted} />
+					<Text style={[styles.stripBtnText, { color: colors.textInverted }]}>Pay</Text>
 				</TouchableOpacity>
-			</View>
+			</Animated.View>
 
 			{/* Subscription Progress */}
-			<View style={styles.progressSection}>
+			<Animated.View entering={FadeInUp.delay(200).springify().damping(18).stiffness(200)} style={styles.progressSection}>
 				<View style={styles.progressHeader}>
 					<Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>SUBSCRIPTION PROGRESS</Text>
 					<Text style={[styles.detailValue, { color: colors.textPrimary }]}>{daysLeft} days left</Text>
@@ -116,76 +124,85 @@ export const CustomerIntelligenceDetail: React.FC<CustomerIntelligenceDetailProp
 				<View style={[styles.progressBarBg, { backgroundColor: colors.border }]}>
 					<View style={[styles.progressBarFill, { width: `${progress * 100}%`, backgroundColor: statusTone }]} />
 				</View>
-			</View>
+			</Animated.View>
 
 			{/* Financial Summary Cards */}
-			<Section title="FINANCIALS">
-				<View style={styles.financialGrid}>
-					<View style={[styles.financeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-						<Text style={[styles.financeCardValue, { color: colors.textPrimary }]}>DHS {customer.pricePerMonth || 0}</Text>
-						<Text style={[styles.financeCardLabel, { color: colors.textMuted }]}>Monthly Plan</Text>
+			<Animated.View entering={FadeInUp.delay(250).springify().damping(18).stiffness(200)}>
+				<Section title="FINANCIALS">
+					<View style={[styles.financeRow, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+						<View style={styles.financeItem}>
+							<Text style={[styles.financeLabel, { color: colors.textMuted }]}>Pending Amount</Text>
+							<Text style={[styles.financeValue, { color: dueAmount > 0 ? colors.warning : colors.success }]}>DHS {dueAmount}</Text>
+						</View>
+						<View style={[styles.verticalDivider, { backgroundColor: colors.border }]} />
+						<View style={styles.financeItem}>
+							<Text style={[styles.financeLabel, { color: colors.textMuted }]}>Monthly Plan</Text>
+							<Text style={[styles.financeValue, { color: colors.textPrimary }]}>DHS {customer.pricePerMonth || 0}</Text>
+						</View>
 					</View>
-					<View style={[styles.financeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-						<Text style={[styles.financeCardValue, { color: dueAmount > 0 ? colors.warning : colors.success }]}>DHS {dueAmount}</Text>
-						<Text style={[styles.financeCardLabel, { color: colors.textMuted }]}>Pending</Text>
-					</View>
-				</View>
-			</Section>
+				</Section>
+			</Animated.View>
 
 			{/* Delivery Section - Action Oriented */}
-			<Section title="DELIVERY">
-				<TouchableOpacity style={styles.deliveryItem} onPress={openMaps}>
-					<MapPin size={18} color={colors.textMuted} />
-					<View style={styles.deliveryContent}>
-						<Text style={[styles.deliveryTitle, { color: colors.textPrimary }]}>{customer.address?.location || 'No Location'}, {customer.address?.flat || ''}</Text>
-						<Text style={[styles.deliverySub, { color: colors.primary }]}>Open in Google Maps</Text>
-					</View>
-					<ExternalLink size={14} color={colors.primary} />
-				</TouchableOpacity>
+			<Animated.View entering={FadeInUp.delay(300).springify().damping(18).stiffness(200)}>
+				<Section title="DELIVERY">
+					<TouchableOpacity style={styles.deliveryItem} onPress={openMaps}>
+						<MapPin size={18} color={colors.textMuted} />
+						<View style={styles.deliveryContent}>
+							<Text style={[styles.deliveryTitle, { color: colors.textPrimary }]}>{customer.address?.location || 'No Location'}, {customer.address?.flat || ''}</Text>
+							<Text style={[styles.deliverySub, { color: colors.primary }]}>Open in Google Maps</Text>
+						</View>
+						<ExternalLink size={14} color={colors.primary} />
+					</TouchableOpacity>
 
-				<View style={[styles.divider, { backgroundColor: colors.border }]} />
+					<View style={[styles.divider, { backgroundColor: colors.border }]} />
 
-				<TouchableOpacity style={styles.deliveryItem} onPress={makeCall}>
-					<Phone size={18} color={colors.textMuted} />
-					<View style={styles.deliveryContent}>
-						<Text style={[styles.deliveryTitle, { color: colors.textPrimary }]}>{customer.phone || 'No Phone'}</Text>
-						<Text style={[styles.deliverySub, { color: colors.primary }]}>Tap to call</Text>
-					</View>
-				</TouchableOpacity>
-			</Section>
+					<TouchableOpacity style={styles.deliveryItem} onPress={makeCall}>
+						<MaterialCommunityIcons name="phone-outline" size={18} color={colors.textMuted} />
+						<View style={styles.deliveryContent}>
+							<Text style={[styles.deliveryTitle, { color: colors.textPrimary }]}>{customer.phone || 'No Phone'}</Text>
+							<Text style={[styles.deliverySub, { color: colors.primary }]}>Tap to call</Text>
+						</View>
+					</TouchableOpacity>
+				</Section>
+			</Animated.View>
 
 			{/* Notes */}
 			{customer.notes ? (
-				<Section title="OPERATIONAL NOTES">
-					<View style={styles.notesBox}>
-						<FileText size={14} color={colors.textMuted} />
-						<Text style={[styles.notesText, { color: colors.textPrimary }]}>{customer.notes}</Text>
-					</View>
-				</Section>
+				<Animated.View entering={FadeInUp.delay(350).springify().damping(18).stiffness(200)}>
+					<Section title="OPERATIONAL NOTES">
+						<View style={styles.notesBox}>
+							<FileText size={14} color={colors.textMuted} />
+							<Text style={[styles.notesText, { color: colors.textPrimary }]}>{customer.notes}</Text>
+						</View>
+					</Section>
+				</Animated.View>
 			) : null}
 
 			{/* Recent Activity - Timeline UI */}
-			<Section title="RECENT ACTIVITY">
-				<View style={styles.timeline}>
-					<View style={[styles.timelineLine, { backgroundColor: colors.border }]} />
+			<Animated.View entering={FadeInUp.delay(400).springify().damping(18).stiffness(200)}>
+				<Section title="RECENT ACTIVITY">
+					<View style={styles.timeline}>
+						<View style={[styles.timelineLine, { backgroundColor: colors.border }]} />
 
-					<View style={styles.timelineItem}>
-						<View style={[styles.timelineDot, { backgroundColor: colors.success }]} />
-						<View style={styles.timelineContent}>
-							<Text style={[styles.timelineTitle, { color: colors.textPrimary }]}>Payment recorded</Text>
-							<Text style={[styles.timelineDate, { color: colors.textMuted }]}>Today</Text>
+						<View style={styles.timelineItem}>
+							<View style={[styles.timelineDot, { backgroundColor: colors.success }]} />
+							<View style={styles.timelineContent}>
+								<Text style={[styles.timelineTitle, { color: colors.textPrimary }]}>Payment recorded</Text>
+								<Text style={[styles.timelineDate, { color: colors.textMuted }]}>Today</Text>
+							</View>
+						</View>
+
+						<View style={styles.timelineItem}>
+							<View style={[styles.timelineDot, { backgroundColor: colors.primary }]} />
+							<View style={styles.timelineContent}>
+								<Text style={[styles.timelineTitle, { color: colors.textPrimary }]}>Subscription started</Text>
+								<Text style={[styles.timelineDate, { color: colors.textMuted }]}>{formatSafeDate(customer.startDate)}</Text>
+							</View>
 						</View>
 					</View>
-
-					<View style={styles.timelineItem}>
-						<View style={[styles.timelineDot, { backgroundColor: colors.primary }]} />
-						<View style={styles.timelineContent}>
-							<Text style={[styles.timelineTitle, { color: colors.textPrimary }]}>Subscription started</Text>
-							<Text style={[styles.timelineDate, { color: colors.textMuted }]}>{formatSafeDate(customer.startDate)}</Text>
-						</View>
-					</View>
-				</View>
-			</Section>
+				</Section>
+			</Animated.View>
 
 			{/* Action Grid Bottom */}
 			<View style={styles.footerActions}>
@@ -291,29 +308,30 @@ const styles = StyleSheet.create({
 		paddingHorizontal: 4,
 	},
 	sectionContent: {
-		borderWidth: 1,
-		borderRadius: 14,
-		padding: 4,
 		overflow: 'hidden',
 	},
-	financialGrid: {
+	financeRow: {
 		flexDirection: 'row',
-		gap: 8,
-		padding: 4,
-	},
-	financeCard: {
-		flex: 1,
+		alignItems: 'center',
 		borderWidth: 1,
-		borderRadius: 10,
+		borderRadius: 12,
 		padding: 12,
+		gap: 12,
+	},
+	financeItem: {
+		flex: 1,
 		alignItems: 'center',
 		gap: 4,
 	},
-	financeCardValue: {
+	verticalDivider: {
+		width: 1,
+		height: 30,
+	},
+	financeValue: {
 		fontSize: 18,
 		fontWeight: '800',
 	},
-	financeCardLabel: {
+	financeLabel: {
 		fontSize: 11,
 		fontWeight: '600',
 	},

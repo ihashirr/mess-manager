@@ -81,10 +81,10 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
     const shouldShowCloseButton = showCloseButton ?? policy === 'critical';
     const enablePanDownToClose = policyConfig.enablePanDownToClose && (!scrollable || scrollAtTop);
     const animationConfigs = useBottomSheetSpringConfigs({
-      damping: 22,
-      stiffness: 230,
-      mass: 0.85,
-      overshootClamping: false,
+      damping: 50,
+      stiffness: 500,
+      mass: 1,
+      overshootClamping: true,
     });
 
     const resolvedSnapPoints = useMemo(() => {
@@ -92,7 +92,7 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
         return snapPoints;
       }
 
-      return scrollable ? ['72%', '90%'] : ['58%'];
+      return scrollable ? ['60%', '90%'] : ['55%'];
     }, [scrollable, snapPoints]);
 
     const handleDismiss = useCallback(() => {
@@ -148,7 +148,7 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
           <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
             {Platform.OS !== 'web' ? (
               <BlurView
-                intensity={Platform.OS === 'android' ? 28 : isDark ? 18 : 22}
+                intensity={Platform.OS === 'android' ? 35 : isDark ? 24 : 28}
                 tint={isDark ? 'dark' : 'light'}
                 experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : 'none'}
                 blurReductionFactor={Platform.OS === 'android' ? 2.4 : undefined}
@@ -285,13 +285,13 @@ const styles = StyleSheet.create({
     elevation: 24,
   },
   handle: {
-    width: 52,
-    height: 5,
+    width: 60,
+    height: 6,
     borderRadius: 999,
   },
   handleWrap: {
-    paddingTop: 12,
-    paddingBottom: 6,
+    paddingTop: 14,
+    paddingBottom: 10,
   },
   headerWrap: {
     borderBottomWidth: StyleSheet.hairlineWidth,

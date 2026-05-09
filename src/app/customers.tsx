@@ -345,7 +345,7 @@ export default function CustomersScreen() {
 	const handleDeleteCustomerRequest = async (customer: Customer) => {
 		const confirmed = await confirm({
 			title: 'Delete customer',
-			message: `Remove ${customer.name} from customers? This will be queued locally until Firestore confirms it.`,
+			message: `Remove ${customer.name} from customers?`,
 			confirmLabel: 'Delete',
 			tone: 'danger',
 		});
@@ -594,12 +594,16 @@ export default function CustomersScreen() {
 						</Animated.View>
 
 						<View style={styles.feedMetaRow}>
-							<Text style={[styles.feedMetaText, { color: colors.textMuted }]}>{showingText}</Text>
 							{hasFiltersApplied ? (
-								<TouchableOpacity onPress={resetFilters} activeOpacity={0.8}>
-									<Text style={[styles.filterResetText, { color: colors.primary }]}>Reset</Text>
-								</TouchableOpacity>
-							) : null}
+								<>
+									<Text style={[styles.feedMetaText, { color: colors.textMuted }]}>{showingText}</Text>
+									<TouchableOpacity onPress={resetFilters} activeOpacity={0.8}>
+										<Text style={[styles.filterResetText, { color: colors.primary }]}>Reset</Text>
+									</TouchableOpacity>
+								</>
+							) : (
+								<Text style={[styles.feedMetaText, { color: colors.textMuted }]}>{customers.length} total customers</Text>
+							)}
 						</View>
 
 						<ScrollView
@@ -929,7 +933,7 @@ const styles = StyleSheet.create({
 		gap: 7,
 		paddingTop: 3,
 		paddingBottom: 9,
-		paddingHorizontal: 1,
+		paddingHorizontal: 16,
 	},
 	filterChipMotion: {
 		height: 31,
