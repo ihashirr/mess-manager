@@ -97,7 +97,9 @@ export default function FinanceScreen() {
 	const [receiptPreviewUri, setReceiptPreviewUri] = useState<string | null>(null);
 	const [receiptDraft, setReceiptDraft] = useState<ReceiptExpenseDraft | null>(null);
 	const [showRawText, setShowRawText] = useState(false);
+	const [selectedExpense, setSelectedExpense] = useState<ExpenseEntry | null>(null);
 	const scannerSheetRef = useRef<PremiumBottomSheetHandle>(null);
+	const expenseSheetRef = useRef<PremiumBottomSheetHandle>(null);
 	const financeCustomers = useMemo(
 		() => allCustomers.map((customer) => ({
 			id: customer.id,
@@ -471,34 +473,43 @@ export default function FinanceScreen() {
 						</View>
 					) : (
 						expenses.map((expense) => (
-							<Card key={expense.id} style={[styles.listCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
-								<View style={styles.listRow}>
-									<View style={styles.iconBox}>
-										<Store size={18} color={colors.danger} />
+							<TouchableOpacity 
+								key={expense.id} 
+								activeOpacity={0.7}
+								onPress={() => {
+									setSelectedExpense(expense);
+									expenseSheetRef.current?.present();
+								}}
+							>
+								<Card style={[styles.listCard, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+									<View style={styles.listRow}>
+										<View style={styles.iconBox}>
+											<Store size={18} color={colors.danger} />
+										</View>
+										<View style={styles.cardCopy}>
+											<Text style={[styles.primaryText, { color: colors.textPrimary }]} numberOfLines={1}>
+												{expense.title || expense.merchantName || 'Untitled Expense'}
+											</Text>
+											<Text style={[styles.secondaryText, { color: colors.textMuted }]}>
+												{expense.receiptDate ? formatReceiptDate(expense.receiptDate) : toDate(expense.date).toLocaleDateString()}
+											</Text>
+										</View>
+										<View style={styles.amountBlock}>
+											<Text style={[styles.amountText, { color: colors.danger }]}>-{formatAmount(expense.total)}</Text>
+											<TouchableOpacity onPress={() => handleDeleteExpense(expense.id)} style={{ padding: 4 }}>
+												<Trash2 size={16} color={colors.textMuted} />
+											</TouchableOpacity>
+										</View>
 									</View>
-									<View style={styles.cardCopy}>
-										<Text style={[styles.primaryText, { color: colors.textPrimary }]} numberOfLines={1}>
-											{expense.title || expense.merchantName || 'Untitled Expense'}
-										</Text>
-										<Text style={[styles.secondaryText, { color: colors.textMuted }]}>
-											{expense.receiptDate ? formatReceiptDate(expense.receiptDate) : toDate(expense.date).toLocaleDateString()}
-										</Text>
+									<View style={styles.badgeRow}>
+										<Badge label="Synced" variant="success" />
+										{typeof expense.confidence === 'number' ? (
+											<Badge label={getConfidenceLabel(expense.confidence)} variant={getConfidenceVariant(expense.confidence)} />
+										) : null}
+										{expense.items?.length ? <Badge label={`${expense.items.length} items`} variant="neutral" /> : null}
 									</View>
-									<View style={styles.amountBlock}>
-										<Text style={[styles.amountText, { color: colors.danger }]}>-{formatAmount(expense.total)}</Text>
-										<TouchableOpacity onPress={() => handleDeleteExpense(expense.id)}>
-											<Trash2 size={16} color={colors.textMuted} />
-										</TouchableOpacity>
-									</View>
-								</View>
-								<View style={styles.badgeRow}>
-									<Badge label="Synced" variant="success" />
-									{typeof expense.confidence === 'number' ? (
-										<Badge label={getConfidenceLabel(expense.confidence)} variant={getConfidenceVariant(expense.confidence)} />
-									) : null}
-									{expense.items?.length ? <Badge label={`${expense.items.length} items`} variant="neutral" /> : null}
-								</View>
-							</Card>
+								</Card>
+							</TouchableOpacity>
 						))
 					)}
 				</View>
@@ -745,6 +756,75 @@ export default function FinanceScreen() {
 						</View>
 					) : null}
 				</View>
+			</PremiumBottomSheet>
+
+			<PremiumBottomSheet
+				ref={expenseSheetRef}
+				onDismiss={() => setSelectedExpense(null)}
+				title="Expense Details"
+				subtitle="Receipt contents and metadata"
+			>
+				{selectedExpense ? (
+					<View style={styles.sheetContent}>
+						<View style={styles.draftPanel}>
+							<View style={styles.draftHeader}>
+								<View style={styles.cardCopy}>
+									<Text style={[styles.draftTitle, { color: colors.textPrimary }]}>
+										{selectedExpense.merchantName || selectedExpense.title || 'Unknown Merchant'}
+									</Text>
+									<Text style={[styles.secondaryText, { color: colors.textMuted }]}>
+										{selectedExpense.receiptDate ? formatReceiptDate(selectedExpense.receiptDate) : toDate(selectedExpense.date).toLocaleDateString()}
+									</Text>
+								</View>
+								<Text style={[styles.draftAmount, { color: colors.danger }]}>
+									{formatAmount(selectedExpense.total)}
+								</Text>
+							</View>
+
+							<View style={styles.badgeRow}>
+								{typeof selectedExpense.confidence === 'number' ? (
+									<Badge label={getConfidenceLabel(selectedExpense.confidence)} variant={getConfidenceVariant(selectedExpense.confidence)} />
+								) : null}
+								{selectedExpense.paymentMethod ? <Badge label={selectedExpense.paymentMethod} variant="neutral" /> : null}
+							</View>
+
+							{selectedExpense.items && selectedExpense.items.length > 0 ? (
+								<Card style={[styles.detailCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+									<Text style={[styles.detailTitle, { color: colors.textPrimary }]}>Scanned Items</Text>
+									{selectedExpense.items.map((item, index) => (
+										<View key={`${item.name}-${index}`} style={styles.detailRow}>
+											<Text style={[styles.detailPrimary, { color: colors.textPrimary }]}>{item.name}</Text>
+											<Text style={[styles.detailSecondary, { color: colors.textSecondary }]}>
+												{item.quantity ? `${item.quantity} x ` : ''}
+												{item.amount !== null ? formatAmount(item.amount) : 'No amount'}
+											</Text>
+										</View>
+									))}
+								</Card>
+							) : (
+								<Card style={[styles.infoCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+									<Text style={[styles.infoText, { color: colors.textSecondary }]}>
+										No detailed line items were extracted for this receipt.
+									</Text>
+								</Card>
+							)}
+							
+							{selectedExpense.note ? (
+								<Card style={[styles.detailCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+									<Text style={[styles.detailTitle, { color: colors.textPrimary }]}>Note</Text>
+									<Text style={[styles.detailSecondary, { color: colors.textSecondary }]}>{selectedExpense.note}</Text>
+								</Card>
+							) : null}
+
+							<Button 
+								title="Close Details" 
+								variant="secondary" 
+								onPress={() => expenseSheetRef.current?.dismiss()} 
+								fullWidth 
+							/>
+						</View>
+					</View>
+				) : null}
 			</PremiumBottomSheet>
 		</Screen>
 	);

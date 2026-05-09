@@ -2,7 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { requireOptionalNativeModule } from 'expo';
 import { Platform } from 'react-native';
 import { parseReceiptText } from './receiptParser';
-import type { ReceiptExpenseDraft } from './receiptTypes';
+import type { ReceiptExpenseDraft, OCRGeometry, TextFragment } from './receiptTypes';
 
 export class ReceiptScannerConfigError extends Error {}
 
@@ -72,7 +72,15 @@ export async function scanReceiptImage({
 	const recognizeText = await loadRecognizer();
 	const persistedImageUri = await persistReceiptImage(imageUri, mimeType);
 	const result = await recognizeText(persistedImageUri);
-	const rawText = buildStructuredReceiptText(result);
+	
+	const lineFragments = getLineFragments(result);
+	const elementFragments = getElementFragments(result);
+	const preferredFragments =
+		elementFragments.length >= Math.max(10, lineFragments.length * 2)
+			? elementFragments
+			: lineFragments;
+			
+	const rawText = buildStructuredReceiptText(result.text, preferredFragments);
 
 	if (!rawText) {
 		throw new Error('No readable text was detected. Retake the receipt in brighter light.');
@@ -81,6 +89,7 @@ export async function scanReceiptImage({
 	return parseReceiptText({
 		rawText,
 		imageUri: persistedImageUri,
+		geometry: { fragments: preferredFragments }
 	});
 }
 
@@ -134,14 +143,8 @@ function detectFileExtension(imageUri: string, mimeType?: string | null) {
 	return '.jpg';
 }
 
-function buildStructuredReceiptText(result: TextRecognitionResult) {
-	const fallbackText = normalizeNativeText(result.text);
-	const lineFragments = getLineFragments(result);
-	const elementFragments = getElementFragments(result);
-	const preferredFragments =
-		elementFragments.length >= Math.max(10, lineFragments.length * 2)
-			? elementFragments
-			: lineFragments;
+function buildStructuredReceiptText(nativeText: string, preferredFragments: TextFragment[]) {
+	const fallbackText = normalizeNativeText(nativeText);
 	const structuredText = joinFragmentsIntoRows(preferredFragments);
 
 	if (!structuredText) {

@@ -3,6 +3,7 @@ import type { ReceiptExpenseDraft, ReceiptLineItem } from './receiptTypes';
 type ParseReceiptTextInput = {
 	rawText: string;
 	imageUri: string;
+	geometry?: OCRGeometry;
 };
 
 type TotalResolution = {
@@ -96,14 +97,14 @@ export function parseReceiptText({
 		.split('\n')
 		.map((line) => normalizeLine(line))
 		.filter(Boolean);
-	const merchantName = detectMerchantName(lines);
+	const merchantName = detectMerchantName(lines, geometry);
 	const subtotal = detectAmountByKeywords(lines, SUBTOTAL_KEYWORDS);
 	const tax = detectAmountByKeywords(lines, TAX_KEYWORDS);
 	const totalResolution = detectTotal(lines, subtotal, tax);
 	const paymentMethod = detectPaymentMethod(normalizedText);
 	const currency = detectCurrency(normalizedText);
 	const receiptDate = detectReceiptDate(normalizedText);
-	const items = detectLineItems(lines, totalResolution.lineIndex, totalResolution.total);
+	const items = detectLineItems(lines, totalResolution.lineIndex, totalResolution.total, geometry);
 	const expenseTitle = merchantName || items[0]?.name || 'Receipt expense';
 	const confidence = estimateConfidence({
 		rawText: normalizedText,
@@ -146,7 +147,36 @@ function normalizeLine(line: string) {
 	return line.replace(/\s+/g, ' ').trim();
 }
 
-function detectMerchantName(lines: string[]) {
+function detectMerchantName(lines: string[], geometry?: OCRGeometry) {
+	if (geometry?.fragments.length) {
+		const sortedByY = [...geometry.fragments].sort((a, b) => a.frame.top - b.frame.top);
+		const maxY = sortedByY[sortedByY.length - 1]?.frame.bottom || 0;
+		const searchHeight = maxY * 0.35;
+		
+		let bestFragment = null;
+		let maxFontHeight = -1;
+		
+		for (const frag of geometry.fragments) {
+			if (frag.frame.top > searchHeight) continue;
+			
+			const height = frag.frame.bottom - frag.frame.top;
+			if (height > maxFontHeight) {
+				const score = scoreMerchantCandidate(frag.text);
+				if (score > -20) {
+					maxFontHeight = height;
+					bestFragment = frag;
+				}
+			}
+		}
+		
+		if (bestFragment) {
+			const cleaned = cleanupMerchantName(bestFragment.text);
+			if (cleaned.length >= 3) {
+				return cleaned;
+			}
+		}
+	}
+
 	const searchSpace = lines.slice(0, 14);
 	let bestLine = '';
 	let bestScore = -Infinity;
@@ -383,13 +413,57 @@ function detectReceiptDate(rawText: string) {
 function detectLineItems(
 	lines: string[],
 	totalLineIndex: number,
-	totalAmount: number
+	totalAmount: number,
+	geometry?: OCRGeometry
 ): ReceiptLineItem[] {
+	const items: ReceiptLineItem[] = [];
+
+	if (geometry?.fragments.length) {
+		const sortedByY = [...geometry.fragments].sort((a, b) => a.frame.top - b.frame.top);
+		const totalYThreshold = totalLineIndex > 0 && totalLineIndex < lines.length 
+			? (sortedByY[Math.min(totalLineIndex * 2, sortedByY.length - 1)]?.frame.top || Infinity)
+			: Infinity;
+		
+		for (const frag of sortedByY) {
+			if (frag.frame.top >= totalYThreshold) break;
+			
+			const amountMatches = getAmountMatchesFromLine(frag.text);
+			const selected = selectPreferredAmountMatch(frag.text, amountMatches, 'line-item');
+			
+			if (selected && selected.value !== totalAmount) {
+				const centerY = (frag.frame.top + frag.frame.bottom) / 2;
+				const tolerance = (frag.frame.bottom - frag.frame.top) * 0.8;
+				
+				const alignedLeftFrags = geometry.fragments.filter(f => {
+					if (f === frag) return false;
+					if (f.frame.right >= frag.frame.left) return false;
+					const fCenterY = (f.frame.top + f.frame.bottom) / 2;
+					return Math.abs(fCenterY - centerY) <= tolerance;
+				}).sort((a, b) => a.frame.left - b.frame.left);
+				
+				if (alignedLeftFrags.length > 0) {
+					const nameStr = alignedLeftFrags.map(f => f.text).join(' ');
+					const name = cleanupLineItemName(nameStr);
+					if (name && name.length >= 2 && !containsAny(name.toLowerCase(), NON_ITEM_KEYWORDS)) {
+						items.push({
+							name,
+							amount: selected.value,
+							quantity: detectQuantity(nameStr, amountMatches)
+						});
+					}
+				}
+			}
+		}
+		
+		if (items.length > 0) {
+			return dedupeLineItems(items).slice(0, 12);
+		}
+	}
+
 	const searchWindow =
 		totalLineIndex > 0 ? lines.slice(0, totalLineIndex) : lines;
 	const tableHeaderIndex = searchWindow.findIndex((line) => isTableHeaderLine(line.toLowerCase()));
 	const candidateLines = tableHeaderIndex >= 0 ? searchWindow.slice(tableHeaderIndex + 1) : searchWindow;
-	const items: ReceiptLineItem[] = [];
 
 	for (const line of candidateLines) {
 		const lower = line.toLowerCase();

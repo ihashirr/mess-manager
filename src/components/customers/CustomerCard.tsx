@@ -67,30 +67,26 @@ function TactilePressable({
 	accessibilityRole = 'button',
 	haptic = true,
 }: TactilePressableProps) {
-	const scaleValue = useRef(new RNAnimated.Value(1)).current;
+	const scaleValue = useSharedValue(1);
 
 	const handlePressIn = () => {
-		RNAnimated.timing(scaleValue, {
-			toValue: 0.97,
-			duration: Theme.animation.duration.fast,
-			useNativeDriver: true,
-		}).start();
+		scaleValue.value = withSpring(0.95, { damping: 14, stiffness: 300 });
 
 		if (haptic && Platform.OS !== 'web') {
-			void Haptics.selectionAsync().catch(() => undefined);
+			void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
 		}
 	};
 
 	const handlePressOut = () => {
-		RNAnimated.timing(scaleValue, {
-			toValue: 1,
-			duration: Theme.animation.duration.fast,
-			useNativeDriver: true,
-		}).start();
+		scaleValue.value = withSpring(1, { damping: 14, stiffness: 200 });
 	};
 
+	const animatedStyle = useAnimatedStyle(() => ({
+		transform: [{ scale: scaleValue.value }]
+	}));
+
 	return (
-		<RNAnimated.View style={[containerStyle, { transform: [{ scale: scaleValue }] }]}>
+		<Reanimated.View style={[containerStyle, animatedStyle]}>
 			<Pressable
 				accessibilityLabel={accessibilityLabel}
 				accessibilityRole={accessibilityRole}
@@ -101,7 +97,7 @@ function TactilePressable({
 			>
 				{children}
 			</Pressable>
-		</RNAnimated.View>
+		</Reanimated.View>
 	);
 }
 

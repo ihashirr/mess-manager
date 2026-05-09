@@ -2,7 +2,7 @@ import { ActivityIndicator, Animated, FlatList, Platform, Pressable, ScrollView,
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { BlurView } from 'expo-blur';
-import { BarChart3, Search, SlidersHorizontal, UserPlus, X } from 'lucide-react-native';
+import { BarChart3, Search, SlidersHorizontal, UserPlus, X, MoreVertical } from 'lucide-react-native';
 import AnimatedReanimated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useConfirmDialog } from '../components/system/dialogs/ConfirmDialog';
@@ -168,12 +168,13 @@ export default function CustomersScreen() {
 		deleteCustomer: queueDeleteCustomer,
 		saveAttendanceBatch,
 	} = useOfflineSync();
-	const { contentPadding, maxContentWidth, maxReadableWidth, scale, font, icon } = useResponsiveLayout();
+	const { contentPadding, maxContentWidth, maxReadableWidth, scale, font, icon, isCompact } = useResponsiveLayout();
 	const [savingCustomer, setSavingCustomer] = useState(false);
 	const [expandedId, setExpandedId] = useState<string | null>(null);
 	const intelligenceSheetRef = useRef<PremiumBottomSheetHandle>(null);
 	const addCustomerSheetRef = useRef<PremiumBottomSheetHandle>(null);
 	const statsSheetRef = useRef<PremiumBottomSheetHandle>(null);
+	const optionsSheetRef = useRef<PremiumBottomSheetHandle>(null);
 	const sheetController = useOperationalSheetController<CustomersSheetRoute>();
 	const openSheet = sheetController.open;
 	const [searchQuery, setSearchQuery] = useState('');
@@ -260,24 +261,32 @@ export default function CustomersScreen() {
 		useCallback(() => {
 			setHeaderConfig({
 				title: 'Customers',
-				subtitle: `${stats.active} active | ${stats.due} due today`,
 				rightAction: (
-					<View style={styles.headerActions}>
-						<ScreenHeaderActionButton
-							icon={BarChart3}
-							onPress={() => openSheet({ name: 'customer-stats' })}
-							accessibilityLabel="Open customer stats"
-						/>
+					<View style={[styles.headerActions, { gap: isCompact ? 4 : 8 }]}>
+						{!isCompact && (
+							<ScreenHeaderActionButton
+								icon={BarChart3}
+								onPress={() => openSheet({ name: 'customer-stats' })}
+								accessibilityLabel="Open customer stats"
+							/>
+						)}
 						<ScreenHeaderActionButton
 							icon={UserPlus}
 							onPress={() => openSheet({ name: 'customer-form', mode: 'add' })}
 							accessibilityLabel="Add customer"
 							variant="primary"
 						/>
+						{isCompact && (
+							<ScreenHeaderActionButton
+								icon={MoreVertical}
+								onPress={() => optionsSheetRef.current?.present()}
+								accessibilityLabel="More options"
+							/>
+						)}
 					</View>
 				),
 			});
-		}, [openSheet, setHeaderConfig, stats.active, stats.due])
+		}, [openSheet, setHeaderConfig, isCompact])
 	);
 
 	const handleAddCustomer = async (values: CustomerFormValues) => {
@@ -507,19 +516,21 @@ export default function CustomersScreen() {
 			<FlatList
 				data={filteredCustomers}
 				keyExtractor={(item) => item.id}
-				renderItem={({ item }) => (
-					<CustomerCard
-						customer={item}
-						expanded={expandedId === item.id}
-						weekId={weekId}
-						weekAttendance={weekAttendance}
-						weekMenu={weekMenu}
-						onAvatarPress={(customer) => sheetController.open({ name: 'customer-detail', customerId: customer.id })}
-						onDelete={handleDeleteCustomerRequest}
-						onToggleExpanded={handleOpenAttendance}
-						onToggleAttendance={toggleAttendance}
-						onSaveAttendance={handleSaveAttendance}
-					/>
+				renderItem={({ item, index }) => (
+					<AnimatedReanimated.View entering={FadeInUp.delay(Math.min(index, 12) * 60).springify().damping(18).stiffness(200)}>
+						<CustomerCard
+							customer={item}
+							expanded={expandedId === item.id}
+							weekId={weekId}
+							weekAttendance={weekAttendance}
+							weekMenu={weekMenu}
+							onAvatarPress={(customer) => sheetController.open({ name: 'customer-detail', customerId: customer.id })}
+							onDelete={handleDeleteCustomerRequest}
+							onToggleExpanded={handleOpenAttendance}
+							onToggleAttendance={toggleAttendance}
+							onSaveAttendance={handleSaveAttendance}
+						/>
+					</AnimatedReanimated.View>
 				)}
 				ListHeaderComponent={
 					<View style={styles.listHeader}>
@@ -690,6 +701,27 @@ export default function CustomersScreen() {
 						onAction={handleCustomerSheetEvent}
 					/>
 				) : null}
+			</PremiumBottomSheet>
+
+			<PremiumBottomSheet
+				ref={optionsSheetRef}
+				title="Options"
+				subtitle="Manage customers"
+				snapPoints={['35%']}
+				policy="passive"
+			>
+				<View style={{ padding: 20, gap: 12 }}>
+					<Pressable
+						style={[styles.financePill, { backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border, padding: 16, borderRadius: 16 }]}
+						onPress={() => {
+							optionsSheetRef.current?.dismiss();
+							setTimeout(() => openSheet({ name: 'customer-stats' }), 300);
+						}}
+					>
+						<BarChart3 size={24} color={colors.primary} />
+						<Text style={[styles.opListLabel, { color: colors.textPrimary }]}>View Stats Dashboard</Text>
+					</Pressable>
+				</View>
 			</PremiumBottomSheet>
 		</Screen>
 	);
@@ -1020,11 +1052,11 @@ const styles = StyleSheet.create({
 		borderRadius: 24,
 		padding: Theme.spacing.xl,
 		marginBottom: Theme.spacing.md,
-		shadowColor: '#000',
-		shadowOffset: { width: 0, height: 8 },
-		shadowOpacity: 0.15,
-		shadowRadius: 12,
-		elevation: 8,
+		shadowColor: Theme.colors.primary,
+		shadowOffset: { width: 0, height: 12 },
+		shadowOpacity: 0.35,
+		shadowRadius: 24,
+		elevation: 12,
 	},
 	heroCardEyebrow: {
 		...Theme.typography.detailBold,

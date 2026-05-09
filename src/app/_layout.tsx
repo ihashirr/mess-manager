@@ -5,6 +5,8 @@ import { BlurView } from 'expo-blur';
 import { Tabs } from 'expo-router';
 import { useMemo, useRef } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import AnimatedReanimated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../components/ui/Button';
@@ -252,16 +254,6 @@ function BottomDock({
 
 	return (
 		<View pointerEvents="box-none" style={styles.tabBarRegion}>
-			{blurAvailable ? (
-				<BlurView
-					intensity={backdropBlurIntensity}
-					tint={isDark ? 'dark' : 'light'}
-					experimentalBlurMethod={blurMethod}
-					style={styles.tabBarBackdrop}
-				/>
-			) : null}
-			<View pointerEvents="none" style={[styles.tabBarBackdropTint, { backgroundColor: backdropTintColor }]} />
-
 			<View
 				style={[
 					styles.tabBarShell,
@@ -339,10 +331,31 @@ function DockItem({
 	const { colors } = useAppTheme();
 	const IconComponent = icon;
 	const itemColor = focused ? colors.primary : colors.textMuted;
+	
+	const scale = useSharedValue(1);
+	
+	const handlePressIn = () => {
+		scale.value = withSpring(0.85, { damping: 12, stiffness: 300 });
+	};
+	
+	const handlePressOut = () => {
+		scale.value = withSpring(1, { damping: 15, stiffness: 200 });
+	};
+	
+	const handlePress = () => {
+		Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+		onPress();
+	};
+
+	const animatedStyle = useAnimatedStyle(() => ({
+		transform: [{ scale: scale.value }]
+	}));
 
 	return (
 		<Pressable
-			onPress={onPress}
+			onPress={handlePress}
+			onPressIn={handlePressIn}
+			onPressOut={handlePressOut}
 			style={({ pressed }) => [
 				styles.tabItem,
 				focused && { backgroundColor: activeTintBackground },
@@ -352,10 +365,12 @@ function DockItem({
 			accessibilityState={focused ? { selected: true } : {}}
 			accessibilityLabel={accessibilityLabel}
 		>
-			<IconComponent color={itemColor} size={22} strokeWidth={focused ? 2.5 : 2} />
-			<Text style={[styles.tabLabel, { color: focused ? colors.textPrimary : colors.textMuted }]}>
-				{label}
-			</Text>
+			<AnimatedReanimated.View style={[styles.tabItemInner, animatedStyle]}>
+				<IconComponent color={itemColor} size={22} strokeWidth={focused ? 2.5 : 2} />
+				<Text style={[styles.tabLabel, { color: focused ? colors.textPrimary : colors.textMuted }]}>
+					{label}
+				</Text>
+			</AnimatedReanimated.View>
 		</Pressable>
 	);
 }
@@ -489,6 +504,10 @@ const styles = StyleSheet.create({
 		flex: 1,
 		height: 56,
 		borderRadius: 18,
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	tabItemInner: {
 		alignItems: 'center',
 		justifyContent: 'center',
 		gap: 2,

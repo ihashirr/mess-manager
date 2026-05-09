@@ -1,3 +1,19 @@
+export type Rect = {
+	left: number;
+	top: number;
+	right: number;
+	bottom: number;
+};
+
+export type TextFragment = {
+	text: string;
+	frame: Rect;
+};
+
+export type OCRGeometry = {
+	fragments: TextFragment[];
+};
+
 export type ReceiptLineItem = {
 	name: string;
 	amount: number | null;
