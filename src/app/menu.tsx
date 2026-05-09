@@ -294,7 +294,7 @@ export default function MenuScreen() {
 				})}
 			</ScrollView>
 
-			<PremiumBottomSheet ref={copySheetRef} onDismiss={() => setShowCopyModal(false)} title="Copy Today's Menu" subtitle="Select target days">
+			<PremiumBottomSheet ref={copySheetRef} onDismiss={() => setShowCopyModal(false)} title="Copy Today's Menu" subtitle="Select target days" policy="operational">
 				<View style={[styles.copyModal, { backgroundColor: colors.surface }]}>
 					<View style={styles.copyGrid}>
 						{DAYS.filter(d => d !== todayName).map(day => (

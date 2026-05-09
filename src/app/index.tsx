@@ -10,6 +10,8 @@ import { Screen } from '../components/ui/Screen';
 import { Section } from '../components/ui/Section';
 import { UserIdentity } from '../components/ui/UserIdentity';
 import { useResponsiveLayout } from '../components/ui/useResponsiveLayout';
+import { useOperationalSheetController } from '../components/ui/useOperationalSheetController';
+import { type CustomerSheetEvent, type OperationalSheetRoute } from '../components/ui/sheetTypes';
 import { Theme } from '../constants/Theme';
 import { useAppHeader } from '../context/HeaderContext';
 import { useOfflineSync } from '../context/OfflineSyncContext';
@@ -17,22 +19,12 @@ import { useAppTheme } from '../context/ThemeModeContext';
 import { getDaysLeft, getDueAmount, toDate } from '../utils/customerLogic';
 import { createEmptyDayMenu, normalizeDayMenu, type DayMenu } from '../utils/menuLogic';
 import { formatISO } from '../utils/weekLogic';
+import { type Customer } from '../components/customers/types';
 
-type Customer = {
-	id: string;
-	name: string;
-	address?: {
-		location: string;
-		flat: string;
-	};
-	mealsPerDay?: { lunch: boolean; dinner: boolean };
-	pricePerMonth: number;
-	totalPaid: number;
-	endDate: unknown;
-};
 
 type AttendanceSelection = { lunch: boolean; dinner: boolean };
 type AttendanceState = Record<string, AttendanceSelection>;
+type HomeSheetRoute = Extract<OperationalSheetRoute, { name: 'customer-detail' | 'serving-breakdown' }>;
 
 export default function Index() {
 	const router = useRouter();
@@ -44,15 +36,21 @@ export default function Index() {
 
 	const [activeTab, setActiveTab] = useState<'dashboard' | 'attendance'>('dashboard');
 	const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-	const [activeModal, setActiveModal] = useState<'lunch' | 'dinner' | 'total' | null>(null);
-	const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 	const breakdownSheetRef = useRef<PremiumBottomSheetHandle>(null);
 	const intelligenceSheetRef = useRef<PremiumBottomSheetHandle>(null);
+	const sheetController = useOperationalSheetController<HomeSheetRoute>();
 	
 	const customers = useMemo(
 		() => allCustomers.filter((customer) => customer.isActive),
 		[allCustomers]
 	);
+	const currentSheetRoute = sheetController.currentRoute;
+	const activeBreakdownRoute = currentSheetRoute?.name === 'serving-breakdown'
+		? currentSheetRoute
+		: null;
+	const selectedCustomer = currentSheetRoute?.name === 'customer-detail'
+		? customers.find((customer) => customer.id === currentSheetRoute.customerId) ?? null
+		: null;
 	const todayMenu: DayMenu = useMemo(
 		() => normalizeDayMenu(menuByDate[todayDate] ?? createEmptyDayMenu()),
 		[menuByDate, todayDate]
@@ -103,12 +101,12 @@ export default function Index() {
 	}, [attendance, customers]);
 
 	useEffect(() => {
-		if (activeModal !== null) {
+		if (activeBreakdownRoute !== null) {
 			breakdownSheetRef.current?.present();
 		} else {
 			breakdownSheetRef.current?.dismiss();
 		}
-	}, [activeModal]);
+	}, [activeBreakdownRoute]);
 
 	useEffect(() => {
 		if (selectedCustomer !== null) {
@@ -185,7 +183,8 @@ export default function Index() {
 
 	const lunchCustomers = customers.filter(c => (c.mealsPerDay?.lunch !== false) && (!attendance[c.id] || attendance[c.id].lunch !== false));
 	const dinnerCustomers = customers.filter(c => (c.mealsPerDay?.dinner !== false) && (!attendance[c.id] || attendance[c.id].dinner !== false));
-	
+	const activeModal = activeBreakdownRoute?.meal ?? null;
+
 	const modalServings = activeModal === 'lunch'
 		? lunchCustomers.map(c => ({ customer: c, meal: 'LUNCH' as const }))
 		: activeModal === 'dinner'
@@ -193,6 +192,25 @@ export default function Index() {
 			: activeModal === 'total'
 				? [...lunchCustomers.map(c => ({ customer: c, meal: 'LUNCH' as const })), ...dinnerCustomers.map(c => ({ customer: c, meal: 'DINNER' as const }))].sort((a, b) => a.customer.name.localeCompare(b.customer.name))
 				: [];
+
+	const openCustomerFromBreakdown = (customer: Customer) => {
+		sheetController.replaceAfterDismiss(
+			{ name: 'customer-detail', customerId: customer.id },
+			() => breakdownSheetRef.current?.dismiss()
+		);
+	};
+
+	const handleCustomerSheetEvent = (event: CustomerSheetEvent) => {
+		if (
+			event.type === 'customer.attendance' ||
+			event.type === 'customer.delete' ||
+			event.type === 'customer.edit' ||
+			event.type === 'customer.payment' ||
+			event.type === 'sheet.dismiss'
+		) {
+			intelligenceSheetRef.current?.dismiss();
+		}
+	};
 
 	return (
 		<>
@@ -224,77 +242,85 @@ export default function Index() {
 					<Animated.View entering={FadeInUp.duration(220)} style={styles.scrollContent}>
 						<View style={styles.dashboardStack}>
 							
-							{/* Pulse Card */}
-							<View style={[styles.pulseRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-								<View style={[styles.pulseIconWrap, { backgroundColor: colors.primary + '15' }]}>
-									<Sparkles size={16} color={colors.primary} />
-								</View>
-								<View style={styles.pulseCopyWrap}>
-									<Text style={[styles.pulseTitle, { color: colors.textPrimary }]}>Today&apos;s pulse</Text>
-									<Text style={[styles.pulseSubtitle, { color: colors.textSecondary }]}>{readinessTone}</Text>
-								</View>
-								<View style={[styles.pulseTimePill, { borderColor: colors.border }]}>
-									<Clock3 size={12} color={colors.textMuted} />
-									<Text style={[styles.pulseTimeText, { color: colors.textSecondary }]}>{timeAgo}</Text>
-								</View>
-							</View>
-
 							{hasActiveCustomers ? (
 								<>
-									{/* Main Hero Panel */}
-									<Animated.View entering={FadeInDown.delay(100)} style={[styles.heroCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-										{/* Ambient Blobs */}
-										<View style={styles.ambientWrap} pointerEvents="none">
-											<View style={[styles.blobOrange, { backgroundColor: colors.primary + '15' }]} />
-											<View style={[styles.blobPurple, { backgroundColor: Theme.colors.mealDinner + '10' }]} />
+									<View style={[
+										styles.todayStatusBar,
+										{
+											backgroundColor: menuReady ? colors.success + '10' : colors.primary + '10',
+											borderColor: menuReady ? colors.success + '2A' : colors.primary + '2A',
+										},
+									]}>
+										<View style={[styles.statusIconWrap, { backgroundColor: menuReady ? colors.success + '18' : colors.primary + '18' }]}>
+											<Sparkles size={15} color={menuReady ? colors.success : colors.primary} />
 										</View>
+										<View style={styles.statusCopy}>
+											<Text style={[styles.statusTitle, { color: colors.textPrimary }]}>{menuReady ? 'Menu ready' : 'Menu incomplete'}</Text>
+											<Text style={[styles.statusSubtitle, { color: colors.textSecondary }]}>{productionTone}</Text>
+										</View>
+										<View style={[styles.pulseTimePill, { borderColor: colors.border, backgroundColor: colors.surface }]}>
+											<Clock3 size={12} color={colors.textMuted} />
+											<Text style={[styles.pulseTimeText, { color: colors.textSecondary }]}>{timeAgo}</Text>
+										</View>
+									</View>
 
-										{/* Content */}
-										<View style={styles.heroContent}>
-											<View style={styles.heroHeader}>
-												<View>
-													<Text style={[styles.heroEyebrow, { color: colors.textSecondary }]}>TODAY&apos;S PRODUCTION</Text>
-													<Text style={[styles.heroTone, { color: colors.textPrimary }]}>{productionTone}</Text>
-												</View>
-												<View style={[styles.heroStatusPill, { backgroundColor: menuReady ? colors.success + '1A' : colors.primary + '1A' }]}>
-													<Text style={[styles.heroStatusText, { color: menuReady ? colors.success : colors.primary }]}>
-														{menuReady ? 'MENU READY' : 'ACTION NEEDED'}
-													</Text>
-												</View>
+									<Animated.View entering={FadeInDown.delay(100)} style={[styles.actionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+										<View style={styles.actionCardTop}>
+											<View style={[styles.actionIconWrap, { backgroundColor: menuReady ? colors.success + '14' : colors.primary + '14' }]}>
+												<ChefHat size={22} color={menuReady ? colors.success : colors.primary} />
 											</View>
-
-											<View style={styles.heroBody}>
-												<TouchableOpacity 
-													style={styles.heroMainMetric} 
-													activeOpacity={0.8}
-													onPress={() => setActiveModal('total')}
-												>
-													<Text style={[styles.heroGiantNumber, { color: colors.primary }]}>{totalServings}</Text>
-													<Text style={[styles.heroOfText, { color: colors.textMuted }]}>of {stats.dailyCapacity}</Text>
-												</TouchableOpacity>
-												
-												<View style={styles.heroStatsCol}>
-													<View style={[styles.miniStatCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-														<Text style={[styles.miniStatValue, { color: colors.textPrimary }]}>{stats.activeCount}</Text>
-														<Text style={[styles.miniStatLabel, { color: colors.textSecondary }]}>ACTIVE CUSTOMERS</Text>
-													</View>
-													<View style={[styles.miniStatCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-														<Text style={[styles.miniStatValue, { color: colors.textPrimary }]}>{stats.paymentsDue}</Text>
-														<Text style={[styles.miniStatLabel, { color: colors.textSecondary }]}>PENDING DUES</Text>
-													</View>
-												</View>
+											<View style={styles.actionCopy}>
+												<Text style={[styles.actionEyebrow, { color: colors.textMuted }]}>NEXT ACTION</Text>
+												<Text style={[styles.actionTitle, { color: colors.textPrimary }]}>
+													{menuReady ? 'Service plan is ready' : "Finish today's menu"}
+												</Text>
+												<Text style={[styles.actionSubtitle, { color: colors.textSecondary }]}>
+													{menuReady ? `${totalServings} servings scheduled for today.` : readinessTone}
+												</Text>
 											</View>
 										</View>
-
-										<TouchableOpacity 
-											style={[styles.heroFooterRow, { borderTopColor: colors.border }]}
-											activeOpacity={0.8}
-											onPress={() => setActiveModal('total')}
-										>
-											<Text style={[styles.heroFooterText, { color: colors.textSecondary }]}>Open serving list</Text>
-											<ChevronRight size={16} color={colors.textMuted} />
-										</TouchableOpacity>
+										<View style={styles.actionFooter}>
+											<TouchableOpacity
+												style={[styles.primaryCta, { backgroundColor: menuReady ? colors.surfaceElevated : colors.primary }]}
+												activeOpacity={0.84}
+												onPress={() => router.push('/menu')}
+											>
+												<Text style={[styles.primaryCtaText, { color: menuReady ? colors.textPrimary : colors.textInverted }]}>
+													{menuReady ? 'Review Menu' : 'Open Menu'}
+												</Text>
+												<ChevronRight size={16} color={menuReady ? colors.textSecondary : colors.textInverted} />
+											</TouchableOpacity>
+											<TouchableOpacity
+												style={[styles.secondaryCta, { borderColor: colors.border, backgroundColor: colors.surfaceElevated }]}
+												activeOpacity={0.84}
+												onPress={() => sheetController.open({ name: 'serving-breakdown', meal: 'total' })}
+											>
+												<Text style={[styles.secondaryCtaText, { color: colors.textSecondary }]}>Serving List</Text>
+											</TouchableOpacity>
+										</View>
 									</Animated.View>
+
+									<View style={styles.summaryGrid}>
+										<TouchableOpacity
+											activeOpacity={0.84}
+											onPress={() => sheetController.open({ name: 'serving-breakdown', meal: 'total' })}
+											style={[styles.summaryCard, styles.summaryPrimaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
+										>
+											<Text style={[styles.summaryLabel, { color: colors.textMuted }]}>TOTAL SERVINGS</Text>
+											<View style={styles.summaryValueRow}>
+												<Text style={[styles.summaryLargeValue, { color: colors.primary }]}>{totalServings}</Text>
+												<Text style={[styles.summaryOfText, { color: colors.textMuted }]}>of {stats.dailyCapacity}</Text>
+											</View>
+										</TouchableOpacity>
+										<View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+											<Text style={[styles.summaryLabel, { color: colors.textMuted }]}>CUSTOMERS</Text>
+											<Text style={[styles.summaryValue, { color: colors.textPrimary }]}>{stats.activeCount}</Text>
+										</View>
+										<View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+											<Text style={[styles.summaryLabel, { color: colors.textMuted }]}>DUES</Text>
+											<Text style={[styles.summaryValue, { color: stats.paymentsDue > 0 ? colors.warning : colors.success }]}>{stats.paymentsDue}</Text>
+										</View>
+									</View>
 
 									{/* Meal Split Row */}
 									<View style={styles.mealsRow}>
@@ -306,7 +332,7 @@ export default function Index() {
 											color={colors.primary}
 											bgColor={colors.surface}
 											borderColor={colors.border}
-											onPress={() => setActiveModal('lunch')}
+											onPress={() => sheetController.open({ name: 'serving-breakdown', meal: 'lunch' })}
 										/>
 										<MealCard 
 											icon={Moon} 
@@ -316,7 +342,7 @@ export default function Index() {
 											color={Theme.colors.mealDinner}
 											bgColor={colors.surface}
 											borderColor={colors.border}
-											onPress={() => setActiveModal('dinner')}
+											onPress={() => sheetController.open({ name: 'serving-breakdown', meal: 'dinner' })}
 										/>
 									</View>
 
@@ -359,7 +385,7 @@ export default function Index() {
 									menu={todayMenu}
 									attendance={attendance[c.id]}
 									onToggle={(meal: 'lunch' | 'dinner') => toggleTodayAttendance(c.id, meal)}
-									onAvatarPress={setSelectedCustomer}
+									onAvatarPress={(customer: Customer) => sheetController.open({ name: 'customer-detail', customerId: customer.id })}
 									colors={colors}
 								/>
 							))}
@@ -371,7 +397,12 @@ export default function Index() {
 			<PremiumBottomSheet
 				ref={breakdownSheetRef}
 				title={activeModal === 'total' ? 'Total Servings Today' : activeModal === 'lunch' ? 'Lunch Servings' : 'Dinner Servings'}
-				onDismiss={() => setActiveModal(null)}
+				policy="passive"
+				onDismiss={() => {
+					if (!sheetController.consumeReplacement()) {
+						sheetController.close();
+					}
+				}}
 			>
 				{modalServings.length === 0 ? (
 					<View style={styles.modalEmpty}>
@@ -381,7 +412,7 @@ export default function Index() {
 				) : (
 					modalServings.map((s, i) => (
 						<View key={`${s.customer.id}_${s.meal}`} style={[styles.modalRow, i < modalServings.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-							<UserIdentity name={s.customer.name} onPress={() => setSelectedCustomer(s.customer)} size={32} />
+							<UserIdentity name={s.customer.name} onPress={() => openCustomerFromBreakdown(s.customer)} size={32} />
 							<View style={[styles.mealModalPill, { backgroundColor: s.meal === 'LUNCH' ? colors.primary + '15' : Theme.colors.mealDinner + '15' }]}>
 								<Text style={{ color: s.meal === 'LUNCH' ? colors.primary : Theme.colors.mealDinner, fontWeight: '700', fontSize: 10 }}>{s.meal}</Text>
 							</View>
@@ -392,17 +423,16 @@ export default function Index() {
 
 			<PremiumBottomSheet 
 				ref={intelligenceSheetRef} 
-				onDismiss={() => setSelectedCustomer(null)} 
+				onDismiss={sheetController.close}
 				title="Customer Intelligence"
+				policy="operational"
 			>
 				{selectedCustomer && (
 					<CustomerIntelligenceDetail
 						customer={selectedCustomer}
 						daysLeft={getDaysLeft(toDate(selectedCustomer.endDate))}
 						dueAmount={getDueAmount(selectedCustomer.pricePerMonth, selectedCustomer.totalPaid || 0)}
-						onAction={() => {
-							intelligenceSheetRef.current?.dismiss();
-						}}
+						onAction={handleCustomerSheetEvent}
 					/>
 				)}
 			</PremiumBottomSheet>
@@ -502,8 +532,8 @@ const CustomerAttendanceRow = ({ customer, menu, attendance, onToggle, onAvatarP
 
 const styles = StyleSheet.create({
 	centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-	scrollContent: { paddingVertical: 16, paddingBottom: 140 },
-	dashboardStack: { gap: 16, paddingHorizontal: 16 },
+	scrollContent: { paddingTop: 12, paddingBottom: 188 },
+	dashboardStack: { gap: 12, paddingHorizontal: 16 },
 
 	// Tab Bar
 	tabBar: {
@@ -540,6 +570,159 @@ const styles = StyleSheet.create({
 	pulseSubtitle: { fontSize: 12, fontWeight: '600', marginTop: 2 },
 	pulseTimePill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, borderWidth: 1 },
 	pulseTimeText: { fontSize: 11, fontWeight: '700' },
+
+	todayStatusBar: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 10,
+		borderRadius: 18,
+		borderWidth: 1,
+		padding: 12,
+	},
+	statusIconWrap: {
+		width: 34,
+		height: 34,
+		borderRadius: 12,
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	statusCopy: {
+		flex: 1,
+		minWidth: 0,
+	},
+	statusTitle: {
+		fontSize: 14,
+		fontWeight: '900',
+		letterSpacing: 0,
+	},
+	statusSubtitle: {
+		fontSize: 12,
+		fontWeight: '700',
+		marginTop: 2,
+	},
+
+	actionCard: {
+		borderRadius: 22,
+		borderWidth: 1,
+		padding: 16,
+		shadowColor: '#1A162B',
+		shadowOpacity: 0.07,
+		shadowRadius: 18,
+		shadowOffset: { width: 0, height: 8 },
+		elevation: 3,
+	},
+	actionCardTop: {
+		flexDirection: 'row',
+		alignItems: 'flex-start',
+		gap: 12,
+	},
+	actionIconWrap: {
+		width: 46,
+		height: 46,
+		borderRadius: 16,
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	actionCopy: {
+		flex: 1,
+		minWidth: 0,
+	},
+	actionEyebrow: {
+		fontSize: 10,
+		fontWeight: '900',
+		letterSpacing: 0.8,
+	},
+	actionTitle: {
+		fontSize: 22,
+		fontWeight: '900',
+		letterSpacing: -0.4,
+		marginTop: 3,
+	},
+	actionSubtitle: {
+		fontSize: 13,
+		fontWeight: '700',
+		lineHeight: 18,
+		marginTop: 4,
+	},
+	actionFooter: {
+		flexDirection: 'row',
+		gap: 10,
+		marginTop: 16,
+	},
+	primaryCta: {
+		flex: 1,
+		minHeight: 46,
+		borderRadius: 16,
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'center',
+		gap: 4,
+		paddingHorizontal: 14,
+	},
+	primaryCtaText: {
+		fontSize: 13,
+		fontWeight: '900',
+	},
+	secondaryCta: {
+		minHeight: 46,
+		borderRadius: 16,
+		borderWidth: 1,
+		alignItems: 'center',
+		justifyContent: 'center',
+		paddingHorizontal: 14,
+	},
+	secondaryCtaText: {
+		fontSize: 13,
+		fontWeight: '900',
+	},
+
+	summaryGrid: {
+		flexDirection: 'row',
+		gap: 10,
+	},
+	summaryCard: {
+		flex: 1,
+		minHeight: 82,
+		borderRadius: 18,
+		borderWidth: 1,
+		padding: 12,
+		justifyContent: 'space-between',
+		shadowColor: '#1A162B',
+		shadowOpacity: 0.04,
+		shadowRadius: 12,
+		shadowOffset: { width: 0, height: 5 },
+		elevation: 2,
+	},
+	summaryPrimaryCard: {
+		flex: 1.3,
+	},
+	summaryLabel: {
+		fontSize: 9,
+		fontWeight: '900',
+		letterSpacing: 0.65,
+	},
+	summaryValueRow: {
+		flexDirection: 'row',
+		alignItems: 'baseline',
+		gap: 4,
+	},
+	summaryLargeValue: {
+		fontSize: 34,
+		fontWeight: '900',
+		letterSpacing: -1,
+		lineHeight: 38,
+	},
+	summaryOfText: {
+		fontSize: 12,
+		fontWeight: '800',
+		marginBottom: 4,
+	},
+	summaryValue: {
+		fontSize: 29,
+		fontWeight: '900',
+		letterSpacing: -0.7,
+		lineHeight: 34,
+	},
 
 	// Hero Card
 	heroCard: {

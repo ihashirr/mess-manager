@@ -1,13 +1,13 @@
 export const Theme = {
 	colors: {
 		// Functional
-		primary: '#FF6B35',    // Vibrant Orange
+		primary: '#FF6A2B',    // Vibrant Orange
 		success: '#2ECC71',    // Bright Green
 		danger: '#E74C3C',     // Bright Red
 		warning: '#F39C12',    // Bright Amber
 
 		// Structural
-		bg: '#F6F7FA',         // iOS-style cool gray background
+		bg: '#F4F4F2',         // Warm operational canvas
 		surface: '#FFFFFF',    // Pure White
 		surfaceElevated: '#F8F9FA', // Warm off-white for inset surfaces
 		border: '#E5E5EA',     // Slightly stronger border for definition
@@ -36,6 +36,10 @@ export const Theme = {
 		screen: 16, 
 	},
 
+	// Shape hierarchy:
+	// container (20-24): cards, sheets, dialogs — soft and spatial
+	// interactive (8-12): buttons, inputs, chips — crisp and tactile
+	// badge (pill): status dots, tags — identity markers
 	radius: {
 		xs: 4,
 		sm: 8,
@@ -66,22 +70,27 @@ export const Theme = {
 		// Tier B - Section Label (Medium, Slightly Muted)
 		label: {
 			fontSize: 14,
-			fontWeight: '800' as const,
+			fontWeight: '700' as const,
 			letterSpacing: 0.5,
 		},
 		labelMedium: {
 			fontSize: 16,
 			fontWeight: '700' as const,
 		},
+		labelLight: {
+			fontSize: 14,
+			fontWeight: '500' as const,
+			letterSpacing: 0,
+		},
 		// Tier C - Details (Small, Muted)
 		detail: {
 			fontSize: 12,
-			fontWeight: '600' as const,
+			fontWeight: '500' as const,
 		},
 		detailBold: {
 			fontSize: 12,
-			fontWeight: '800' as const,
-			letterSpacing: 0.5,
+			fontWeight: '700' as const,
+			letterSpacing: 0.3,
 		},
 		// Specialized
 		urdu: {
@@ -92,10 +101,10 @@ export const Theme = {
 
 	shadows: {
 		card: {
-			shadowColor: '#1A162B',
-			shadowOffset: { width: 0, height: 12 },
-			shadowOpacity: 0.04,
-			shadowRadius: 28,
+			shadowColor: '#000000',
+			shadowOffset: { width: 0, height: 6 },
+			shadowOpacity: 0.08,
+			shadowRadius: 18,
 			elevation: 4,
 		},
 		modal: {

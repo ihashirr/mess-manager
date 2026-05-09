@@ -20,7 +20,7 @@ import { OfflineSyncProvider, useOfflineSync } from '../context/OfflineSyncConte
 import { AppThemeProvider, useAppTheme } from '../context/ThemeModeContext';
 
 type MainTabName = 'index' | 'customers' | 'finance' | 'payments';
-const TAB_BAR_HEIGHT = 68;
+const TAB_BAR_HEIGHT = 74;
 const TAB_BAR_BACKDROP_HEIGHT = Math.round(TAB_BAR_HEIGHT * 1.35);
 
 const MAIN_TABS: {
@@ -135,6 +135,7 @@ function TabLayoutContent() {
 					ref={queueSheetRef}
 					title="Sync Queue"
 					subtitle={pendingQueueCount > 0 ? `${pendingQueueCount} local change${pendingQueueCount === 1 ? '' : 's'} waiting` : 'All local changes are synced'}
+					policy="passive"
 				>
 					<View style={styles.queueHeader}>
 						<View style={[styles.queueHero, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
@@ -216,23 +217,23 @@ function BottomDock({
 	descriptors,
 	navigation,
 }: BottomTabBarProps) {
-	const { colors, isDark } = useAppTheme();
+	const { isDark } = useAppTheme();
 	const insets = useSafeAreaInsets();
 	const activeRoute = state.routes[state.index]?.name;
 	const blurAvailable = Platform.OS !== 'web';
 	const blurMethod = Platform.OS === 'android' ? 'dimezisBlurView' : undefined;
 	const backdropBlurIntensity = Platform.OS === 'android'
-		? 88
-		: isDark ? 64 : 76;
+		? isDark ? 54 : 96
+		: isDark ? 42 : 84;
 	const shellBlurIntensity = Platform.OS === 'android'
-		? 78
-		: isDark ? 46 : 56;
+		? isDark ? 48 : 88
+		: isDark ? 36 : 64;
 	const shellSurfaceColor = blurAvailable
-		? isDark ? 'rgba(22, 17, 13, 0.03)' : 'rgba(255, 250, 244, 0.05)'
-		: isDark ? 'rgba(33, 26, 22, 0.95)' : 'rgba(255, 251, 246, 0.97)';
-	const backdropTintColor = isDark ? 'rgba(18, 14, 11, 0.02)' : 'rgba(255, 247, 238, 0.02)';
-	const shellFrostColor = isDark ? 'rgba(255, 255, 255, 0.01)' : 'rgba(255, 255, 255, 0.03)';
-	const activeTintBackground = isDark ? 'rgba(255, 107, 53, 0.10)' : 'rgba(255, 107, 53, 0.08)';
+		? isDark ? 'rgba(18, 19, 24, 0.78)' : 'rgba(255, 255, 255, 0.85)'
+		: isDark ? 'rgba(18, 19, 24, 0.96)' : 'rgba(255, 255, 255, 0.92)';
+	const backdropTintColor = isDark ? 'rgba(11, 12, 15, 0.38)' : 'rgba(255, 247, 238, 0.02)';
+	const shellFrostColor = isDark ? 'rgba(255, 255, 255, 0.035)' : 'rgba(255, 255, 255, 0.03)';
+	const activeTintBackground = isDark ? 'rgba(255, 107, 53, 0.19)' : 'rgba(255, 107, 53, 0.13)';
 
 	const navigateToTab = (name: MainTabName) => {
 		const route = state.routes.find((item) => item.name === name);
@@ -265,10 +266,10 @@ function BottomDock({
 				style={[
 					styles.tabBarShell,
 					{
-						marginBottom: Math.max(insets.bottom + Theme.spacing.sm, Theme.spacing.lg),
-						borderColor: colors.border,
-						backgroundColor: colors.surface,
-						shadowColor: isDark ? '#000000' : '#1A162B',
+						marginBottom: Math.max(insets.bottom + 12, 12),
+						borderColor: isDark ? 'rgba(255, 255, 255, 0.095)' : 'rgba(0, 0, 0, 0.05)',
+						backgroundColor: isDark ? 'rgba(18, 19, 24, 0.94)' : 'rgba(255, 255, 255, 0.85)',
+						shadowColor: isDark ? '#000000' : '#201812',
 					},
 				]}
 			>
@@ -457,18 +458,18 @@ const styles = StyleSheet.create({
 	},
 	tabBarShell: {
 		height: TAB_BAR_HEIGHT,
-		borderRadius: 999,
+		borderRadius: 26,
 		flexDirection: 'row',
 		alignItems: 'center',
 		justifyContent: 'space-between',
-		paddingHorizontal: Theme.spacing.sm,
-		paddingVertical: 6,
-		gap: 6,
+		paddingHorizontal: Theme.spacing.xs,
+		paddingVertical: Theme.spacing.xs,
+		gap: 4,
 		borderWidth: 1,
 		shadowOffset: { width: 0, height: 8 },
-		shadowOpacity: 0.04,
+		shadowOpacity: 0.05,
 		shadowRadius: 16,
-		elevation: 2,
+		elevation: 4,
 		overflow: 'hidden',
 		marginHorizontal: Theme.spacing.screen,
 	},
@@ -486,8 +487,8 @@ const styles = StyleSheet.create({
 	},
 	tabItem: {
 		flex: 1,
-		height: 54,
-		borderRadius: 999,
+		height: 56,
+		borderRadius: 18,
 		alignItems: 'center',
 		justifyContent: 'center',
 		gap: 2,

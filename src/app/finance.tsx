@@ -320,6 +320,33 @@ export default function FinanceScreen() {
 		setShowRawText(false);
 	};
 
+	const handleBeforeScannerDismiss = useCallback(async () => {
+		if (savingExpense) {
+			return true;
+		}
+
+		if (scannerBusy) {
+			showToast({
+				type: 'warning',
+				title: 'Receipt scan in progress',
+				message: 'Wait for the scan to finish before closing this review.',
+			});
+			return false;
+		}
+
+		if (!receiptDraft && !receiptPreviewUri && !scannerError) {
+			return true;
+		}
+
+		return confirm({
+			title: 'Discard receipt review?',
+			message: 'The current receipt draft has not been saved to the local queue.',
+			confirmLabel: 'Discard',
+			cancelLabel: 'Keep reviewing',
+			tone: 'warning',
+		});
+	}, [confirm, receiptDraft, receiptPreviewUri, savingExpense, scannerBusy, scannerError]);
+
 	const updateDraftText = (
 		field: 'expenseTitle' | 'merchantName' | 'receiptDate' | 'paymentMethod' | 'note',
 		value: string
@@ -522,6 +549,8 @@ export default function FinanceScreen() {
 				onDismiss={closeScanner}
 				title="Receipt Scanner"
 				subtitle="Review the draft, save locally, then sync when online"
+				policy="critical"
+				beforeDismiss={handleBeforeScannerDismiss}
 			>
 				<View style={styles.sheetContent}>
 					<View style={styles.sheetActions}>

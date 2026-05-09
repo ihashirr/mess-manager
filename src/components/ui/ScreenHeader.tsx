@@ -1,8 +1,7 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { Sun, Moon, LucideIcon } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Theme } from '../../constants/Theme';
 import { useAppTheme } from '../../context/ThemeModeContext';
 import { useResponsiveLayout } from './useResponsiveLayout';
 
@@ -29,98 +28,121 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
 	const { colors, isDark, toggleTheme } = useAppTheme();
 	const { contentPadding, isCompact, maxContentWidth, scale, font, icon } = useResponsiveLayout();
 	const resolvedGutter = gutter ?? contentPadding;
-	const logoSize = scale(48, 0.9, 1.08);
-	const actionSize = scale(40, 0.92, 1.04);
-	const headerBodyHeight = scale(isCompact ? 68 : 74, 0.96, 1.04);
-	const actionCount = [persistentRightAction, rightAction].filter(Boolean).length + 1;
-	const actionRailWidth = actionSize * actionCount + Theme.spacing.sm * Math.max(0, actionCount - 1);
-	const brandTitleSize = font(isCompact ? 22 : 24, 0.94, 1.12);
-	const subtitleSize = font(isCompact ? 11 : 12, 0.94, 1.08);
-	const logoTextSize = font(18, 0.94, 1.08);
+
+	// ── Sizing tokens ──────────────────────────────────────────
+	const logoSize = scale(isCompact ? 42 : 46, 0.96, 1.04);
+	const actionSize = scale(isCompact ? 38 : 40, 0.96, 1.04);
+	const brandTitleSize = font(isCompact ? 20 : 22, 0.94, 1.02);
+	const subtitleSize = font(isCompact ? 11 : 12, 0.94, 1.02);
+	const logoImageSize = Math.round(logoSize * 0.85);
+
+	// ── Surface palette ────────────────────────────────────────
+	const avatarBg = isDark ? 'rgba(255, 138, 76, 0.14)' : 'rgba(255, 244, 235, 1)';
+	const avatarBorder = isDark ? 'rgba(255, 138, 76, 0.28)' : 'rgba(255, 152, 90, 0.22)';
+	const avatarGlow = isDark ? 'rgba(255, 138, 76, 0.10)' : 'rgba(255, 255, 255, 0.52)';
+	const secondaryBg = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.78)';
+	const secondaryBorder = isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(42, 30, 19, 0.07)';
 
 	return (
 		<View
 			style={[
 				styles.container,
 				{
-					paddingTop: insets.top + Theme.spacing.md,
-					paddingBottom: Theme.spacing.md,
+					paddingTop: insets.top + 10,
+					paddingBottom: 12,
 					paddingHorizontal: resolvedGutter,
-					minHeight: insets.top + headerBodyHeight,
 					backgroundColor: colors.bg,
-					borderBottomWidth: 0,
 				},
 				edgeToEdge && { marginHorizontal: -resolvedGutter },
 				style,
 			]}
 		>
-				<View style={[styles.contentWrap, { maxWidth: maxContentWidth }]}>
-					<View style={[styles.content, { minHeight: actionSize }]}>
-						<View style={styles.brandRow}>
+			<View style={[styles.contentWrap, { maxWidth: maxContentWidth }]}>
+				<View style={styles.content}>
+					{/* ─── Brand Identity ─── */}
+					<View style={styles.brandRow}>
+						<View
+							style={[
+								styles.logoMark,
+								{
+									width: logoSize,
+									height: logoSize,
+									borderRadius: 22,
+									backgroundColor: avatarBg,
+									borderColor: avatarBorder,
+								},
+							]}
+						>
 							<View
-								style={[
-									styles.logoMark,
-									{
-										width: logoSize,
-										height: logoSize,
-										borderRadius: 18,
-										backgroundColor: colors.surface,
-										borderColor: colors.border,
-									},
-								]}
-							>
-								<Text style={[styles.logoText, { color: colors.primary, fontSize: logoTextSize }]}>DZ</Text>
-							</View>
-							<View style={[styles.textContainer, { paddingRight: scale(12, 0.9, 1.04) }]}>
-								<Text
-									style={[styles.brandTitle, { color: colors.textPrimary, fontSize: brandTitleSize }]}
-									numberOfLines={1}
-								>
-									Desi Zaiqa
-								</Text>
-								<Text
-									style={[styles.subtitle, { color: colors.textMuted, fontSize: subtitleSize }]}
-									numberOfLines={1}
-								>
-									{subtitle ? `${title} - ${subtitle}` : title}
-								</Text>
-							</View>
+								pointerEvents="none"
+								style={[styles.logoGlow, { backgroundColor: avatarGlow }]}
+							/>
+							<Image
+								source={require('../../../assets/images/dz-logo-mark.png')}
+								style={{ width: logoImageSize, height: logoImageSize }}
+								resizeMode="contain"
+							/>
 						</View>
 
-						<View style={[styles.actions, { width: actionRailWidth }]}>
-							{persistentRightAction ? (
-								<View style={[styles.actionSlot, { width: actionSize, height: actionSize }]}>
-									{persistentRightAction}
-								</View>
-							) : null}
-							{rightAction ? (
-								<View style={[styles.actionSlot, { width: actionSize, height: actionSize }]}>
-									{rightAction}
-								</View>
-							) : null}
-							<Pressable
-								onPress={toggleTheme}
+						<View style={styles.textContainer}>
+							<Text
 								style={[
-									styles.themeToggle,
-									{
-										height: actionSize,
-										width: actionSize,
-										borderRadius: actionSize / 2,
-										backgroundColor: colors.surface,
-										borderColor: colors.border,
-									},
+									styles.brandTitle,
+									{ color: colors.textPrimary, fontSize: brandTitleSize },
 								]}
-								accessibilityRole="button"
-								accessibilityLabel={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+								numberOfLines={1}
 							>
-								{isDark ? (
-									<Sun size={icon(20)} color={colors.primary} />
-								) : (
-									<Moon size={icon(20)} color={colors.primary} />
-								)}
-							</Pressable>
+								Desi Zaiqa
+							</Text>
+							<Text
+								style={[
+									styles.subtitle,
+									{ color: colors.textSecondary, fontSize: subtitleSize },
+								]}
+								numberOfLines={1}
+							>
+								{subtitle || title}
+							</Text>
 						</View>
 					</View>
+
+					{/* ─── Actions ─── */}
+					<View style={styles.actions}>
+						{persistentRightAction ? (
+							<View style={[styles.actionSlot, { minWidth: actionSize, height: actionSize }]}>
+								{persistentRightAction}
+							</View>
+						) : null}
+						{rightAction ? (
+							<View style={[styles.actionSlot, { minWidth: actionSize, height: actionSize }]}>
+								{rightAction}
+							</View>
+						) : null}
+						<Pressable
+							onPress={toggleTheme}
+							style={({ pressed }) => [
+								styles.secondaryButton,
+								{
+									height: actionSize,
+									width: actionSize,
+									borderRadius: 14,
+									backgroundColor: secondaryBg,
+									borderColor: secondaryBorder,
+									transform: [{ scale: pressed ? 0.93 : 1 }],
+									opacity: pressed ? 0.78 : 1,
+								},
+							]}
+							accessibilityRole="button"
+							accessibilityLabel={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+						>
+							{isDark ? (
+								<Sun size={icon(18)} color={colors.textSecondary} strokeWidth={2.2} />
+							) : (
+								<Moon size={icon(18)} color={colors.textSecondary} strokeWidth={2.2} />
+							)}
+						</Pressable>
+					</View>
+				</View>
 			</View>
 		</View>
 	);
@@ -139,53 +161,70 @@ export const ScreenHeaderActionButton: React.FC<ScreenHeaderActionButtonProps> =
 	accessibilityLabel,
 	variant = 'default',
 }) => {
-	const { colors } = useAppTheme();
+	const { colors, isDark } = useAppTheme();
 	const { scale, icon: iconSize } = useResponsiveLayout();
-	const buttonSize = scale(40, 0.92, 1.04);
+	const isPrimary = variant === 'primary';
+	const buttonSize = scale(isPrimary ? 44 : 40, 0.96, 1.04);
 
 	const palette = {
 		default: {
-			backgroundColor: colors.surfaceElevated,
-			borderColor: colors.border,
-			iconColor: colors.primary,
+			backgroundColor: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.78)',
+			borderColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(42, 30, 19, 0.07)',
+			iconColor: colors.textSecondary,
+			shadowColor: isDark ? '#000000' : '#1A1510',
+			shadowOpacity: isDark ? 0.12 : 0.06,
 		},
 		primary: {
 			backgroundColor: colors.primary,
-			borderColor: colors.primary,
+			borderColor: 'rgba(255, 255, 255, 0.12)',
 			iconColor: colors.textInverted,
+			shadowColor: '#C85B2F',
+			shadowOpacity: 0.32,
 		},
 		success: {
-			backgroundColor: colors.surface,
-			borderColor: colors.success,
+			backgroundColor: isDark ? 'rgba(46, 204, 113, 0.12)' : 'rgba(46, 204, 113, 0.10)',
+			borderColor: isDark ? 'rgba(46, 204, 113, 0.24)' : 'rgba(46, 204, 113, 0.20)',
 			iconColor: colors.success,
+			shadowColor: '#2ECC71',
+			shadowOpacity: 0.14,
 		},
 		danger: {
-			backgroundColor: colors.surface,
-			borderColor: colors.danger,
+			backgroundColor: isDark ? 'rgba(231, 76, 60, 0.12)' : 'rgba(231, 76, 60, 0.10)',
+			borderColor: isDark ? 'rgba(231, 76, 60, 0.24)' : 'rgba(231, 76, 60, 0.20)',
 			iconColor: colors.danger,
+			shadowColor: '#E74C3C',
+			shadowOpacity: 0.14,
 		},
 	};
 
+	const p = palette[variant];
 	const IconComponent = icon;
 
 	return (
 		<Pressable
 			onPress={onPress}
 			style={({ pressed }) => [
-				styles.headerIconButton,
+				styles.actionButton,
 				{
 					height: buttonSize,
 					width: buttonSize,
-					borderRadius: buttonSize / 2,
-					backgroundColor: palette[variant].backgroundColor,
-					borderColor: palette[variant].borderColor,
-					opacity: pressed ? 0.7 : 1,
+					borderRadius: isPrimary ? 16 : 14,
+					backgroundColor: p.backgroundColor,
+					borderColor: p.borderColor,
+					shadowColor: p.shadowColor,
+					shadowOpacity: pressed ? p.shadowOpacity * 0.5 : p.shadowOpacity,
+					transform: [{ scale: pressed ? 0.91 : 1 }],
+					opacity: pressed ? 0.82 : 1,
 				},
 			]}
 			accessibilityRole="button"
 			accessibilityLabel={accessibilityLabel}
 		>
-			<IconComponent size={iconSize(20)} color={palette[variant].iconColor} />
+			<IconComponent
+				size={iconSize(isPrimary ? 19 : 17)}
+				color={p.iconColor}
+				strokeWidth={isPrimary ? 2.5 : 2.2}
+			/>
 		</Pressable>
 	);
 };
@@ -201,73 +240,86 @@ const styles = StyleSheet.create({
 		flexDirection: 'row',
 		alignItems: 'center',
 		justifyContent: 'space-between',
-		gap: Theme.spacing.md,
 	},
+
+	// ── Brand Identity ──────────────────────────────────────────
 	brandRow: {
 		flex: 1,
 		flexDirection: 'row',
 		alignItems: 'center',
 		minWidth: 0,
+		gap: 12,
 	},
 	logoMark: {
 		alignItems: 'center',
 		justifyContent: 'center',
-		marginRight: Theme.spacing.md,
 		borderWidth: 1,
-		shadowColor: '#000',
-		shadowOpacity: 0.06,
-		shadowRadius: 12,
-		shadowOffset: { width: 0, height: 6 },
-		elevation: 2,
+		overflow: 'hidden',
+		// Warm premium shadow
+		shadowColor: '#D45A20',
+		shadowOpacity: 0.14,
+		shadowRadius: 16,
+		shadowOffset: { width: 0, height: 8 },
+		elevation: 4,
+	},
+	logoGlow: {
+		position: 'absolute',
+		top: 0,
+		left: 0,
+		right: 0,
+		height: '50%',
+		borderBottomLeftRadius: 999,
+		borderBottomRightRadius: 999,
 	},
 	logoText: {
 		fontWeight: '900',
-		letterSpacing: 0,
+		letterSpacing: 0.5,
 	},
 	textContainer: {
 		flex: 1,
 		minWidth: 0,
+		gap: 2,
 	},
 	brandTitle: {
-		...Theme.typography.answer,
-		fontSize: 26,
-		letterSpacing: 0,
+		fontWeight: '800',
+		letterSpacing: -0.3,
 	},
 	subtitle: {
-		...Theme.typography.detailBold,
-		marginTop: 2,
-		textTransform: 'uppercase',
-		letterSpacing: 0.7,
+		fontWeight: '600',
+		letterSpacing: 0,
+		opacity: 0.64,
 	},
+
+	// ── Actions ─────────────────────────────────────────────────
 	actions: {
 		flexDirection: 'row',
 		alignItems: 'center',
 		justifyContent: 'flex-end',
-		gap: Theme.spacing.sm,
+		gap: 8,
 		flexShrink: 0,
 	},
 	actionSlot: {
 		alignItems: 'center',
 		justifyContent: 'center',
 	},
-	themeToggle: {
+	secondaryButton: {
 		borderWidth: 1,
 		justifyContent: 'center',
 		alignItems: 'center',
-		shadowColor: '#000',
-		shadowOpacity: 0.05,
-		shadowRadius: 10,
-		shadowOffset: { width: 0, height: 4 },
-		elevation: 1,
+		// Layered shadow system
+		shadowColor: '#1A1510',
+		shadowOpacity: 0.06,
+		shadowRadius: 14,
+		shadowOffset: { width: 0, height: 6 },
+		elevation: 2,
 	},
-	headerIconButton: {
+	actionButton: {
 		borderWidth: 1,
 		alignItems: 'center',
 		justifyContent: 'center',
-		shadowColor: '#000',
-		shadowOpacity: 0.05,
-		shadowRadius: 10,
-		shadowOffset: { width: 0, height: 4 },
-		elevation: 1,
+		// Premium layered shadow
+		shadowRadius: 16,
+		shadowOffset: { width: 0, height: 8 },
+		elevation: 3,
 	},
 });

@@ -77,7 +77,7 @@ export function ConfirmDialogProvider({ children }: { children: React.ReactNode 
 						<View style={styles.actions}>
 							<Button
 								title={options?.cancelLabel ?? 'Cancel'}
-								variant="outline"
+								variant="ghost"
 								onPress={() => close(false)}
 								style={styles.actionButton}
 							/>

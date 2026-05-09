@@ -1,14 +1,18 @@
-import { FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { ActivityIndicator, Animated, FlatList, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { useFocusEffect } from 'expo-router';
-import { UserPlus, Search, Users, CheckCircle2, XCircle, Clock, Sun, Moon, LucideIcon, Sparkles } from 'lucide-react-native';
+import { BlurView } from 'expo-blur';
+import { BarChart3, Search, SlidersHorizontal, UserPlus, X } from 'lucide-react-native';
 import { useConfirmDialog } from '../components/system/dialogs/ConfirmDialog';
 import { showToast } from '../components/system/feedback/AppToast';
 import { PremiumBottomSheet, type PremiumBottomSheetHandle } from '../components/ui/PremiumBottomSheet';
 import { CustomerIntelligenceDetail } from '../components/ui/CustomerIntelligenceDetail';
+import { LayeredSurface } from '../components/ui/LayeredSurface';
 import { Screen } from '../components/ui/Screen';
 import { ScreenHeaderActionButton } from '../components/ui/ScreenHeader';
 import { useResponsiveLayout } from '../components/ui/useResponsiveLayout';
+import { useOperationalSheetController } from '../components/ui/useOperationalSheetController';
+import { type CustomerSheetEvent, type OperationalSheetRoute } from '../components/ui/sheetTypes';
 import { CustomerCard } from '../components/customers/CustomerCard';
 import { CustomerFormModal } from '../components/customers/CustomerFormModal';
 import { type Customer, type CustomerFormValues } from '../components/customers/types';
@@ -20,9 +24,10 @@ import { getDaysLeft, getDueAmount, toDate } from '../utils/customerLogic';
 import { type WeekMenu } from '../utils/menuLogic';
 import { DAYS, type DayName, emptyWeekAttendance, getDatesForWeek, getWeekId } from '../utils/weekLogic';
 
-type CustomerFilter = 'All' | 'Active' | 'Expired' | 'Lunch' | 'Dinner';
+type CustomerFilter = 'All' | 'Active' | 'Due' | 'Expired' | 'Lunch' | 'Dinner';
+type CustomersSheetRoute = Extract<OperationalSheetRoute, { name: 'customer-detail' | 'customer-form' | 'customer-stats' }>;
 
-const CUSTOMER_FILTERS: CustomerFilter[] = ['All', 'Active', 'Expired', 'Lunch', 'Dinner'];
+const CUSTOMER_FILTERS: CustomerFilter[] = ['All', 'Active', 'Due', 'Expired', 'Lunch', 'Dinner'];
 let localCustomerCounter = 0;
 
 const matchesCustomerSearch = (customer: Customer, normalizedQuery: string) => {
@@ -42,6 +47,8 @@ const matchesCustomerFilter = (customer: Customer, filter: CustomerFilter) => {
 	switch (filter) {
 		case 'Active':
 			return getDaysLeft(toDate(customer.endDate)) >= 0;
+		case 'Due':
+			return getDueAmount(customer.pricePerMonth, customer.totalPaid || 0) > 0;
 		case 'Expired':
 			return getDaysLeft(toDate(customer.endDate)) < 0;
 		case 'Lunch':
@@ -53,8 +60,101 @@ const matchesCustomerFilter = (customer: Customer, filter: CustomerFilter) => {
 	}
 };
 
+function FilterChip({
+	label,
+	active,
+	onPress,
+}: {
+	label: CustomerFilter;
+	active: boolean;
+	onPress: () => void;
+}) {
+	const { colors, isDark } = useAppTheme();
+	const activeProgress = useRef(new Animated.Value(active ? 1 : 0)).current;
+	const pressScale = useRef(new Animated.Value(1)).current;
+
+	useEffect(() => {
+		Animated.timing(activeProgress, {
+			toValue: active ? 1 : 0,
+			duration: Theme.animation.duration.normal,
+			useNativeDriver: false,
+		}).start();
+	}, [active, activeProgress]);
+
+	const handlePressIn = () => {
+		Animated.timing(pressScale, {
+			toValue: 0.97,
+			duration: Theme.animation.duration.fast,
+			useNativeDriver: false,
+		}).start();
+	};
+
+	const handlePressOut = () => {
+		Animated.timing(pressScale, {
+			toValue: 1,
+			duration: Theme.animation.duration.fast,
+			useNativeDriver: false,
+		}).start();
+	};
+
+	const animatedContainerStyle = {
+		backgroundColor: activeProgress.interpolate({
+			inputRange: [0, 1],
+			outputRange: [isDark ? 'rgba(255, 255, 255, 0.055)' : 'rgba(255, 255, 255, 0.54)', colors.primary],
+		}),
+		borderColor: activeProgress.interpolate({
+			inputRange: [0, 1],
+			outputRange: [isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(42, 30, 19, 0.08)', colors.primary],
+		}),
+		shadowOpacity: activeProgress.interpolate({
+			inputRange: [0, 1],
+			outputRange: [isDark ? 0 : 0.02, isDark ? 0.34 : 0.2],
+		}),
+		shadowRadius: activeProgress.interpolate({
+			inputRange: [0, 1],
+			outputRange: [isDark ? 0 : 5, 14],
+		}),
+		transform: [{ scale: pressScale }],
+	};
+	const highlightOpacity = activeProgress.interpolate({
+		inputRange: [0, 1],
+		outputRange: [0, 0.22],
+	});
+	const textColor = activeProgress.interpolate({
+		inputRange: [0, 1],
+		outputRange: [colors.textSecondary, isDark ? '#FFFFFF' : colors.textInverted],
+	});
+
+	return (
+		<Animated.View style={[styles.filterChipMotion, animatedContainerStyle]}>
+			<Animated.View
+				pointerEvents="none"
+				style={[
+					styles.filterChipHighlight,
+					{
+						backgroundColor: isDark ? 'rgba(255, 255, 255, 0.46)' : '#FFFFFF',
+						opacity: highlightOpacity,
+					},
+				]}
+			/>
+			<Pressable
+				onPress={onPress}
+				onPressIn={handlePressIn}
+				onPressOut={handlePressOut}
+				hitSlop={6}
+				accessibilityRole="button"
+				accessibilityState={{ selected: active }}
+				accessibilityLabel={`Filter customers by ${label}`}
+				style={styles.filterChipPressable}
+			>
+				<Animated.Text style={[styles.filterChipText, { color: textColor }]}>{label}</Animated.Text>
+			</Pressable>
+		</Animated.View>
+	);
+}
+
 export default function CustomersScreen() {
-	const { colors } = useAppTheme();
+	const { colors, isDark } = useAppTheme();
 	const { confirm } = useConfirmDialog();
 	const { setHeaderConfig } = useAppHeader();
 	const {
@@ -69,12 +169,23 @@ export default function CustomersScreen() {
 	const { contentPadding, maxContentWidth, maxReadableWidth, scale, font, icon } = useResponsiveLayout();
 	const [savingCustomer, setSavingCustomer] = useState(false);
 	const [expandedId, setExpandedId] = useState<string | null>(null);
-	const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
 	const intelligenceSheetRef = useRef<PremiumBottomSheetHandle>(null);
 	const addCustomerSheetRef = useRef<PremiumBottomSheetHandle>(null);
+	const statsSheetRef = useRef<PremiumBottomSheetHandle>(null);
+	const sheetController = useOperationalSheetController<CustomersSheetRoute>();
+	const openSheet = sheetController.open;
 	const [searchQuery, setSearchQuery] = useState('');
+	const [searchFocused, setSearchFocused] = useState(false);
+	const searchFocusProgress = useRef(new Animated.Value(0)).current;
 	const [activeFilter, setActiveFilter] = useState<CustomerFilter>('All');
 	const [weekAttendance, setWeekAttendance] = useState<Record<DayName, { lunch: boolean; dinner: boolean }>>(emptyWeekAttendance());
+	const currentSheetRoute = sheetController.currentRoute;
+	const selectedCustomer = currentSheetRoute?.name === 'customer-detail'
+		? customers.find((customer) => customer.id === currentSheetRoute.customerId) ?? null
+		: null;
+	const editingCustomer = currentSheetRoute?.name === 'customer-form' && currentSheetRoute.mode === 'edit'
+		? customers.find((customer) => customer.id === currentSheetRoute.customerId) ?? null
+		: null;
 	const weekId = getWeekId();
 	const weekDates = useMemo(() => getDatesForWeek(weekId), [weekId]);
 	const weekMenu = useMemo(() => {
@@ -89,13 +200,53 @@ export default function CustomersScreen() {
 		return next;
 	}, [menuByDate, weekDates]);
 
+	const stats = useMemo(() => {
+		const active = customers.filter(c => getDaysLeft(toDate(c.endDate)) >= 0).length;
+		const expired = customers.filter(c => getDaysLeft(toDate(c.endDate)) < 0).length;
+		const due = customers.filter(c => getDueAmount(c.pricePerMonth, c.totalPaid || 0) > 0).length;
+		const pending = customers.reduce((sum, customer) => sum + getDueAmount(customer.pricePerMonth, customer.totalPaid || 0), 0);
+		const lunch = customers.filter(c => c.mealsPerDay?.lunch !== false).length;
+		const dinner = customers.filter(c => c.mealsPerDay?.dinner !== false).length;
+		const expiring = customers.filter(c => {
+			const days = getDaysLeft(toDate(c.endDate));
+			return days >= 0 && days <= 3;
+		}).length;
+
+		return {
+			total: customers.length,
+			active,
+			due,
+			expired,
+			expiring,
+			pending,
+			lunch,
+			dinner,
+		};
+	}, [customers]);
+
 	useEffect(() => {
-		if (selectedCustomer) {
+		if (currentSheetRoute?.name === 'customer-detail' && selectedCustomer) {
 			intelligenceSheetRef.current?.present();
 		} else {
 			intelligenceSheetRef.current?.dismiss();
 		}
-	}, [selectedCustomer]);
+	}, [currentSheetRoute, selectedCustomer]);
+
+	useEffect(() => {
+		if (currentSheetRoute?.name === 'customer-form') {
+			addCustomerSheetRef.current?.present();
+		} else {
+			addCustomerSheetRef.current?.dismiss();
+		}
+	}, [currentSheetRoute]);
+
+	useEffect(() => {
+		if (currentSheetRoute?.name === 'customer-stats') {
+			statsSheetRef.current?.present();
+		} else {
+			statsSheetRef.current?.dismiss();
+		}
+	}, [currentSheetRoute]);
 
 	const showAsyncError = (title: string, error: unknown) => {
 		const message = error instanceof Error && error.message.trim() ? error.message.trim() : 'Please try again.';
@@ -107,19 +258,24 @@ export default function CustomersScreen() {
 		useCallback(() => {
 			setHeaderConfig({
 				title: 'Customers',
-				subtitle: 'Manage plans, renewals & attendance',
+				subtitle: `${stats.active} active | ${stats.due} due today`,
 				rightAction: (
-					<View style={styles.headerRight}>
+					<View style={styles.headerActions}>
+						<ScreenHeaderActionButton
+							icon={BarChart3}
+							onPress={() => openSheet({ name: 'customer-stats' })}
+							accessibilityLabel="Open customer stats"
+						/>
 						<ScreenHeaderActionButton
 							icon={UserPlus}
-							onPress={() => addCustomerSheetRef.current?.present()}
+							onPress={() => openSheet({ name: 'customer-form', mode: 'add' })}
 							accessibilityLabel="Add customer"
 							variant="primary"
 						/>
 					</View>
 				),
 			});
-		}, [setHeaderConfig])
+		}, [openSheet, setHeaderConfig, stats.active, stats.due])
 	);
 
 	const handleAddCustomer = async (values: CustomerFormValues) => {
@@ -145,7 +301,7 @@ export default function CustomersScreen() {
 
 		try {
 			const payload = {
-				id: createLocalCustomerId(),
+				id: editingCustomer ? editingCustomer.id : createLocalCustomerId(),
 				name: values.name.trim(),
 				phone: values.phone.trim(),
 				address: {
@@ -157,15 +313,19 @@ export default function CustomersScreen() {
 				pricePerMonth: parseInt(values.price, 10) || 0,
 				startDate,
 				endDate,
-				totalPaid: 0,
+				totalPaid: editingCustomer ? editingCustomer.totalPaid : 0,
 				notes: values.notes.trim(),
-				isActive: true,
+				isActive: editingCustomer ? editingCustomer.isActive : true,
 			};
 
 			await saveCustomerOffline(payload);
 
 			addCustomerSheetRef.current?.dismiss();
-			showToast({ type: 'success', title: 'Customer saved', message: `${payload.name} is queued for sync.` });
+			showToast({
+				type: 'success',
+				title: editingCustomer ? 'Customer updated' : 'Customer saved',
+				message: `${payload.name} is queued for sync.`
+			});
 		} catch (error) {
 			showAsyncError('Could not add customer', error);
 		} finally {
@@ -194,8 +354,28 @@ export default function CustomersScreen() {
 			return;
 		}
 
-		setSelectedCustomer(null);
+		sheetController.close();
 		await handleDeleteCustomer(customer.id);
+	};
+
+	const handleCustomerSheetEvent = (event: CustomerSheetEvent) => {
+		if (event.type === 'customer.delete') {
+			const customer = customers.find((entry) => entry.id === event.customerId);
+			if (customer) {
+				void handleDeleteCustomerRequest(customer);
+			}
+			return;
+		}
+
+		if (event.type === 'customer.edit') {
+			sheetController.replaceAfterDismiss(
+				{ name: 'customer-form', mode: 'edit', customerId: event.customerId },
+				() => intelligenceSheetRef.current?.dismiss()
+			);
+			return;
+		}
+
+		intelligenceSheetRef.current?.dismiss();
 	};
 
 	const handleOpenAttendance = async (customerId: string) => {
@@ -261,31 +441,55 @@ export default function CustomersScreen() {
 		}));
 	};
 
-	const stats = {
-		total: customers.length,
-		active: customers.filter(c => getDaysLeft(toDate(c.endDate)) >= 0).length,
-		expired: customers.filter(c => getDaysLeft(toDate(c.endDate)) < 0).length,
-		expiring: customers.filter(c => {
-			const days = getDaysLeft(toDate(c.endDate));
-			return days >= 0 && days <= 3;
-		}).length,
-	};
-
 	const normalizedSearchQuery = searchQuery.trim().toLowerCase();
 	const searchMatchedCustomers = customers.filter((customer) => matchesCustomerSearch(customer, normalizedSearchQuery));
 	const filteredCustomers = searchMatchedCustomers.filter((customer) => matchesCustomerFilter(customer, activeFilter));
-	const filterCounts = Object.fromEntries(
-		CUSTOMER_FILTERS.map((filter) => [
-			filter,
-			searchMatchedCustomers.filter((customer) => matchesCustomerFilter(customer, filter)).length,
-		])
-	) as Record<CustomerFilter, number>;
 	const showingText = `Showing ${filteredCustomers.length} of ${customers.length} customers`;
 	const hasFiltersApplied = normalizedSearchQuery.length > 0 || activeFilter !== 'All';
+	const animatedSearchStyle = {
+		backgroundColor: searchFocusProgress.interpolate({
+			inputRange: [0, 1],
+			outputRange: [
+				isDark ? 'rgba(21, 22, 27, 0.94)' : 'rgba(255, 255, 255, 0.72)',
+				isDark ? 'rgba(32, 33, 39, 0.98)' : 'rgba(255, 255, 255, 0.92)',
+			],
+		}),
+		borderColor: searchFocusProgress.interpolate({
+			inputRange: [0, 1],
+			outputRange: [
+				isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(42, 30, 19, 0.07)',
+				isDark ? 'rgba(255, 107, 53, 0.48)' : 'rgba(255, 107, 53, 0.34)',
+			],
+		}),
+		shadowOpacity: searchFocusProgress.interpolate({
+			inputRange: [0, 1],
+			outputRange: [isDark ? 0.22 : 0.07, isDark ? 0.34 : 0.18],
+		}),
+		shadowRadius: searchFocusProgress.interpolate({
+			inputRange: [0, 1],
+			outputRange: [18, 26],
+		}),
+		transform: [
+			{
+				scale: searchFocusProgress.interpolate({
+					inputRange: [0, 1],
+					outputRange: [1, 1.01],
+				}),
+			},
+		],
+	};
 	const resetFilters = () => {
 		setSearchQuery('');
 		setActiveFilter('All');
 	};
+
+	useEffect(() => {
+		Animated.timing(searchFocusProgress, {
+			toValue: searchFocused ? 1 : 0,
+			duration: Theme.animation.duration.normal,
+			useNativeDriver: false,
+		}).start();
+	}, [searchFocusProgress, searchFocused]);
 
 	if (!ready) {
 		return (
@@ -297,7 +501,7 @@ export default function CustomersScreen() {
 	}
 
 	return (
-		<Screen scrollable={false} maxContentWidth={maxReadableWidth}>
+		<Screen scrollable={false} maxContentWidth={maxReadableWidth} backgroundColor={colors.bg}>
 			<FlatList
 				data={filteredCustomers}
 				keyExtractor={(item) => item.id}
@@ -308,8 +512,8 @@ export default function CustomersScreen() {
 						weekId={weekId}
 						weekAttendance={weekAttendance}
 						weekMenu={weekMenu}
-						onAvatarPress={setSelectedCustomer}
-						onDelete={handleDeleteCustomer}
+						onAvatarPress={(customer) => sheetController.open({ name: 'customer-detail', customerId: customer.id })}
+						onDelete={handleDeleteCustomerRequest}
 						onToggleExpanded={handleOpenAttendance}
 						onToggleAttendance={toggleAttendance}
 						onSaveAttendance={handleSaveAttendance}
@@ -317,126 +521,124 @@ export default function CustomersScreen() {
 				)}
 				ListHeaderComponent={
 					<View style={styles.listHeader}>
-						<View style={[styles.overviewPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-							<View style={styles.overviewTopRow}>
-								<View style={styles.overviewCopy}>
-									<View style={[styles.overviewIconWrap, { backgroundColor: colors.primary + '12' }]}>
-										<Sparkles size={16} color={colors.primary} />
-									</View>
-									<View style={styles.overviewTextBlock}>
-										<Text style={[styles.overviewEyebrow, { color: colors.textSecondary }]}>Customer ledger</Text>
-										<Text style={[styles.overviewTitle, { color: colors.textPrimary }]}>Plans, dues, and attendance in one clean list</Text>
-										<Text style={[styles.overviewSubtitle, { color: colors.textSecondary }]}>{showingText}</Text>
-									</View>
-								</View>
-								<View style={[styles.overviewCountPill, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-									<Users size={14} color={colors.primary} />
-									<Text style={[styles.overviewCountText, { color: colors.textPrimary }]}>{stats.active} active</Text>
-								</View>
-							</View>
-							<View style={styles.statsContainer}>
-								<StatPill icon={Users} label="Total" count={stats.total} color={colors.textPrimary} />
-								<StatPill icon={CheckCircle2} label="Active" count={stats.active} color={colors.success} />
-								<StatPill icon={XCircle} label="Expired" count={stats.expired} color={colors.danger} />
-								<StatPill icon={Clock} label="Expiring soon" count={stats.expiring} color={colors.warning} />
-							</View>
+						<View style={styles.topSummaryRow}>
+							<Text style={[styles.deckTitle, { color: colors.textPrimary }]}>Customers</Text>
+							<Text style={[styles.deckEyebrow, { color: colors.textSecondary }]}>{stats.active} active • {stats.pending} pending</Text>
 						</View>
 
-						<View
+						<Animated.View
 							style={[
-								styles.searchShell,
+								styles.searchBar,
+								animatedSearchStyle,
 								{
-									backgroundColor: colors.surface,
-									borderColor: colors.border,
+									shadowColor: searchFocused ? colors.primary : '#000000',
 								}
 							]}
 						>
-							<View style={styles.searchHeaderRow}>
-								<View style={styles.searchHeaderCopy}>
-									<View style={[styles.searchIconWrap, { backgroundColor: colors.primary + '10' }]}>
-										<Search size={icon(16)} color={colors.primary} />
-									</View>
-									<View>
-										<Text style={[styles.searchTitle, { color: colors.textPrimary }]}>Find the right customer fast</Text>
-										<Text style={[styles.searchSubtitle, { color: colors.textSecondary }]}>Search by name, phone, building, or flat number.</Text>
-									</View>
-								</View>
-								<View style={[styles.searchCountPill, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-									<Text style={[styles.searchCountText, { color: colors.textSecondary }]}>{showingText}</Text>
-								</View>
-							</View>
-
-							<View style={[styles.searchBar, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-								<Search size={icon(18)} color={colors.textMuted} />
-								<TextInput
-									style={[styles.searchInput, { color: colors.textPrimary }]}
-									placeholder="Type a customer name or number"
-									placeholderTextColor={colors.textMuted}
-									value={searchQuery}
-									onChangeText={setSearchQuery}
-									autoCorrect={false}
+							{Platform.OS !== 'web' ? (
+								<BlurView
+									intensity={Platform.OS === 'android' ? (isDark ? 42 : 82) : searchFocused ? (isDark ? 26 : 48) : (isDark ? 18 : 34)}
+									tint={isDark ? 'systemThinMaterialDark' : 'systemThinMaterialLight'}
+									experimentalBlurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : 'none'}
+									blurReductionFactor={Platform.OS === 'android' ? 1.7 : undefined}
+									style={StyleSheet.absoluteFillObject}
 								/>
-								{normalizedSearchQuery ? (
-									<TouchableOpacity
-										onPress={() => setSearchQuery('')}
-										style={[styles.inlineReset, { backgroundColor: colors.surface, borderColor: colors.border }]}
-										activeOpacity={0.8}
-									>
-										<Text style={[styles.inlineResetText, { color: colors.textSecondary }]}>Clear</Text>
-									</TouchableOpacity>
-								) : null}
+							) : null}
+							<View
+								pointerEvents="none"
+								style={[
+									styles.searchSurfaceTint,
+									{
+										backgroundColor: isDark ? 'rgba(255, 255, 255, 0.018)' : 'rgba(255, 255, 255, 0.46)',
+									},
+								]}
+							/>
+							<View
+								style={[
+									styles.searchIconCell,
+									{
+										backgroundColor: searchFocused
+											? colors.primary + (isDark ? '24' : '14')
+											: isDark ? 'rgba(255, 255, 255, 0.07)' : 'rgba(142, 142, 147, 0.10)',
+									},
+								]}
+							>
+								<Search size={icon(18)} color={searchFocused ? colors.primary : colors.textMuted} strokeWidth={2.4} />
 							</View>
+							<TextInput
+								style={[styles.searchInput, { color: colors.textPrimary }]}
+								placeholder="Search name, phone, address"
+								placeholderTextColor={searchFocused ? colors.textSecondary : colors.textMuted}
+								value={searchQuery}
+								onChangeText={setSearchQuery}
+								onFocus={() => setSearchFocused(true)}
+								onBlur={() => setSearchFocused(false)}
+								autoCorrect={false}
+							/>
+							{normalizedSearchQuery ? (
+								<TouchableOpacity
+									onPress={() => setSearchQuery('')}
+									style={[
+										styles.clearButton,
+										{ backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(142, 142, 147, 0.12)' },
+									]}
+									activeOpacity={0.8}
+									accessibilityLabel="Clear customer search"
+								>
+									<X size={icon(14)} color={colors.textMuted} strokeWidth={2.6} />
+								</TouchableOpacity>
+							) : null}
+							<View style={[styles.searchTrailingIcon, { borderLeftColor: isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(142, 142, 147, 0.18)' }]}>
+								<SlidersHorizontal size={icon(17)} color={searchFocused ? colors.primary : colors.textMuted} strokeWidth={2.3} />
+							</View>
+						</Animated.View>
 
-							<View style={styles.filterMetaRow}>
-								<Text style={[styles.filterMetaText, { color: colors.textSecondary }]}>Filter by status or meal plan</Text>
-								{hasFiltersApplied ? (
-									<TouchableOpacity onPress={resetFilters} activeOpacity={0.8}>
-										<Text style={[styles.filterResetText, { color: colors.primary }]}>Reset all</Text>
-									</TouchableOpacity>
-								) : null}
-							</View>
-
-							<View style={styles.filterChipsContainer}>
-								{CUSTOMER_FILTERS.map((filter) => {
-									const isActive = activeFilter === filter;
-									const FilterIcon = filter === 'Lunch' ? Sun : filter === 'Dinner' ? Moon : null;
-									return (
-										<TouchableOpacity
-											key={filter}
-											onPress={() => setActiveFilter(filter)}
-											style={[
-												styles.filterChip,
-												{
-													backgroundColor: isActive ? colors.primary : colors.surfaceElevated,
-													borderColor: isActive ? colors.primary : colors.border,
-												}
-											]}
-										>
-											{FilterIcon && <FilterIcon size={14} color={isActive ? colors.textInverted : colors.textSecondary} style={{ marginRight: 4 }} />}
-											<Text style={[styles.filterChipText, { color: isActive ? colors.textInverted : colors.textPrimary }]}>
-												{filter}
-											</Text>
-											<View style={[styles.filterChipCount, { backgroundColor: isActive ? 'rgba(255,255,255,0.18)' : colors.surface }]}>
-												<Text style={[styles.filterChipCountText, { color: isActive ? colors.textInverted : colors.textSecondary }]}>
-													{filterCounts[filter]}
-												</Text>
-											</View>
-										</TouchableOpacity>
-									);
-								})}
-							</View>
+						<View style={styles.feedMetaRow}>
+							<Text style={[styles.feedMetaText, { color: colors.textMuted }]}>{showingText}</Text>
+							{hasFiltersApplied ? (
+								<TouchableOpacity onPress={resetFilters} activeOpacity={0.8}>
+									<Text style={[styles.filterResetText, { color: colors.primary }]}>Reset</Text>
+								</TouchableOpacity>
+							) : null}
 						</View>
+
+						<ScrollView
+							horizontal
+							showsHorizontalScrollIndicator={false}
+							contentContainerStyle={styles.filterChipsContainer}
+							decelerationRate="fast"
+							directionalLockEnabled
+							keyboardShouldPersistTaps="handled"
+							overScrollMode="never"
+						>
+							{CUSTOMER_FILTERS.map((filter) => (
+								<FilterChip
+									key={filter}
+									label={filter}
+									active={activeFilter === filter}
+									onPress={() => setActiveFilter(filter)}
+								/>
+							))}
+						</ScrollView>
 					</View>
 				}
 				contentContainerStyle={{
 					paddingHorizontal: contentPadding,
-					paddingBottom: scale(150, 0.92, 1.14),
+					paddingBottom: scale(142, 0.92, 1.14),
 					width: '100%',
 					maxWidth: Math.min(maxContentWidth, maxReadableWidth),
 					alignSelf: 'center',
 				}}
 				ListEmptyComponent={
-					<View style={[styles.emptyStateCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+					<View
+						style={[
+							styles.emptyStateCard,
+							{
+								backgroundColor: isDark ? 'rgba(255, 255, 255, 0.045)' : colors.surface,
+								borderColor: isDark ? 'rgba(255, 255, 255, 0.09)' : colors.border,
+							},
+						]}
+					>
 						<Text style={[styles.emptyStateTitle, { color: colors.textPrimary, fontSize: font(17, 0.94, 1.08) }]}>No customers match this search</Text>
 						<Text style={[styles.emptyStateSubtitle, { color: colors.textSecondary }]}>Try a different name, phone number, or reset the active filters.</Text>
 					</View>
@@ -445,30 +647,41 @@ export default function CustomersScreen() {
 
 			<CustomerFormModal
 				sheetRef={addCustomerSheetRef}
-				onClose={() => {}}
+				onClose={sheetController.close}
 				onSubmit={handleAddCustomer}
 				submitting={savingCustomer}
+				customer={editingCustomer}
 			/>
 
 			<PremiumBottomSheet
+				ref={statsSheetRef}
+				title="Customer Summary"
+				subtitle="Live operating snapshot"
+				snapPoints={['56%']}
+				scrollable={false}
+				policy="passive"
+				onDismiss={sheetController.close}
+			>
+				<StatsSummarySheet stats={stats} />
+			</PremiumBottomSheet>
+
+			<PremiumBottomSheet
 				ref={intelligenceSheetRef}
-				title="Intelligence Hub"
-				subtitle="انٹیلی جنس مرکز"
-				onDismiss={() => setSelectedCustomer(null)}
+				title="Customer Record"
+				subtitle="Operational details"
+				policy="operational"
+				onDismiss={() => {
+					if (!sheetController.consumeReplacement()) {
+						sheetController.close();
+					}
+				}}
 			>
 				{selectedCustomer ? (
 					<CustomerIntelligenceDetail
 						customer={selectedCustomer}
 						daysLeft={getDaysLeft(toDate(selectedCustomer.endDate))}
 						dueAmount={getDueAmount(selectedCustomer.pricePerMonth, selectedCustomer.totalPaid || 0)}
-						onAction={(type) => {
-							if (type === 'delete') {
-								handleDeleteCustomerRequest(selectedCustomer);
-								return;
-							}
-
-							intelligenceSheetRef.current?.dismiss();
-						}}
+						onAction={handleCustomerSheetEvent}
 					/>
 				) : null}
 			</PremiumBottomSheet>
@@ -481,18 +694,120 @@ function createLocalCustomerId() {
 	return `customer-${Date.now()}-${localCustomerCounter}`;
 }
 
-function StatPill({ icon: Icon, label, count, color }: { icon: LucideIcon, label: string, count: number, color: string }) {
+function StatsSummarySheet({
+	stats,
+}: {
+	stats: {
+		total: number;
+		active: number;
+		due: number;
+		expired: number;
+		expiring: number;
+		pending: number;
+		lunch: number;
+		dinner: number;
+	};
+}) {
 	const { colors } = useAppTheme();
-	const { font } = useResponsiveLayout();
+
 	return (
-		<View style={[styles.statPill, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-			<View style={[styles.statIconBox, { backgroundColor: color + '15' }]}>
-				<Icon size={15} color={color} />
+		<View style={styles.statsSheet}>
+			<LayeredSurface
+				radius={24}
+				contentStyle={styles.statsHeroRow}
+				borderColor={colors.primary + '18'}
+				tintColor={colors.primary + '08'}
+				shadowColor="rgba(255, 107, 53, 0.16)"
+				distance={12}
+			>
+				<View>
+					<Text style={[styles.statsHeroLabel, { color: colors.textMuted }]}>Pending revenue</Text>
+					<Text style={[styles.statsHeroValue, { color: colors.textPrimary }]}>DHS {stats.pending}</Text>
+				</View>
+				<View style={[styles.statsHeroBadge, { backgroundColor: colors.primary + '14', borderColor: colors.primary + '26' }]}>
+					<View style={[styles.statsHeroDot, { backgroundColor: colors.primary }]} />
+					<Text style={[styles.statsHeroBadgeText, { color: colors.primary }]}>{stats.due} due</Text>
+				</View>
+			</LayeredSurface>
+
+			<StatsSection
+				title="Financial"
+				accent={colors.primary}
+				items={[
+					{ label: 'Due today', value: stats.due.toString(), tone: colors.warning },
+					{ label: 'Settled active', value: Math.max(stats.active - stats.due, 0).toString(), tone: colors.success },
+				]}
+			/>
+
+			<StatsSection
+				title="Operations"
+				accent={colors.success}
+				items={[
+					{ label: 'Active', value: stats.active.toString(), tone: colors.success },
+					{ label: 'Expiring', value: stats.expiring.toString(), tone: colors.warning },
+					{ label: 'Expired', value: stats.expired.toString(), tone: colors.danger },
+					{ label: 'Total ledger', value: stats.total.toString(), tone: colors.textSecondary },
+				]}
+			/>
+
+			<StatsSection
+				title="Meal Load"
+				accent={colors.mealDinner}
+				items={[
+					{ label: 'Lunch', value: stats.lunch.toString(), tone: colors.mealLunch },
+					{ label: 'Dinner', value: stats.dinner.toString(), tone: colors.mealDinner },
+				]}
+			/>
+		</View>
+	);
+}
+
+function StatsSection({
+	title,
+	accent,
+	items,
+}: {
+	title: string;
+	accent: string;
+	items: { label: string; value: string; tone: string }[];
+}) {
+	const { colors } = useAppTheme();
+
+	return (
+		<LayeredSurface
+			radius={22}
+			contentStyle={styles.statsSection}
+			surfaceColor={colors.surfaceElevated}
+			borderColor={colors.border}
+			tintColor={accent + '08'}
+			shadowColor="rgba(32, 24, 18, 0.10)"
+			distance={10}
+		>
+			<View style={styles.statsSectionHeader}>
+				<View style={[styles.statsSectionIndicator, { backgroundColor: accent + '18' }]}>
+					<View style={[styles.statsSectionIndicatorCore, { backgroundColor: accent }]} />
+				</View>
+				<Text style={[styles.statsSectionTitle, { color: colors.textSecondary }]}>{title}</Text>
 			</View>
-			<View style={styles.statCopy}>
-				<Text style={[styles.statCount, { color: colors.textPrimary, fontSize: font(18, 0.94, 1.08) }]}>{count}</Text>
-				<Text style={[styles.statLabel, { color: colors.textSecondary, fontSize: font(11, 0.94, 1.06) }]}>{label}</Text>
+			<View style={styles.statsMetricGrid}>
+				{items.map((item) => (
+					<StatsMetric key={`${title}-${item.label}`} {...item} />
+				))}
 			</View>
+		</LayeredSurface>
+	);
+}
+
+function StatsMetric({ label, value, tone }: { label: string; value: string; tone: string }) {
+	const { colors } = useAppTheme();
+
+	return (
+		<View style={[styles.statsMetric, { backgroundColor: colors.surface, borderColor: tone + '18' }]}>
+			<View style={[styles.statsMetricMarker, { backgroundColor: tone + '18' }]}>
+				<View style={[styles.statsMetricMarkerCore, { backgroundColor: tone }]} />
+			</View>
+			<Text style={[styles.statsMetricValue, { color: tone }]}>{value}</Text>
+			<Text style={[styles.statsMetricLabel, { color: colors.textMuted }]} numberOfLines={1}>{label}</Text>
 		</View>
 	);
 }
@@ -507,226 +822,171 @@ const styles = StyleSheet.create({
 		...Theme.typography.labelMedium,
 		marginTop: Theme.spacing.md,
 	},
-	headerRight: {
+	headerActions: {
 		flexDirection: 'row',
 		alignItems: 'center',
+		gap: 6,
 	},
 	listHeader: {
-		paddingTop: Theme.spacing.lg,
-		paddingBottom: Theme.spacing.xl,
+		paddingTop: Theme.spacing.xs,
+		paddingBottom: Theme.spacing.md,
 	},
-	overviewPanel: {
-		borderWidth: 1,
-		borderRadius: 24,
-		padding: Theme.spacing.lg,
-		marginBottom: Theme.spacing.lg,
-		shadowColor: '#201812',
-		shadowOpacity: 0.06,
-		shadowRadius: 18,
-		shadowOffset: { width: 0, height: 10 },
-		elevation: 2,
+	controlDeck: {
+		padding: Theme.spacing.md,
 	},
-	overviewTopRow: {
+	deckHeaderRow: {
 		flexDirection: 'row',
 		alignItems: 'flex-start',
 		justifyContent: 'space-between',
 		gap: Theme.spacing.md,
+		marginBottom: Theme.spacing.md,
 	},
-	overviewCopy: {
-		flexDirection: 'row',
-		alignItems: 'flex-start',
-		gap: Theme.spacing.md,
-		flex: 1,
+	topSummaryRow: {
+		marginBottom: Theme.spacing.md,
+		paddingHorizontal: 4,
 	},
-	overviewIconWrap: {
-		width: 34,
-		height: 34,
-		borderRadius: 12,
-		alignItems: 'center',
-		justifyContent: 'center',
-	},
-	overviewTextBlock: {
-		flex: 1,
-		gap: 4,
-	},
-	overviewEyebrow: {
-		...Theme.typography.detailBold,
-		textTransform: 'uppercase',
-		letterSpacing: 0.7,
-	},
-	overviewTitle: {
-		...Theme.typography.labelMedium,
+	deckTitle: {
+		fontSize: 24,
 		fontWeight: '800',
+		letterSpacing: -0.5,
 	},
-	overviewSubtitle: {
-		...Theme.typography.detail,
-		fontSize: 13,
-	},
-	overviewCountPill: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		gap: 6,
-		paddingHorizontal: Theme.spacing.md,
-		paddingVertical: Theme.spacing.sm,
-		borderRadius: Theme.radius.full,
-		borderWidth: 1,
-	},
-	overviewCountText: {
+	deckEyebrow: {
 		...Theme.typography.detailBold,
-	},
-	statsContainer: {
-		flexDirection: 'row',
-		flexWrap: 'wrap',
-		gap: Theme.spacing.sm,
-		marginTop: Theme.spacing.lg,
-	},
-	statPill: {
-		flex: 1,
-		minWidth: '47%',
-		flexDirection: 'row',
-		alignItems: 'flex-start',
-		padding: Theme.spacing.md,
-		borderRadius: 18,
-		borderWidth: 1,
-		gap: Theme.spacing.sm,
-	},
-	statIconBox: {
-		width: 34,
-		height: 34,
-		borderRadius: 10,
-		alignItems: 'center',
-		justifyContent: 'center',
-	},
-	statCopy: {
-		flex: 1,
-		minWidth: 0,
-	},
-	statCount: {
-		fontWeight: '900',
-	},
-	statLabel: {
-		textTransform: 'uppercase',
-		letterSpacing: 0.5,
-		fontWeight: '700',
-		marginTop: 3,
-	},
-	searchShell: {
-		borderWidth: 1,
-		borderRadius: 24,
-		padding: Theme.spacing.lg,
-		marginBottom: Theme.spacing.lg,
-		shadowColor: '#201812',
-		shadowOpacity: 0.05,
-		shadowRadius: 16,
-		shadowOffset: { width: 0, height: 8 },
-		elevation: 2,
-	},
-	searchHeaderRow: {
-		gap: Theme.spacing.md,
-	},
-	searchHeaderCopy: {
-		flexDirection: 'row',
-		alignItems: 'flex-start',
-		gap: Theme.spacing.md,
-	},
-	searchIconWrap: {
-		width: 34,
-		height: 34,
-		borderRadius: 12,
-		alignItems: 'center',
-		justifyContent: 'center',
-	},
-	searchTitle: {
-		...Theme.typography.labelMedium,
-		fontWeight: '800',
-	},
-	searchSubtitle: {
-		...Theme.typography.detail,
 		fontSize: 13,
-		marginTop: 4,
-	},
-	searchCountPill: {
-		alignSelf: 'flex-start',
-		borderWidth: 1,
-		borderRadius: Theme.radius.full,
-		paddingHorizontal: Theme.spacing.md,
-		paddingVertical: Theme.spacing.xs,
-		marginTop: Theme.spacing.sm,
-	},
-	searchCountText: {
-		...Theme.typography.detailBold,
+		marginTop: 2,
 	},
 	searchBar: {
 		flexDirection: 'row',
 		alignItems: 'center',
-		paddingHorizontal: Theme.spacing.md,
-		minHeight: 54,
-		gap: Theme.spacing.sm,
+		height: 56,
+		paddingLeft: 7,
+		paddingRight: 8,
+		gap: 9,
 		borderWidth: 1,
 		borderRadius: 18,
-		marginTop: Theme.spacing.lg,
+		overflow: 'hidden',
+		shadowColor: '#000000',
+		shadowOpacity: 0.08,
+		shadowRadius: 18,
+		shadowOffset: { width: 0, height: 6 },
+		elevation: 4,
+		marginBottom: Theme.spacing.md,
+	},
+	searchSurfaceTint: {
+		...StyleSheet.absoluteFillObject,
+		backgroundColor: 'rgba(255, 255, 255, 0.46)',
+	},
+	searchIconCell: {
+		width: 34,
+		height: 34,
+		borderRadius: 12,
+		alignItems: 'center',
+		justifyContent: 'center',
 	},
 	searchInput: {
 		flex: 1,
 		...Theme.typography.labelMedium,
-		paddingVertical: Theme.spacing.sm,
+		fontSize: 15,
+		fontWeight: '800',
+		letterSpacing: 0,
+		paddingVertical: 0,
+		includeFontPadding: false,
+		minWidth: 0,
 	},
-	inlineReset: {
-		paddingHorizontal: Theme.spacing.md,
-		paddingVertical: Theme.spacing.xs,
-		borderWidth: 1,
-		borderRadius: Theme.radius.full,
+	clearButton: {
+		width: 28,
+		height: 28,
+		borderRadius: 14,
+		alignItems: 'center',
+		justifyContent: 'center',
+		backgroundColor: 'rgba(142, 142, 147, 0.12)',
 	},
-	inlineResetText: {
+	clearButtonText: {
 		...Theme.typography.detailBold,
 	},
-	filterMetaRow: {
-		marginTop: Theme.spacing.md,
+	searchTrailingIcon: {
+		height: 28,
+		width: 34,
+		borderLeftWidth: 1,
+		alignItems: 'flex-end',
+		justifyContent: 'center',
+	},
+	feedMetaRow: {
 		flexDirection: 'row',
 		alignItems: 'center',
 		justifyContent: 'space-between',
-		gap: Theme.spacing.md,
+		marginTop: Theme.spacing.sm,
+		minHeight: 20,
 	},
-	filterMetaText: {
+	feedMetaText: {
 		...Theme.typography.detail,
-		flex: 1,
 	},
 	filterResetText: {
 		...Theme.typography.detailBold,
 	},
 	filterChipsContainer: {
 		flexDirection: 'row',
-		flexWrap: 'wrap',
-		gap: Theme.spacing.sm,
-		marginTop: Theme.spacing.md,
+		gap: 7,
+		paddingTop: 3,
+		paddingBottom: 9,
+		paddingHorizontal: 1,
 	},
-	filterChip: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		paddingHorizontal: Theme.spacing.md,
-		paddingVertical: Theme.spacing.sm,
-		borderRadius: Theme.radius.pill,
+	filterChipMotion: {
+		height: 31,
+		minWidth: 54,
 		borderWidth: 1,
-		gap: 6,
+		borderRadius: 999,
+		shadowColor: '#C85B2F',
+		shadowOffset: { width: 0, height: 7 },
+		elevation: 2,
+	},
+	filterChipHighlight: {
+		position: 'absolute',
+		top: 1,
+		left: 2,
+		right: 2,
+		height: 12,
+		borderRadius: 999,
+		backgroundColor: '#FFFFFF',
+	},
+	filterChipPressable: {
+		height: '100%',
+		minWidth: 54,
+		paddingHorizontal: 13,
+		alignItems: 'center',
+		justifyContent: 'center',
 	},
 	filterChipText: {
 		...Theme.typography.detailBold,
+		fontSize: 11,
+		letterSpacing: 0,
+		lineHeight: 14,
 	},
-	filterChipCount: {
-		minWidth: 24,
-		paddingHorizontal: 6,
-		paddingVertical: 2,
-		borderRadius: Theme.radius.full,
-		alignItems: 'center',
+	miniStatsRow: {
+		flexDirection: 'row',
+		gap: Theme.spacing.sm,
+		marginTop: 2,
 	},
-	filterChipCountText: {
+	miniStat: {
+		flex: 1,
+		borderRadius: 16,
+		paddingHorizontal: Theme.spacing.md,
+		paddingVertical: Theme.spacing.sm,
+	},
+	miniStatValue: {
+		fontSize: 18,
+		fontWeight: '900',
+		letterSpacing: -0.4,
+	},
+	miniStatLabel: {
 		...Theme.typography.detailBold,
 		fontSize: 10,
+		marginTop: 2,
 	},
 	emptyStateCard: {
 		marginTop: Theme.spacing.huge,
 		borderWidth: 1,
-		borderRadius: 22,
+		borderRadius: 30,
 		paddingHorizontal: Theme.spacing.xl,
 		paddingVertical: Theme.spacing.huge,
 		alignItems: 'center',
@@ -742,5 +1002,112 @@ const styles = StyleSheet.create({
 		marginTop: Theme.spacing.sm,
 		fontSize: 13,
 		maxWidth: 280,
+	},
+	statsSheet: {
+		gap: Theme.spacing.md,
+	},
+	statsHeroRow: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'space-between',
+		gap: Theme.spacing.md,
+		paddingHorizontal: Theme.spacing.lg,
+		paddingVertical: Theme.spacing.lg,
+	},
+	statsHeroLabel: {
+		...Theme.typography.detailBold,
+		fontSize: 11,
+		textTransform: 'uppercase',
+		letterSpacing: 0.6,
+	},
+	statsHeroValue: {
+		fontSize: 30,
+		fontWeight: '900',
+		letterSpacing: -0.6,
+		marginTop: 3,
+	},
+	statsHeroBadge: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 7,
+		borderWidth: 1,
+		borderRadius: 999,
+		paddingHorizontal: Theme.spacing.md,
+		paddingVertical: 8,
+	},
+	statsHeroDot: {
+		width: 7,
+		height: 7,
+		borderRadius: 999,
+	},
+	statsHeroBadgeText: {
+		...Theme.typography.detailBold,
+		fontSize: 11,
+	},
+	statsSection: {
+		padding: Theme.spacing.md,
+		gap: Theme.spacing.sm,
+	},
+	statsSectionHeader: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: Theme.spacing.sm,
+		minHeight: 22,
+	},
+	statsSectionIndicator: {
+		width: 20,
+		height: 20,
+		borderRadius: 10,
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	statsSectionIndicatorCore: {
+		width: 7,
+		height: 7,
+		borderRadius: 999,
+	},
+	statsSectionTitle: {
+		...Theme.typography.detailBold,
+		fontSize: 11,
+		textTransform: 'uppercase',
+		letterSpacing: 0.65,
+	},
+	statsMetricGrid: {
+		flexDirection: 'row',
+		flexWrap: 'wrap',
+		gap: Theme.spacing.sm,
+	},
+	statsMetric: {
+		flexGrow: 1,
+		flexBasis: '47%',
+		minHeight: 78,
+		borderWidth: 1,
+		borderRadius: 18,
+		padding: Theme.spacing.md,
+		justifyContent: 'space-between',
+	},
+	statsMetricMarker: {
+		width: 20,
+		height: 20,
+		borderRadius: 10,
+		alignItems: 'center',
+		justifyContent: 'center',
+		marginBottom: 2,
+	},
+	statsMetricMarkerCore: {
+		width: 7,
+		height: 7,
+		borderRadius: 999,
+	},
+	statsMetricValue: {
+		fontSize: 21,
+		fontWeight: '900',
+		letterSpacing: -0.35,
+	},
+	statsMetricLabel: {
+		...Theme.typography.detailBold,
+		fontSize: 10,
+		letterSpacing: 0,
+		marginTop: 2,
 	},
 });

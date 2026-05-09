@@ -31,13 +31,13 @@ export function CustomerAttendancePanel({
 	const availableMeals = [customer.mealsPerDay?.lunch !== false, customer.mealsPerDay?.dinner !== false].filter(Boolean).length;
 
 	return (
-		<View style={[styles.panel, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+		<View style={[styles.panel, { backgroundColor: colors.surfaceElevated, borderColor: 'rgba(42, 30, 19, 0.06)' }]}>
 			<View style={styles.header}>
 				<View style={styles.headerCopy}>
 					<Text style={[styles.title, { color: colors.textPrimary, fontSize: font(15, 0.94, 1.08) }]}>Weekly attendance</Text>
 					<Text style={[styles.subtitle, { color: colors.textSecondary }]}>Week {weekId} - tap a meal to include or skip it.</Text>
 				</View>
-				<View style={[styles.headerPill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+				<View style={[styles.headerPill, { backgroundColor: colors.surface, borderColor: 'rgba(42, 30, 19, 0.06)' }]}>
 					<Text style={[styles.headerPillText, { color: colors.textSecondary }]}>{availableMeals} meals/day</Text>
 				</View>
 			</View>
@@ -49,12 +49,12 @@ export function CustomerAttendancePanel({
 				].filter(Boolean).length;
 
 				return (
-					<View key={day} style={[styles.dayRow, { backgroundColor: colors.surface, borderColor: colors.border }, stacked && styles.dayRowStacked]}>
+					<View key={day} style={[styles.dayRow, { backgroundColor: colors.surface, borderColor: 'rgba(42, 30, 19, 0.055)' }, stacked && styles.dayRowStacked]}>
 						<View style={[styles.dayHeader, stacked && styles.dayHeaderStacked]}>
 							<Text style={[styles.dayName, { color: colors.textPrimary, width: dayNameWidth, fontSize: font(16, 0.94, 1.08) }]}>
 								{shortDay(day)}
 							</Text>
-							<View style={[styles.dayStatusPill, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+							<View style={[styles.dayStatusPill, { backgroundColor: colors.surfaceElevated, borderColor: 'rgba(42, 30, 19, 0.05)' }]}>
 								<Text style={[styles.dayStatusText, { color: colors.textSecondary }]}>{activeMeals}/{availableMeals} included</Text>
 							</View>
 						</View>
@@ -64,7 +64,7 @@ export function CustomerAttendancePanel({
 								<TouchableOpacity
 									style={[
 										styles.mealChip,
-										{ backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+										{ backgroundColor: colors.surfaceElevated, borderColor: 'rgba(42, 30, 19, 0.055)' },
 										{ borderRadius: chipRadius },
 										stacked && styles.mealChipStacked,
 										weekAttendance[day].lunch && {
@@ -77,7 +77,7 @@ export function CustomerAttendancePanel({
 								>
 									<View style={styles.mealChipTopRow}>
 										<Text style={[styles.mealChipLabel, { color: weekAttendance[day].lunch ? colors.primary : colors.textSecondary, fontSize: font(12, 0.94, 1.04) }]}>Lunch</Text>
-										<View style={[styles.mealStatePill, { backgroundColor: weekAttendance[day].lunch ? colors.primary : colors.surface, borderColor: weekAttendance[day].lunch ? colors.primary : colors.border }]}>
+										<View style={[styles.mealStatePill, { backgroundColor: weekAttendance[day].lunch ? colors.primary : colors.surface, borderColor: weekAttendance[day].lunch ? colors.primary : 'rgba(42, 30, 19, 0.05)' }]}>
 											<Text style={[styles.mealStateText, { color: weekAttendance[day].lunch ? colors.textInverted : colors.textSecondary }]}>
 												{weekAttendance[day].lunch ? 'Included' : 'Skipped'}
 											</Text>
@@ -93,7 +93,7 @@ export function CustomerAttendancePanel({
 								<TouchableOpacity
 									style={[
 										styles.mealChip,
-										{ backgroundColor: colors.surfaceElevated, borderColor: colors.border },
+										{ backgroundColor: colors.surfaceElevated, borderColor: 'rgba(42, 30, 19, 0.055)' },
 										{ borderRadius: chipRadius },
 										stacked && styles.mealChipStacked,
 										weekAttendance[day].dinner && {
@@ -106,7 +106,7 @@ export function CustomerAttendancePanel({
 								>
 									<View style={styles.mealChipTopRow}>
 										<Text style={[styles.mealChipLabel, { color: weekAttendance[day].dinner ? colors.primary : colors.textSecondary, fontSize: font(12, 0.94, 1.04) }]}>Dinner</Text>
-										<View style={[styles.mealStatePill, { backgroundColor: weekAttendance[day].dinner ? colors.primary : colors.surface, borderColor: weekAttendance[day].dinner ? colors.primary : colors.border }]}>
+										<View style={[styles.mealStatePill, { backgroundColor: weekAttendance[day].dinner ? colors.primary : colors.surface, borderColor: weekAttendance[day].dinner ? colors.primary : 'rgba(42, 30, 19, 0.05)' }]}>
 											<Text style={[styles.mealStateText, { color: weekAttendance[day].dinner ? colors.textInverted : colors.textSecondary }]}>
 												{weekAttendance[day].dinner ? 'Included' : 'Skipped'}
 											</Text>
@@ -137,17 +137,22 @@ export function CustomerAttendancePanel({
 
 const styles = StyleSheet.create({
 	panel: {
-		marginTop: Theme.spacing.sm,
-		borderRadius: 18,
+		marginTop: Theme.spacing.xs,
+		borderRadius: 22,
 		padding: Theme.spacing.md,
 		borderWidth: 1,
+		shadowColor: '#2A1E13',
+		shadowOpacity: 0.035,
+		shadowRadius: 14,
+		shadowOffset: { width: 0, height: 8 },
+		elevation: 1,
 	},
 	header: {
 		flexDirection: 'row',
 		alignItems: 'flex-start',
 		justifyContent: 'space-between',
 		gap: Theme.spacing.md,
-		marginBottom: Theme.spacing.md,
+		marginBottom: Theme.spacing.sm,
 	},
 	headerCopy: {
 		flex: 1,
@@ -155,7 +160,7 @@ const styles = StyleSheet.create({
 	headerPill: {
 		paddingHorizontal: Theme.spacing.md,
 		paddingVertical: Theme.spacing.xs,
-		borderRadius: Theme.radius.full,
+		borderRadius: 16,
 		borderWidth: 1,
 	},
 	headerPillText: {
@@ -173,8 +178,8 @@ const styles = StyleSheet.create({
 	dayRow: {
 		borderWidth: 1,
 		borderRadius: 16,
-		padding: Theme.spacing.md,
-		marginBottom: Theme.spacing.sm,
+		padding: Theme.spacing.sm,
+		marginBottom: Theme.spacing.xs,
 	},
 	dayRowStacked: {
 		gap: Theme.spacing.md,
@@ -183,7 +188,7 @@ const styles = StyleSheet.create({
 		flexDirection: 'row',
 		alignItems: 'center',
 		justifyContent: 'space-between',
-		marginBottom: Theme.spacing.sm,
+		marginBottom: Theme.spacing.xs,
 	},
 	dayHeaderStacked: {
 		alignItems: 'flex-start',
@@ -196,7 +201,7 @@ const styles = StyleSheet.create({
 	dayStatusPill: {
 		paddingHorizontal: Theme.spacing.sm,
 		paddingVertical: 5,
-		borderRadius: Theme.radius.full,
+		borderRadius: 16,
 		borderWidth: 1,
 	},
 	dayStatusText: {
@@ -205,7 +210,7 @@ const styles = StyleSheet.create({
 	},
 	mealToggles: {
 		flexDirection: 'row',
-		gap: Theme.spacing.md,
+		gap: Theme.spacing.sm,
 	},
 	mealTogglesStacked: {
 		flexDirection: 'column',
@@ -214,7 +219,7 @@ const styles = StyleSheet.create({
 	mealChip: {
 		flex: 1,
 		paddingHorizontal: Theme.spacing.md,
-		paddingVertical: Theme.spacing.md,
+		paddingVertical: Theme.spacing.sm,
 		borderWidth: 1,
 	},
 	mealChipStacked: {
@@ -235,7 +240,7 @@ const styles = StyleSheet.create({
 	mealStatePill: {
 		paddingHorizontal: Theme.spacing.sm,
 		paddingVertical: 4,
-		borderRadius: Theme.radius.full,
+		borderRadius: 16,
 		borderWidth: 1,
 	},
 	mealStateText: {
@@ -244,12 +249,12 @@ const styles = StyleSheet.create({
 	},
 	mealChipDish: {
 		...Theme.typography.label,
-		marginTop: Theme.spacing.sm,
+		marginTop: Theme.spacing.xs,
 	},
 	saveButton: {
-		marginTop: Theme.spacing.lg,
-		padding: Theme.spacing.lg,
-		borderRadius: Theme.radius.lg,
+		marginTop: Theme.spacing.md,
+		padding: Theme.spacing.md,
+		borderRadius: 16,
 		alignItems: 'center',
 	},
 	saveButtonText: {

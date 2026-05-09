@@ -6,15 +6,15 @@ type ThemeColors = typeof Theme.colors;
 
 const darkColors: ThemeColors = {
 	...Theme.colors,
-	bg: '#0F0D15',
-	surface: '#1A1625',
-	surfaceElevated: '#231E30',
-	border: '#322C40',
-	textPrimary: '#FFFFFF',
-	textSecondary: '#A9A2BA',
-	textMuted: '#6D6580',
-	textInverted: '#0F0D15',
-	overlay: 'rgba(5, 4, 10, 0.8)',
+	bg: '#0B0C0F',
+	surface: '#15161B',
+	surfaceElevated: '#202127',
+	border: '#30323A',
+	textPrimary: '#F7F7FA',
+	textSecondary: '#C5C7D0',
+	textMuted: '#8D909B',
+	textInverted: '#111216',
+	overlay: 'rgba(3, 4, 7, 0.82)',
 };
 
 const colorByMode: Record<ThemeMode, ThemeColors> = {
