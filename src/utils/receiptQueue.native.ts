@@ -1,7 +1,7 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { addDoc, collection } from 'firebase/firestore';
 import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
-import { db } from '../firebase/config';
+import { db } from '../config';
 import type {
 	QueuedReceiptExpense,
 	ReceiptExpenseDraft,

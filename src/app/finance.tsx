@@ -1,3 +1,4 @@
+import {
 	Banknote,
 	Camera,
 	CloudOff,
@@ -70,6 +71,8 @@ type ExpenseEntry = {
 	confidence?: number;
 	paymentMethod?: string;
 	receiptDate?: string;
+	imageUri?: string;
+	rawText?: string;
 };
 
 export default function FinanceScreen() {
@@ -213,7 +216,7 @@ export default function FinanceScreen() {
 				),
 			});
 			void runSync(true);
-		}, [handleOpenScanner, runSync, scannerEnabled, setHeaderConfig])
+		}, [handleOpenManualEntry, handleOpenScanner, runSync, scannerEnabled, setHeaderConfig])
 	);
 
 	const transactions = rawTransactions.map((transaction) => ({
@@ -1326,6 +1329,24 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		justifyContent: 'space-between',
 		gap: Theme.spacing.md,
+	},
+	itemEditorRow: {
+		flexDirection: 'row',
+		alignItems: 'flex-start',
+		gap: Theme.spacing.sm,
+		paddingBottom: Theme.spacing.md,
+		borderBottomWidth: 1,
+	},
+	itemEditorInputs: {
+		flex: 1,
+		gap: Theme.spacing.sm,
+	},
+	itemDeleteBtn: {
+		width: 36,
+		height: 36,
+		borderRadius: Theme.radius.full,
+		alignItems: 'center',
+		justifyContent: 'center',
 	},
 	detailLabel: {
 		fontSize: 11,

@@ -2,7 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { requireOptionalNativeModule } from 'expo';
 import { Platform } from 'react-native';
 import { parseReceiptText } from './receiptParser';
-import type { ReceiptExpenseDraft, OCRGeometry, TextFragment } from './receiptTypes';
+import type { ReceiptExpenseDraft, TextFragment } from './receiptTypes';
 
 export class ReceiptScannerConfigError extends Error {}
 
@@ -44,11 +44,6 @@ type Block = {
 type TextRecognitionResult = {
 	text: string;
 	blocks: Block[];
-};
-
-type TextFragment = {
-	text: string;
-	frame: Rect;
 };
 
 type RNMLKitTextRecognitionModule = {

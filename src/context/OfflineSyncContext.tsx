@@ -20,7 +20,7 @@ import React, {
 } from 'react';
 import { AppState } from 'react-native';
 import type { Customer } from '../components/customers/types';
-import { db } from '../firebase/config';
+import { db } from '../config';
 import {
 	deleteQueuedReceiptExpense,
 	loadQueuedReceiptExpenses,

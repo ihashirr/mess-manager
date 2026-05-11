@@ -52,6 +52,7 @@ export type SyncOperationKind =
 	| 'menu_upsert'
 	| 'payment_record'
 	| 'payment_delete'
+	| 'expense_upsert'
 	| 'expense_delete';
 
 export type SyncQueueStatus = 'pending' | 'failed';
@@ -90,6 +91,10 @@ export type ExpenseDeletePayload = {
 	expenseId: string;
 };
 
+export type ExpenseUpsertPayload = {
+	expense: ExpenseEntry;
+};
+
 export type SyncQueuePayload =
 	| CustomerCreatePayload
 	| CustomerDeletePayload
@@ -97,6 +102,7 @@ export type SyncQueuePayload =
 	| MenuUpsertPayload
 	| PaymentRecordPayload
 	| PaymentDeletePayload
+	| ExpenseUpsertPayload
 	| ExpenseDeletePayload;
 
 export type SyncQueueOperation = {

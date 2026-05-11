@@ -12,11 +12,14 @@ expo-env.d.ts
 # Native
 .kotlin/
 *.orig.*
+*.keystore
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
+keystore.txt
+android/keystore.properties
 
 # Metro
 .metro-health-check*
@@ -43,7 +46,6 @@ app-example
 
 # generated native folders
 /ios
-/android
 
 # Environment files
 .env

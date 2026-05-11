@@ -1,4 +1,4 @@
-import type { ReceiptExpenseDraft, ReceiptLineItem } from './receiptTypes';
+import type { OCRGeometry, ReceiptExpenseDraft, ReceiptLineItem } from './receiptTypes';
 
 type ParseReceiptTextInput = {
 	rawText: string;
@@ -91,6 +91,7 @@ const MERCHANT_BLOCKLIST = [
 export function parseReceiptText({
 	rawText,
 	imageUri,
+	geometry,
 }: ParseReceiptTextInput): ReceiptExpenseDraft {
 	const normalizedText = normalizeReceiptText(rawText);
 	const lines = normalizedText
