@@ -8,7 +8,17 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
-**/android/
+*.apk
+*.aab
+*.apks
+
+android/.gradle/
+android/build/
+android/app/build/
+android/app/.cxx/
+android/local.properties
+android/keystore.properties
+android/app/release-key.keystore
 # Native
 .kotlin/
 *.orig.*
