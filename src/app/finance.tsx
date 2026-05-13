@@ -22,18 +22,22 @@ import { useFocusEffect } from 'expo-router';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useConfirmDialog } from '../components/system/dialogs/ConfirmDialog';
 import { showToast } from '../components/system/feedback/AppToast';
-import { Badge, type BadgeVariant } from '../components/ui/Badge';
-import { Button } from '../components/ui/Button';
-import { Card } from '../components/ui/Card';
-import { Input } from '../components/ui/Input';
-import { PremiumBottomSheet, type PremiumBottomSheetHandle } from '../components/ui/PremiumBottomSheet';
-import { Screen } from '../components/ui/Screen';
-import { ScreenHeaderActionButton } from '../components/ui/ScreenHeader';
-import { useResponsiveLayout } from '../components/ui/useResponsiveLayout';
+import {
+	Badge,
+	Button,
+	Card,
+	Input,
+	PremiumBottomSheet,
+	Screen,
+	ScreenHeaderActionButton,
+	type BadgeVariant,
+	type PremiumBottomSheetHandle,
+} from '../components/ui';
 import { Theme } from '../constants/Theme';
 import { useAppHeader } from '../context/HeaderContext';
 import { useOfflineSync } from '../context/OfflineSyncContext';
 import { useAppTheme } from '../context/ThemeModeContext';
+import { useResponsiveLayout } from '../hooks';
 import { toDate } from '../utils/customerLogic';
 import {
 	getReceiptScannerConfigMessage,
@@ -46,6 +50,7 @@ import {
 import {
 	saveReceiptDraftToQueue,
 } from '../utils/receiptQueue';
+import type { ExpenseEntry } from '../types';
 
 type Transaction = {
 	id: string;
@@ -55,24 +60,6 @@ type Transaction = {
 	date: unknown;
 	method?: string;
 	isOrphan?: boolean;
-};
-
-type ExpenseEntry = {
-	id: string;
-	title: string;
-	merchantName?: string;
-	total: number;
-	date: unknown;
-	monthTag: string;
-	currency?: string;
-	source?: string;
-	note?: string;
-	items?: ReceiptLineItem[];
-	confidence?: number;
-	paymentMethod?: string;
-	receiptDate?: string;
-	imageUri?: string;
-	rawText?: string;
 };
 
 export default function FinanceScreen() {

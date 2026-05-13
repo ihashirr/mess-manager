@@ -1,14 +1,14 @@
 import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
-import type { Customer } from '../components/customers/types';
 import type { DayMenu } from '../utils/menuLogic';
 import type {
 	AttendanceEntry,
+	Customer,
 	ExpenseEntry,
 	OfflineSnapshot,
 	PaymentEntry,
 	SyncQueueOperation,
 	SyncQueuePayload,
-} from './types';
+} from '../types';
 
 type CacheRow = {
 	id: string;

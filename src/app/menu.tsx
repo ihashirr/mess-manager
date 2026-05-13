@@ -3,16 +3,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { showToast } from '../components/system/feedback/AppToast';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Badge } from '../components/ui/Badge';
-import { PremiumBottomSheet, type PremiumBottomSheetHandle } from '../components/ui/PremiumBottomSheet';
-import { Screen } from '../components/ui/Screen';
-import { ScreenHeaderActionButton } from '../components/ui/ScreenHeader';
-import { useResponsiveLayout } from '../components/ui/useResponsiveLayout';
+import { Badge, Button, FoodIconBadge, Input, KitchenActivityPulse, PremiumBottomSheet, Screen, ScreenHeaderActionButton, type PremiumBottomSheetHandle } from '../components/ui';
 import { useAppHeader } from '../context/HeaderContext';
 import { useOfflineSync } from '../context/OfflineSyncContext';
 import { useAppTheme } from '../context/ThemeModeContext';
+import { useResponsiveLayout } from '../hooks';
+import { FOOD_THEME } from '../theme';
 import { createEmptyDayMenu, normalizeDayMenu, type MealSlot, type WeekMenu } from '../utils/menuLogic';
 import { DAYS, DayName, getDateForDayName, getDatesForWeek, getTodayName, getWeekId } from '../utils/weekLogic';
 
@@ -320,25 +316,47 @@ export default function MenuScreen() {
 	);
 }
 
-const MealEditor = ({ label, slot, isEditing, count, onChange, colors }: any) => (
-	<View style={styles.mealBlock}>
-		<View style={styles.mealHeader}>
-			<Text style={[styles.mealLabel, { color: colors.primary }]}>{label}</Text>
-			<Badge label={`${count} Servings`} variant="neutral" />
+const MealEditor = ({ label, slot, isEditing, count, onChange, colors }: any) => {
+	const isLunch = label === 'Lunch';
+	const tone = isLunch ? FOOD_THEME.mealColors.lunch : FOOD_THEME.mealColors.dinner;
+	const missingMain = !slot?.main;
+
+	return (
+		<View style={[styles.mealBlock, { backgroundColor: tone + '0A', borderColor: tone + '1F' }]}>
+			<View style={styles.mealHeader}>
+				<View style={styles.mealTitleRow}>
+					<FoodIconBadge
+						iconKey={isLunch ? 'lunch' : 'dinner'}
+						tone={tone}
+						size={30}
+						showSteam={!missingMain}
+					/>
+					<View>
+						<Text style={[styles.mealLabel, { color: tone }]}>{label}</Text>
+						{missingMain ? (
+							<View style={styles.mealPendingRow}>
+								<KitchenActivityPulse active tone={FOOD_THEME.colors.turmeric} size={12} />
+								<Text style={[styles.mealPendingText, { color: colors.textSecondary }]}>Menu incomplete</Text>
+							</View>
+						) : null}
+					</View>
+				</View>
+				<Badge label={`${count} Servings`} variant="neutral" />
+			</View>
+			{isEditing ? (
+				<View style={styles.editStack}>
+					<Input label="Main Dish" value={slot?.main || ''} onChangeText={v => onChange('main', v)} placeholder="e.g. Chicken Karahi" />
+					<Input label="Side Dish" value={slot?.extra || ''} onChangeText={v => onChange('extra', v)} placeholder="e.g. Daal Mash" />
+				</View>
+			) : (
+				<View style={[styles.viewStack, { backgroundColor: colors.surface, borderColor: tone + '14' }]}>
+					<Text style={[styles.dishMain, { color: colors.textPrimary }]}>{slot?.main || 'No main dish set'}</Text>
+					<Text style={[styles.dishSide, { color: colors.textSecondary }]}>{slot?.extra || 'No side dish set'}</Text>
+				</View>
+			)}
 		</View>
-		{isEditing ? (
-			<View style={styles.editStack}>
-				<Input label="Main Dish" value={slot?.main || ''} onChangeText={v => onChange('main', v)} placeholder="e.g. Chicken Karahi" />
-				<Input label="Side Dish" value={slot?.extra || ''} onChangeText={v => onChange('extra', v)} placeholder="e.g. Daal Mash" />
-			</View>
-		) : (
-			<View style={styles.viewStack}>
-				<Text style={[styles.dishMain, { color: colors.textPrimary }]}>{slot?.main || 'No main dish set'}</Text>
-				<Text style={[styles.dishSide, { color: colors.textSecondary }]}>{slot?.extra || 'No side dish set'}</Text>
-			</View>
-		)}
-	</View>
-);
+	);
+};
 
 const styles = StyleSheet.create({
 	centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -352,11 +370,14 @@ const styles = StyleSheet.create({
 	servingSummary: { paddingHorizontal: 8, paddingVertical: 4, backgroundColor: '#f0f0f0', borderRadius: 6 },
 	servingText: { fontSize: 10, fontWeight: '700' },
 	dayContent: { padding: 16, paddingTop: 0, gap: 20 },
-	mealBlock: { gap: 8 },
+	mealBlock: { gap: 10, borderWidth: 1, borderRadius: 16, padding: 12, overflow: 'hidden' },
 	mealHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+	mealTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 },
 	mealLabel: { fontSize: 13, fontWeight: '800', textTransform: 'uppercase' },
+	mealPendingRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
+	mealPendingText: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.35 },
 	editStack: { gap: 8 },
-	viewStack: { gap: 4, padding: 12, backgroundColor: '#f9f9f9', borderRadius: 12 },
+	viewStack: { gap: 4, padding: 12, borderRadius: 12, borderWidth: 1 },
 	dishMain: { fontSize: 16, fontWeight: '800' },
 	dishSide: { fontSize: 14, fontWeight: '600' },
 	riceSection: { gap: 12 },

@@ -26,14 +26,14 @@ import {
 } from 'react-native';
 import { showToast } from '../system/feedback/AppToast';
 import { Card } from '../ui/Card';
-import { useResponsiveLayout } from '../ui/useResponsiveLayout';
 import { Theme } from '../../constants/Theme';
 import { useAppTheme } from '../../context/ThemeModeContext';
+import { useResponsiveLayout } from '../../hooks';
 import { getCustomerStatus, getDaysLeft, getDueAmount, toDate } from '../../utils/customerLogic';
 import type { WeekMenu } from '../../utils/menuLogic';
 import type { DayName } from '../../utils/weekLogic';
 import { CustomerAttendancePanel } from './CustomerAttendancePanel';
-import type { Customer } from './types';
+import type { Customer } from '../../types';
 
 interface CustomerCardProps {
 	customer: Customer;

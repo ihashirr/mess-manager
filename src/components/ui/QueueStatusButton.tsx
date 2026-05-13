@@ -1,7 +1,7 @@
 import { RefreshCw, UploadCloud } from 'lucide-react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAppTheme } from '../../context/ThemeModeContext';
-import { useResponsiveLayout } from './useResponsiveLayout';
+import { useResponsiveLayout } from '../../hooks';
 
 type QueueStatusButtonProps = {
 	count: number;

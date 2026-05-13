@@ -1,25 +1,32 @@
-import { Users, CalendarCheck, PlusCircle, Sun, Moon, ChefHat, Bell, LucideIcon, ChevronRight, UtensilsCrossed, Sparkles, Clock3 } from 'lucide-react-native';
+import { CalendarCheck, PlusCircle, Sun, Moon, ChefHat, Bell, ChevronRight, Clock3 } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { showToast } from '../components/system/feedback/AppToast';
-import { PremiumBottomSheet, type PremiumBottomSheetHandle } from '../components/ui/PremiumBottomSheet';
-import { CustomerIntelligenceDetail } from '../components/ui/CustomerIntelligenceDetail';
-import { Screen } from '../components/ui/Screen';
-import { Section } from '../components/ui/Section';
-import { UserIdentity } from '../components/ui/UserIdentity';
-import { useResponsiveLayout } from '../components/ui/useResponsiveLayout';
-import { useOperationalSheetController } from '../components/ui/useOperationalSheetController';
-import { type CustomerSheetEvent, type OperationalSheetRoute } from '../components/ui/sheetTypes';
+import {
+	CustomerIntelligenceDetail,
+	FoodEmptyStateArt,
+	FoodIconBadge,
+	KitchenActivityPulse,
+	PremiumBottomSheet,
+	Screen,
+	Section,
+	UserIdentity,
+	type CustomerSheetEvent,
+	type OperationalSheetRoute,
+	type PremiumBottomSheetHandle,
+} from '../components/ui';
 import { Theme } from '../constants/Theme';
 import { useAppHeader } from '../context/HeaderContext';
 import { useOfflineSync } from '../context/OfflineSyncContext';
 import { useAppTheme } from '../context/ThemeModeContext';
+import { useOperationalSheetController, useResponsiveLayout } from '../hooks';
+import { FOOD_THEME } from '../theme';
 import { getDaysLeft, getDueAmount, toDate } from '../utils/customerLogic';
 import { createEmptyDayMenu, normalizeDayMenu, type DayMenu } from '../utils/menuLogic';
 import { formatISO } from '../utils/weekLogic';
-import { type Customer } from '../components/customers/types';
+import { type Customer } from '../types';
 
 
 type AttendanceSelection = { lunch: boolean; dinner: boolean };
@@ -180,6 +187,7 @@ export default function Index() {
 	const menuReady = missingMeals === 0;
 	const productionTone = menuReady ? 'Ready for service' : `${missingMeals} menu slot${missingMeals === 1 ? '' : 's'} missing`;
 	const readinessTone = menuReady ? `${timeAgo} refresh` : 'Finish the menu to avoid confusion';
+	const kitchenTone = menuReady ? colors.success : FOOD_THEME.colors.saffronDeep;
 
 	const lunchCustomers = customers.filter(c => (c.mealsPerDay?.lunch !== false) && (!attendance[c.id] || attendance[c.id].lunch !== false));
 	const dinnerCustomers = customers.filter(c => (c.mealsPerDay?.dinner !== false) && (!attendance[c.id] || attendance[c.id].dinner !== false));
@@ -251,9 +259,8 @@ export default function Index() {
 											borderColor: menuReady ? colors.success + '2A' : colors.primary + '2A',
 										},
 									]}>
-										<View style={[styles.statusIconWrap, { backgroundColor: menuReady ? colors.success + '18' : colors.primary + '18' }]}>
-											<Sparkles size={15} color={menuReady ? colors.success : colors.primary} />
-										</View>
+										<View style={[styles.productionGlow, { backgroundColor: kitchenTone + '12' }]} />
+										<KitchenActivityPulse active tone={kitchenTone} size={34} />
 										<View style={styles.statusCopy}>
 											<Text style={[styles.statusTitle, { color: colors.textPrimary }]}>{menuReady ? 'Menu ready' : 'Menu incomplete'}</Text>
 											<Text style={[styles.statusSubtitle, { color: colors.textSecondary }]}>{productionTone}</Text>
@@ -265,10 +272,9 @@ export default function Index() {
 									</View>
 
 									<Animated.View entering={FadeInDown.delay(100)} style={[styles.actionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+										<View style={[styles.actionAmbientGlow, { backgroundColor: kitchenTone + '10' }]} />
 										<View style={styles.actionCardTop}>
-											<View style={[styles.actionIconWrap, { backgroundColor: menuReady ? colors.success + '14' : colors.primary + '14' }]}>
-												<ChefHat size={22} color={menuReady ? colors.success : colors.primary} />
-											</View>
+											<FoodIconBadge iconKey="kitchen" tone={kitchenTone} size={46} showSteam={!menuReady} />
 											<View style={styles.actionCopy}>
 												<Text style={[styles.actionEyebrow, { color: colors.textMuted }]}>NEXT ACTION</Text>
 												<Text style={[styles.actionTitle, { color: colors.textPrimary }]}>
@@ -325,21 +331,19 @@ export default function Index() {
 									{/* Meal Split Row */}
 									<View style={styles.mealsRow}>
 										<MealCard 
-											icon={Sun} 
 											title="LUNCH" 
 											subtitle="scheduled today"
 											value={stats.lunchCount}
-											color={colors.primary}
+											color={FOOD_THEME.mealColors.lunch}
 											bgColor={colors.surface}
 											borderColor={colors.border}
 											onPress={() => sheetController.open({ name: 'serving-breakdown', meal: 'lunch' })}
 										/>
 										<MealCard 
-											icon={Moon} 
 											title="DINNER" 
 											subtitle="scheduled today"
 											value={stats.dinnerCount}
-											color={Theme.colors.mealDinner}
+											color={FOOD_THEME.mealColors.dinner}
 											bgColor={colors.surface}
 											borderColor={colors.border}
 											onPress={() => sheetController.open({ name: 'serving-breakdown', meal: 'dinner' })}
@@ -348,8 +352,12 @@ export default function Index() {
 
 									{/* Live Overview Footer */}
 									<View style={[styles.overviewPanel, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+										<View style={[styles.overviewGlow, { backgroundColor: FOOD_THEME.colors.saffron + '0D' }]} />
 										<View>
-											<Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>LIVE OVERVIEW</Text>
+											<View style={styles.overviewLabelRow}>
+												<KitchenActivityPulse active={totalServings > 0} tone={kitchenTone} size={18} />
+												<Text style={[styles.overviewLabel, { color: colors.textSecondary }]}>KITCHEN CONTROL</Text>
+											</View>
 											<Text style={[styles.overviewValue, { color: colors.textPrimary }]}>{stats.activeCount} active customers</Text>
 										</View>
 										{stats.paymentsDue > 0 ? (
@@ -362,7 +370,7 @@ export default function Index() {
 								</>
 							) : (
 								<View style={styles.emptyState}>
-									<Users size={48} color={colors.textMuted} />
+									<FoodEmptyStateArt tone={colors.primary} />
 									<Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>No active customers</Text>
 									<TouchableOpacity 
 										style={[styles.primaryAction, { backgroundColor: colors.primary }]}
@@ -406,7 +414,7 @@ export default function Index() {
 			>
 				{modalServings.length === 0 ? (
 					<View style={styles.modalEmpty}>
-						<UtensilsCrossed size={48} color={colors.border} />
+						<FoodIconBadge imageSource={FOOD_THEME.iconImages.curryBowl} tone={colors.primary} size={48} showSteam />
 						<Text style={{ color: colors.textMuted, marginTop: 8 }}>No servings found</Text>
 					</View>
 				) : (
@@ -441,7 +449,6 @@ export default function Index() {
 }
 
 function MealCard({
-	icon: Icon,
 	title,
 	subtitle,
 	value,
@@ -450,7 +457,6 @@ function MealCard({
 	borderColor,
 	onPress,
 }: {
-	icon: LucideIcon;
 	title: string;
 	subtitle: string;
 	value: number;
@@ -466,13 +472,13 @@ function MealCard({
 			onPress={onPress}
 			style={[styles.mealCard, { backgroundColor: bgColor, borderColor }]}
 		>
+			<View style={[styles.mealCardGlow, { backgroundColor: color + '10' }]} />
 			<View style={styles.mealCardTop}>
 				<Text style={[styles.mealCardValue, { color: colors.textPrimary }]}>{value}</Text>
+				<KitchenActivityPulse active={value > 0} tone={color} size={20} />
 			</View>
 			<View style={styles.mealCardBottom}>
-				<View style={[styles.mealIconCircle, { backgroundColor: color + '15' }]}>
-					<Icon size={18} color={color} />
-				</View>
+				<FoodIconBadge imageSource={FOOD_THEME.iconImages.curryBowl} tone={color} size={36} showSteam={value > 0} />
 				<View>
 					<Text style={[styles.mealCardTitle, { color: colors.textPrimary }]}>{title}</Text>
 					<View style={{flexDirection: 'row', alignItems: 'center', gap: 2}}>
@@ -578,6 +584,15 @@ const styles = StyleSheet.create({
 		borderRadius: 18,
 		borderWidth: 1,
 		padding: 12,
+		overflow: 'hidden',
+	},
+	productionGlow: {
+		position: 'absolute',
+		width: 180,
+		height: 80,
+		borderRadius: 999,
+		right: -48,
+		top: -32,
 	},
 	statusIconWrap: {
 		width: 34,
@@ -605,11 +620,20 @@ const styles = StyleSheet.create({
 		borderRadius: 22,
 		borderWidth: 1,
 		padding: 16,
+		overflow: 'hidden',
 		shadowColor: '#1A162B',
 		shadowOpacity: 0.07,
 		shadowRadius: 18,
 		shadowOffset: { width: 0, height: 8 },
 		elevation: 3,
+	},
+	actionAmbientGlow: {
+		position: 'absolute',
+		width: 230,
+		height: 150,
+		borderRadius: 999,
+		right: -92,
+		top: -70,
 	},
 	actionCardTop: {
 		flexDirection: 'row',
@@ -757,8 +781,9 @@ const styles = StyleSheet.create({
 
 	// Meals Row
 	mealsRow: { flexDirection: 'row', gap: 12 },
-	mealCard: { flex: 1, padding: 16, borderRadius: 20, borderWidth: 1, shadowColor: '#1A162B', shadowOpacity: 0.04, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2 },
-	mealCardTop: { paddingBottom: 16 },
+	mealCard: { flex: 1, padding: 16, borderRadius: 20, borderWidth: 1, shadowColor: '#1A162B', shadowOpacity: 0.04, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2, overflow: 'hidden' },
+	mealCardGlow: { position: 'absolute', width: 108, height: 108, borderRadius: 999, right: -42, top: -42 },
+	mealCardTop: { paddingBottom: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
 	mealCardValue: { fontSize: 32, fontWeight: '900', letterSpacing: -0.5 },
 	mealCardBottom: { flexDirection: 'row', alignItems: 'center', gap: 10 },
 	mealIconCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
@@ -766,7 +791,9 @@ const styles = StyleSheet.create({
 	mealCardSubtitle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
 
 	// Overview Panel
-	overviewPanel: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 18, borderRadius: 20, borderWidth: 1, marginTop: 4, shadowColor: '#1A162B', shadowOpacity: 0.03, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+	overviewPanel: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 18, borderRadius: 20, borderWidth: 1, marginTop: 4, shadowColor: '#1A162B', shadowOpacity: 0.03, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, overflow: 'hidden' },
+	overviewGlow: { position: 'absolute', width: 180, height: 120, borderRadius: 999, left: -80, top: -60 },
+	overviewLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
 	overviewLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
 	overviewValue: { fontSize: 16, fontWeight: '900', marginTop: 4 },
 	duePill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },

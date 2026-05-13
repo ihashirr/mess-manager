@@ -1,10 +1,10 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Theme } from '../../constants/Theme';
 import { useAppTheme } from '../../context/ThemeModeContext';
-import { useResponsiveLayout } from '../ui/useResponsiveLayout';
+import { useResponsiveLayout } from '../../hooks';
 import { DAYS, type DayName, shortDay } from '../../utils/weekLogic';
 import type { WeekMenu } from '../../utils/menuLogic';
-import type { Customer } from './types';
+import type { Customer } from '../../types';
 
 interface CustomerAttendancePanelProps {
 	customer: Customer;

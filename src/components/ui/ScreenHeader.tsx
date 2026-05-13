@@ -3,7 +3,7 @@ import { Image, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-nativ
 import { Sun, Moon, LucideIcon } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '../../context/ThemeModeContext';
-import { useResponsiveLayout } from './useResponsiveLayout';
+import { useResponsiveLayout } from '../../hooks';
 
 interface ScreenHeaderProps {
 	title: string;

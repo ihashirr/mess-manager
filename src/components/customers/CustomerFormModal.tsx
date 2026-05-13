@@ -5,11 +5,12 @@ import { useConfirmDialog } from '../system/dialogs/ConfirmDialog';
 import { type PremiumBottomSheetHandle } from '../ui/PremiumBottomSheet';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { useResponsiveLayout } from '../ui/useResponsiveLayout';
 import { Theme } from '../../constants/Theme';
 import { useAppTheme } from '../../context/ThemeModeContext';
+import { useResponsiveLayout } from '../../hooks';
 import { PremiumBottomSheet } from '../ui/PremiumBottomSheet';
-import { createInitialCustomerFormValues, type Customer, type CustomerFormValues } from './types';
+import { type Customer, type CustomerFormValues } from '../../types';
+import { createInitialCustomerFormValues } from './formValues';
 
 interface CustomerFormModalProps {
 	sheetRef: React.RefObject<PremiumBottomSheetHandle | null>;

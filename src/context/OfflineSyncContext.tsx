@@ -19,7 +19,6 @@ import React, {
 	type ReactNode,
 } from 'react';
 import { AppState } from 'react-native';
-import type { Customer } from '../components/customers/types';
 import { db } from '../config';
 import {
 	deleteQueuedReceiptExpense,
@@ -53,11 +52,12 @@ import {
 } from '../offline/localStore';
 import type {
 	AttendanceEntry,
+	Customer,
 	ExpenseEntry,
 	PaymentEntry,
 	QueuePreviewItem,
 	SyncQueueOperation,
-} from '../offline/types';
+} from '../types';
 
 type PaymentRecordInput = {
 	customerId: string;

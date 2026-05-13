@@ -5,7 +5,7 @@ import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 import { StyleSheet, Text, TouchableOpacity, View, Linking } from 'react-native';
 import { Theme } from '../../constants/Theme';
 import { useAppTheme } from '../../context/ThemeModeContext';
-import { type Customer } from '../customers/types';
+import { type Customer } from '../../types';
 import { type CustomerSheetEvent } from './sheetTypes';
 import { toDate } from '../../utils/customerLogic';
 

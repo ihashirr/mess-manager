@@ -7,21 +7,24 @@ import AnimatedReanimated, { FadeInUp, FadeInDown } from 'react-native-reanimate
 import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useConfirmDialog } from '../components/system/dialogs/ConfirmDialog';
 import { showToast } from '../components/system/feedback/AppToast';
-import { PremiumBottomSheet, type PremiumBottomSheetHandle } from '../components/ui/PremiumBottomSheet';
-import { CustomerIntelligenceDetail } from '../components/ui/CustomerIntelligenceDetail';
-import { LayeredSurface } from '../components/ui/LayeredSurface';
-import { Screen } from '../components/ui/Screen';
-import { ScreenHeaderActionButton } from '../components/ui/ScreenHeader';
-import { useResponsiveLayout } from '../components/ui/useResponsiveLayout';
-import { useOperationalSheetController } from '../components/ui/useOperationalSheetController';
-import { type CustomerSheetEvent, type OperationalSheetRoute } from '../components/ui/sheetTypes';
+import {
+	CustomerIntelligenceDetail,
+	LayeredSurface,
+	PremiumBottomSheet,
+	Screen,
+	ScreenHeaderActionButton,
+	type CustomerSheetEvent,
+	type OperationalSheetRoute,
+	type PremiumBottomSheetHandle,
+} from '../components/ui';
 import { CustomerCard } from '../components/customers/CustomerCard';
 import { CustomerFormModal } from '../components/customers/CustomerFormModal';
-import { type Customer, type CustomerFormValues } from '../components/customers/types';
+import { type Customer, type CustomerFormValues } from '../types';
 import { Theme } from '../constants/Theme';
 import { useAppHeader } from '../context/HeaderContext';
 import { useOfflineSync } from '../context/OfflineSyncContext';
 import { useAppTheme } from '../context/ThemeModeContext';
+import { useOperationalSheetController, useResponsiveLayout } from '../hooks';
 import { getDaysLeft, getDueAmount, toDate } from '../utils/customerLogic';
 import { type WeekMenu } from '../utils/menuLogic';
 import { DAYS, type DayName, emptyWeekAttendance, getDatesForWeek, getWeekId } from '../utils/weekLogic';

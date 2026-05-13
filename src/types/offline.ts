@@ -1,6 +1,6 @@
-import type { Customer } from '../components/customers/types';
 import type { DayMenu } from '../utils/menuLogic';
 import type { ReceiptLineItem } from '../utils/receiptTypes';
+import type { Customer } from './customer';
 
 export type AttendanceEntry = {
 	id: string;
@@ -140,3 +140,4 @@ export type OfflineSnapshot = {
 	queueOperations: SyncQueueOperation[];
 	pendingQueueCount: number;
 };
+

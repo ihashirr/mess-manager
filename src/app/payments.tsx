@@ -3,16 +3,12 @@ import { useFocusEffect } from 'expo-router';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { AlertTriangle, Clock3, type LucideIcon, Users, Wallet } from 'lucide-react-native';
 import { showToast } from '../components/system/feedback/AppToast';
-import { Badge } from '../components/ui/Badge';
-import { Button } from '../components/ui/Button';
-import { Card } from '../components/ui/Card';
-import { PrimaryPanel } from '../components/ui/PrimaryPanel';
-import { Screen } from '../components/ui/Screen';
-import { useResponsiveLayout } from '../components/ui/useResponsiveLayout';
+import { Badge, Button, Card, FoodEmptyStateArt, PrimaryPanel, Screen } from '../components/ui';
 import { Theme } from '../constants/Theme';
 import { useAppHeader } from '../context/HeaderContext';
 import { useOfflineSync } from '../context/OfflineSyncContext';
 import { useAppTheme } from '../context/ThemeModeContext';
+import { useResponsiveLayout } from '../hooks';
 import { getDaysLeft, getDueAmount, toDate } from '../utils/customerLogic';
 
 type Payment = {
@@ -197,6 +193,7 @@ export default function PaymentsScreen() {
 				)}
 				ListEmptyComponent={
 					<View style={[styles.emptyState, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+						<FoodEmptyStateArt tone={colors.success} size={104} />
 						<Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>All payments are settled</Text>
 						<Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>Nothing needs to be collected right now.</Text>
 					</View>
@@ -393,6 +390,7 @@ const styles = StyleSheet.create({
 		paddingHorizontal: Theme.spacing.xl,
 		paddingVertical: Theme.spacing.huge,
 		alignItems: 'center',
+		gap: Theme.spacing.sm,
 	},
 	emptyTitle: {
 		...Theme.typography.labelMedium,
