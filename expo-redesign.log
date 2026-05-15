@@ -1,0 +1,313 @@
+Starting project at C:\Users\ihash\Desktop\Hm
+Using src/app as the root directory for Expo Router.
+React Compiler enabled
+Starting Metro Bundler
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Waiting on http://localhost:8082
+Logs for your project will appear below.
+Web node_modules\expo-router\entry.js ▓░░░░░░░░░░░░░░░  9.0% ( 3/10)
+λ node_modules\expo-router\node\render.js ▓░░░░░░░░░░░░░░░  8.2% ( 16/110)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓░░░░░░░░░░░░ 28.0% (18/34)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓░░░░░░░░░░░ 32.2% (230/422)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓░░░░░░░░░░░ 32.4% (193/339)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓░░░░░░░░ 52.2% (474/719)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓░░░░░░░░░░░ 33.1% (234/407)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓░░░░░░░░ 52.2% ( 616/2553)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 45.0% (345/525)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓░░░░░░░░ 52.2% (1433/2687)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 45.4% (399/620)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 84.0% (2483/2709)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 45.4% ( 525/2470)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 87.7% (2678/2860)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓░░░░░░░░░ 45.4% ( 910/2590)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 89.2% (2766/2928)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓░░░░░ 71.4% (2188/2590)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 89.8% (2781/2934)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ 85.9% (2562/2764)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 91.9% (2937/3082)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ 88.9% (2815/2990)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 95.8% (3148/3217)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundling failed 41026ms node_modules\expo-router\node\render.js (1 module)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 98.0% (3175/3211)
+λ node_modules\expo-router\node\render.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 98.9% (3361/3379)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ node_modules\expo-router\node\render.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+λ Bundling failed 41074ms node_modules\expo-router\node\render.js (3379 modules)
+
+Metro error: Unable to resolve module ./wa-sqlite/wa-sqlite.wasm from C:\Users\ihash\Desktop\Hm\node_modules\expo-sqlite\web\worker.ts: 
+
+None of these files exist:
+  * node_modules\expo-sqlite\web\wa-sqlite\wa-sqlite.wasm(.web.ts|.ts|.web.tsx|.tsx|.web.js|.js|.web.jsx|.jsx|.web.json|.json|.web.cjs|.cjs|.web.mjs|.mjs|.web.mjs|.mjs|.web.scss|.scss|.web.sass|.sass|.web.css|.css)
+  * node_modules\expo-sqlite\web\wa-sqlite\wa-sqlite.wasm
+[0m [90m 20 |[39m [36mimport[39m [33mWaSQLiteFactory[39m [36mfrom[39m [32m'./wa-sqlite/wa-sqlite'[39m[33m;[39m
+ [90m 21 |[39m [90m// @ts-expect-error wasm module is not typed[39m
+[31m[1m>[22m[39m[90m 22 |[39m [36mimport[39m wasmModule [36mfrom[39m [32m'./wa-sqlite/wa-sqlite.wasm'[39m[33m;[39m
+ [90m    |[39m                         [31m[1m^[22m[39m
+ [90m 23 |[39m [36mimport[39m {
+ [90m 24 |[39m   type [33mSQLiteWorkerMessage[39m[33m,[39m
+ [90m 25 |[39m   type [33mSQLiteWorkerMessageType[39m[33m,[39m[0m
+
+Import stack:
+
+ node_modules\expo-sqlite\web\worker.ts
+ | import "./wa-sqlite/wa-sqlite.wasm"
+
+ node_modules\expo-sqlite\web\SQLiteModule.ts
+ | import "./worker"
+
+ node_modules\expo-sqlite\build\ExpoSQLite.web.js
+ | import "../web/SQLiteModule"
+
+ node_modules\expo-sqlite\build\SQLiteDatabase.js
+ | import "./ExpoSQLite"
+
+ node_modules\expo-sqlite\build\index.js
+ | import "./SQLiteDatabase"
+
+ src\offline\localStore.ts
+ | import "expo-sqlite"
+
+ src\context\OfflineSyncContext.tsx
+ | import "../offline/localStore"
+
+ src\app\payments.tsx
+ | import "../context/OfflineSyncContext"
+
+ src\app (require.context)
+
+
+Import stack:
+
+ node_modules\expo-sqlite\web\worker.ts
+ | import "./wa-sqlite/wa-sqlite.wasm"
+
+ node_modules\expo-sqlite\web\SQLiteModule.ts
+ | import "./worker"
+
+ node_modules\expo-sqlite\build\ExpoSQLite.web.js
+ | import "../web/SQLiteModule"
+
+ node_modules\expo-sqlite\build\SQLiteDatabase.js
+ | import "./ExpoSQLite"
+
+ node_modules\expo-sqlite\build\index.js
+ | import "./SQLiteDatabase"
+
+ src\offline\localStore.ts
+ | import "expo-sqlite"
+
+ src\context\OfflineSyncContext.tsx
+ | import "../offline/localStore"
+
+ src\app\payments.tsx
+ | import "../context/OfflineSyncContext"
+
+ src\app (require.context)
+
+
+Call Stack
+  <unknown> (node_modules\expo-sqlite\web\worker.ts)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 98.3% (3187/3215)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+
+Metro error: Unable to resolve module ./wa-sqlite/wa-sqlite.wasm from C:\Users\ihash\Desktop\Hm\node_modules\expo-sqlite\web\worker.ts: 
+
+None of these files exist:
+  * node_modules\expo-sqlite\web\wa-sqlite\wa-sqlite.wasm(.web.ts|.ts|.web.tsx|.tsx|.web.js|.js|.web.jsx|.jsx|.web.json|.json|.web.cjs|.cjs|.web.mjs|.mjs|.web.mjs|.mjs|.web.scss|.scss|.web.sass|.sass|.web.css|.css)
+  * node_modules\expo-sqlite\web\wa-sqlite\wa-sqlite.wasm
+[0m [90m 20 |[39m [36mimport[39m [33mWaSQLiteFactory[39m [36mfrom[39m [32m'./wa-sqlite/wa-sqlite'[39m[33m;[39m
+ [90m 21 |[39m [90m// @ts-expect-error wasm module is not typed[39m
+[31m[1m>[22m[39m[90m 22 |[39m [36mimport[39m wasmModule [36mfrom[39m [32m'./wa-sqlite/wa-sqlite.wasm'[39m[33m;[39m
+ [90m    |[39m                         [31m[1m^[22m[39m
+ [90m 23 |[39m [36mimport[39m {
+ [90m 24 |[39m   type [33mSQLiteWorkerMessage[39m[33m,[39m
+ [90m 25 |[39m   type [33mSQLiteWorkerMessageType[39m[33m,[39m[0m
+
+Import stack:
+
+ node_modules\expo-sqlite\web\worker.ts
+ | import "./wa-sqlite/wa-sqlite.wasm"
+
+ node_modules\expo-sqlite\web\SQLiteModule.ts
+ | import "./worker"
+
+ node_modules\expo-sqlite\build\ExpoSQLite.web.js
+ | import "../web/SQLiteModule"
+
+ node_modules\expo-sqlite\build\SQLiteDatabase.js
+ | import "./ExpoSQLite"
+
+ node_modules\expo-sqlite\build\index.js
+ | import "./SQLiteDatabase"
+
+ src\offline\localStore.ts
+ | import "expo-sqlite"
+
+ src\context\OfflineSyncContext.tsx
+ | import "../offline/localStore"
+
+ src\app\payments.tsx
+ | import "../context/OfflineSyncContext"
+
+ src\app (require.context)
+
+
+Import stack:
+
+ node_modules\expo-sqlite\web\worker.ts
+ | import "./wa-sqlite/wa-sqlite.wasm"
+
+ node_modules\expo-sqlite\web\SQLiteModule.ts
+ | import "./worker"
+
+ node_modules\expo-sqlite\build\ExpoSQLite.web.js
+ | import "../web/SQLiteModule"
+
+ node_modules\expo-sqlite\build\SQLiteDatabase.js
+ | import "./ExpoSQLite"
+
+ node_modules\expo-sqlite\build\index.js
+ | import "./SQLiteDatabase"
+
+ src\offline\localStore.ts
+ | import "expo-sqlite"
+
+ src\context\OfflineSyncContext.tsx
+ | import "../offline/localStore"
+
+ src\app\payments.tsx
+ | import "../context/OfflineSyncContext"
+
+ src\app (require.context)
+
+
+Call Stack
+  <unknown> (node_modules\expo-sqlite\web\worker.ts)
+Web node_modules\expo-router\entry.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 98.3% (3187/3215)
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 42609ms node_modules\expo-router\entry.js (3250 modules)
+Web Bundled 42636ms node_modules\expo-router\entry.js (1 module)
+Web node_modules\expo-router\_error.js ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 96.3% (311/317)
+Web Bundled 3796ms node_modules\expo-router\_error.js (323 modules)
+Web Bundled 21ms node_modules\expo-router\_error.js (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web node_modules\expo-router\entry.js ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 679ms node_modules\expo-router\entry.js (1 module)
+λ Bundling failed 1237ms node_modules\expo-router\node\render.js (3297 modules)
+
+Metro error: Unable to resolve module ./wa-sqlite/wa-sqlite.wasm from C:\Users\ihash\Desktop\Hm\node_modules\expo-sqlite\web\worker.ts: 
+
+None of these files exist:
+  * node_modules\expo-sqlite\web\wa-sqlite\wa-sqlite.wasm(.web.ts|.ts|.web.tsx|.tsx|.web.js|.js|.web.jsx|.jsx|.web.json|.json|.web.cjs|.cjs|.web.mjs|.mjs|.web.mjs|.mjs|.web.scss|.scss|.web.sass|.sass|.web.css|.css)
+  * node_modules\expo-sqlite\web\wa-sqlite\wa-sqlite.wasm
+[0m [90m 20 |[39m [36mimport[39m [33mWaSQLiteFactory[39m [36mfrom[39m [32m'./wa-sqlite/wa-sqlite'[39m[33m;[39m
+ [90m 21 |[39m [90m// @ts-expect-error wasm module is not typed[39m
+[31m[1m>[22m[39m[90m 22 |[39m [36mimport[39m wasmModule [36mfrom[39m [32m'./wa-sqlite/wa-sqlite.wasm'[39m[33m;[39m
+ [90m    |[39m                         [31m[1m^[22m[39m
+ [90m 23 |[39m [36mimport[39m {
+ [90m 24 |[39m   type [33mSQLiteWorkerMessage[39m[33m,[39m
+ [90m 25 |[39m   type [33mSQLiteWorkerMessageType[39m[33m,[39m[0m
+
+Import stack:
+
+ node_modules\expo-sqlite\web\worker.ts
+ | import "./wa-sqlite/wa-sqlite.wasm"
+
+ node_modules\expo-sqlite\web\SQLiteModule.ts
+ | import "./worker"
+
+ node_modules\expo-sqlite\build\ExpoSQLite.web.js
+ | import "../web/SQLiteModule"
+
+ node_modules\expo-sqlite\build\SQLiteDatabase.js
+ | import "./ExpoSQLite"
+
+ node_modules\expo-sqlite\build\index.js
+ | import "./SQLiteDatabase"
+
+ src\offline\localStore.ts
+ | import "expo-sqlite"
+
+ src\context\OfflineSyncContext.tsx
+ | import "../offline/localStore"
+
+ src\app\payments.tsx
+ | import "../context/OfflineSyncContext"
+
+ src\app (require.context)
+
+
+Call Stack
+  <unknown> (node_modules\expo-sqlite\web\worker.ts)
+Web Bundled 555ms node_modules\expo-router\entry.js (1 module)
+λ Bundling failed 1320ms node_modules\expo-router\node\render.js (3320 modules)
+
+Metro error: Unable to resolve module ./wa-sqlite/wa-sqlite.wasm from C:\Users\ihash\Desktop\Hm\node_modules\expo-sqlite\web\worker.ts: 
+
+None of these files exist:
+  * node_modules\expo-sqlite\web\wa-sqlite\wa-sqlite.wasm(.web.ts|.ts|.web.tsx|.tsx|.web.js|.js|.web.jsx|.jsx|.web.json|.json|.web.cjs|.cjs|.web.mjs|.mjs|.web.mjs|.mjs|.web.scss|.scss|.web.sass|.sass|.web.css|.css)
+  * node_modules\expo-sqlite\web\wa-sqlite\wa-sqlite.wasm
+[0m [90m 20 |[39m [36mimport[39m [33mWaSQLiteFactory[39m [36mfrom[39m [32m'./wa-sqlite/wa-sqlite'[39m[33m;[39m
+ [90m 21 |[39m [90m// @ts-expect-error wasm module is not typed[39m
+[31m[1m>[22m[39m[90m 22 |[39m [36mimport[39m wasmModule [36mfrom[39m [32m'./wa-sqlite/wa-sqlite.wasm'[39m[33m;[39m
+ [90m    |[39m                         [31m[1m^[22m[39m
+ [90m 23 |[39m [36mimport[39m {
+ [90m 24 |[39m   type [33mSQLiteWorkerMessage[39m[33m,[39m
+ [90m 25 |[39m   type [33mSQLiteWorkerMessageType[39m[33m,[39m[0m
+
+Import stack:
+
+ node_modules\expo-sqlite\web\worker.ts
+ | import "./wa-sqlite/wa-sqlite.wasm"
+
+ node_modules\expo-sqlite\web\SQLiteModule.ts
+ | import "./worker"
+
+ node_modules\expo-sqlite\build\ExpoSQLite.web.js
+ | import "../web/SQLiteModule"
+
+ node_modules\expo-sqlite\build\SQLiteDatabase.js
+ | import "./ExpoSQLite"
+
+ node_modules\expo-sqlite\build\index.js
+ | import "./SQLiteDatabase"
+
+ src\offline\localStore.ts
+ | import "expo-sqlite"
+
+ src\context\OfflineSyncContext.tsx
+ | import "../offline/localStore"
+
+ src\app\payments.tsx
+ | import "../context/OfflineSyncContext"
+
+ src\app (require.context)
+
+
+Call Stack
+  <unknown> (node_modules\expo-sqlite\web\worker.ts)
+Web Bundled 29ms node_modules\expo-router\_error.js (1 module)
+Web Bundled 17ms node_modules\expo-router\_error.js (1 module)
+ LOG  [web] Logs will appear in the browser console

@@ -1,4 +1,4 @@
-import { Info, Save } from 'lucide-react-native';
+import { Save } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useConfirmDialog } from '../system/dialogs/ConfirmDialog';
@@ -20,6 +20,70 @@ interface CustomerFormModalProps {
 	customer?: Customer | null;
 }
 
+type CustomerFormErrors = Partial<Record<keyof CustomerFormValues | 'plan', string>>;
+
+const DATE_INPUT_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+const getMealPrice = (isLunch: boolean, isDinner: boolean) => {
+	if (isLunch && isDinner) {
+		return '650';
+	}
+
+	if (isLunch || isDinner) {
+		return '350';
+	}
+
+	return '0';
+};
+
+const parseDateInput = (value: string) => {
+	if (!DATE_INPUT_PATTERN.test(value.trim())) {
+		return null;
+	}
+
+	const [year, month, day] = value.split('-').map(Number);
+	const date = new Date(year, month - 1, day);
+	const isSameDate =
+		date.getFullYear() === year &&
+		date.getMonth() === month - 1 &&
+		date.getDate() === day;
+
+	return isSameDate ? date : null;
+};
+
+const validateCustomerForm = (values: CustomerFormValues): CustomerFormErrors => {
+	const nextErrors: CustomerFormErrors = {};
+	const startDate = parseDateInput(values.startDate);
+	const endDate = parseDateInput(values.endDate);
+	const parsedPrice = Number.parseInt(values.price, 10);
+
+	if (!values.name.trim()) {
+		nextErrors.name = 'Customer name is required.';
+	}
+
+	if (!values.isLunch && !values.isDinner) {
+		nextErrors.plan = 'Select lunch, dinner, or both.';
+	}
+
+	if (!values.price.trim() || !/^\d+$/.test(values.price.trim()) || parsedPrice <= 0) {
+		nextErrors.price = 'Enter a valid monthly price.';
+	}
+
+	if (!startDate) {
+		nextErrors.startDate = 'Use YYYY-MM-DD.';
+	}
+
+	if (!endDate) {
+		nextErrors.endDate = 'Use YYYY-MM-DD.';
+	}
+
+	if (startDate && endDate && endDate < startDate) {
+		nextErrors.endDate = 'End date must be after start date.';
+	}
+
+	return nextErrors;
+};
+
 export function CustomerFormModal({
 	sheetRef,
 	onClose,
@@ -31,6 +95,7 @@ export function CustomerFormModal({
 	const { colors } = useAppTheme();
 	const { confirm } = useConfirmDialog();
 	const [formValues, setFormValues] = useState<CustomerFormValues>(createInitialCustomerFormValues());
+	const [formErrors, setFormErrors] = useState<CustomerFormErrors>({});
 	const baselineValuesRef = useRef<CustomerFormValues>(formValues);
 
 	useEffect(() => {
@@ -67,27 +132,40 @@ export function CustomerFormModal({
 
 		baselineValuesRef.current = nextValues;
 		setFormValues(nextValues);
+		setFormErrors({});
 	}, [customer]);
-
-	useEffect(() => {
-		const nextPrice = formValues.isLunch && formValues.isDinner
-			? '650'
-			: formValues.isLunch || formValues.isDinner
-				? '350'
-				: '0';
-
-		setFormValues((current) => (
-			current.price === nextPrice
-				? current
-				: { ...current, price: nextPrice }
-		));
-	}, [formValues.isDinner, formValues.isLunch]);
 
 	const updateField = <K extends keyof CustomerFormValues,>(
 		field: K,
 		value: CustomerFormValues[K]
 	) => {
 		setFormValues((current) => ({ ...current, [field]: value }));
+		setFormErrors((current) => {
+			if (!current[field]) {
+				return current;
+			}
+
+			const { [field]: _removed, ...rest } = current;
+			return rest;
+		});
+	};
+
+	const updateMealSelection = (field: 'isLunch' | 'isDinner') => {
+		setFormValues((current) => {
+			const nextValues = {
+				...current,
+				[field]: !current[field],
+			};
+
+			return {
+				...nextValues,
+				price: getMealPrice(nextValues.isLunch, nextValues.isDinner),
+			};
+		});
+		setFormErrors((current) => {
+			const { plan: _plan, price: _price, ...rest } = current;
+			return rest;
+		});
 	};
 
 	const formIsDirty = JSON.stringify(formValues) !== JSON.stringify(baselineValuesRef.current);
@@ -108,14 +186,27 @@ export function CustomerFormModal({
 
 	const handleDismiss = useCallback(() => {
 		setFormValues(baselineValuesRef.current);
+		setFormErrors({});
 		onClose();
 	}, [onClose]);
+
+	const handleSubmit = () => {
+		const nextErrors = validateCustomerForm(formValues);
+		setFormErrors(nextErrors);
+
+		if (Object.keys(nextErrors).length > 0) {
+			return;
+		}
+
+		void onSubmit(formValues);
+	};
 
 	return (
 		<PremiumBottomSheet
 			ref={sheetRef}
 			title={customer ? "Edit Customer" : "Add Customer"}
 			subtitle={customer ? "Update customer details" : "Create a new active member"}
+			snapPoints={['50%', '80%']}
 			policy="critical"
 			beforeDismiss={handleBeforeDismiss}
 			onDismiss={handleDismiss}
@@ -125,11 +216,12 @@ export function CustomerFormModal({
 				<View style={styles.section}>
 					<Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>CUSTOMER INFO</Text>
 					<View style={[styles.sectionBody, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
-						<Text style={[styles.label, { color: colors.textSecondary }]}>Name - نام</Text>
+						<Text style={[styles.label, { color: colors.textSecondary }]}>Name - نام *</Text>
 						<Input
 							value={formValues.name}
 							onChangeText={(value) => updateField('name', value)}
 							placeholder="Customer Name"
+							error={formErrors.name}
 							bottomSheet
 						/>
 
@@ -197,7 +289,7 @@ export function CustomerFormModal({
 											styles.planOption,
 											formValues.isLunch && [styles.planOptionSelected, { backgroundColor: colors.surfaceElevated, borderColor: colors.primary }],
 										]}
-										onPress={() => updateField('isLunch', !formValues.isLunch)}
+										onPress={() => updateMealSelection('isLunch')}
 										disabled={submitting}
 									>
 										<Text style={[styles.planOptionText, { color: colors.textSecondary }, formValues.isLunch && { color: colors.primary }]}>
@@ -209,7 +301,7 @@ export function CustomerFormModal({
 											styles.planOption,
 											formValues.isDinner && [styles.planOptionSelected, { backgroundColor: colors.surfaceElevated, borderColor: colors.primary }],
 										]}
-										onPress={() => updateField('isDinner', !formValues.isDinner)}
+										onPress={() => updateMealSelection('isDinner')}
 										disabled={submitting}
 									>
 										<Text style={[styles.planOptionText, { color: colors.textSecondary }, formValues.isDinner && { color: colors.primary }]}>
@@ -217,6 +309,9 @@ export function CustomerFormModal({
 										</Text>
 									</TouchableOpacity>
 								</View>
+								{formErrors.plan ? (
+									<Text style={[styles.inlineError, { color: colors.danger }]}>{formErrors.plan}</Text>
+								) : null}
 							</View>
 							<View style={styles.column}>
 								<Text style={[styles.label, { color: colors.textSecondary }]}>Price - قیمت</Text>
@@ -224,6 +319,7 @@ export function CustomerFormModal({
 									value={formValues.price}
 									onChangeText={(value) => updateField('price', value)}
 									keyboardType="numeric"
+									error={formErrors.price}
 									bottomSheet
 								/>
 							</View>
@@ -236,6 +332,7 @@ export function CustomerFormModal({
 									value={formValues.startDate}
 									onChangeText={(value) => updateField('startDate', value)}
 									placeholder="YYYY-MM-DD"
+									error={formErrors.startDate}
 									bottomSheet
 								/>
 							</View>
@@ -245,6 +342,7 @@ export function CustomerFormModal({
 									value={formValues.endDate}
 									onChangeText={(value) => updateField('endDate', value)}
 									placeholder="YYYY-MM-DD"
+									error={formErrors.endDate}
 									bottomSheet
 								/>
 							</View>
@@ -266,11 +364,6 @@ export function CustomerFormModal({
 					</View>
 				</View>
 
-				<View style={styles.formFooter}>
-					<Info size={14} color={colors.textMuted} />
-					<Text style={[styles.formInfo, { color: colors.textMuted }]}>Save the customer from this dialog</Text>
-				</View>
-
 				<View style={[styles.footer, stacked && styles.footerStacked]}>
 					<Button
 						title="Cancel"
@@ -283,7 +376,7 @@ export function CustomerFormModal({
 					<Button
 						title="Save Customer"
 						iconLeft={Save}
-						onPress={() => onSubmit(formValues)}
+						onPress={handleSubmit}
 						loading={submitting}
 						disabled={submitting}
 						fullWidth={stacked}
@@ -352,16 +445,9 @@ const styles = StyleSheet.create({
 	planOptionText: {
 		...Theme.typography.label,
 	},
-	formFooter: {
-		flexDirection: 'row',
-		alignItems: 'center',
-		gap: Theme.spacing.xs,
-		marginTop: Theme.spacing.xl,
-		alignSelf: 'center',
-	},
-	formInfo: {
+	inlineError: {
 		...Theme.typography.detail,
-		fontStyle: 'italic',
+		marginTop: Theme.spacing.xs,
 	},
 	footer: {
 		flexDirection: 'row',

@@ -53,7 +53,7 @@ const SHEET_POLICY_CONFIG = {
   },
   critical: {
     backdropPressBehavior: 'close',
-    enablePanDownToClose: true,
+    enablePanDownToClose: false,
     enableContentPanningGesture: true,
   },
 } as const;
@@ -79,7 +79,8 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
     const [scrollAtTop, setScrollAtTop] = useState(true);
     const policyConfig = SHEET_POLICY_CONFIG[policy];
     const shouldShowCloseButton = showCloseButton ?? policy === 'critical';
-    const enablePanDownToClose = policyConfig.enablePanDownToClose && (!scrollable || scrollAtTop);
+    const hasDismissGuard = Boolean(beforeDismiss);
+    const enablePanDownToClose = policyConfig.enablePanDownToClose && !hasDismissGuard && (!scrollable || scrollAtTop);
     const animationConfigs = useBottomSheetSpringConfigs({
       damping: 50,
       stiffness: 500,
@@ -143,8 +144,17 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
           appearsOnIndex={0}
           disappearsOnIndex={-1}
           opacity={1}
-          pressBehavior={policyConfig.backdropPressBehavior}
+          pressBehavior="none"
+          accessible={false}
         >
+          {policyConfig.backdropPressBehavior === 'close' ? (
+            <Pressable
+              accessibilityLabel="Close sheet"
+              accessibilityRole="button"
+              onPress={() => void requestDismiss()}
+              style={StyleSheet.absoluteFillObject}
+            />
+          ) : null}
           <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
             {Platform.OS !== 'web' ? (
               <BlurView
@@ -166,7 +176,7 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
           </View>
         </BottomSheetBackdrop>
       ),
-      [isDark, policyConfig.backdropPressBehavior]
+      [isDark, policyConfig.backdropPressBehavior, requestDismiss]
     );
 
     useImperativeHandle(
