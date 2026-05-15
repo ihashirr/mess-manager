@@ -24,9 +24,12 @@ import { Theme } from '../../constants/Theme';
 export interface PremiumBottomSheetHandle {
   present: () => void;
   dismiss: () => void;
+  snapToIndex: (index: number) => void;
 }
 
 export type SheetPolicy = 'passive' | 'operational' | 'critical';
+type SheetKeyboardBehavior = 'extend' | 'fillParent' | 'interactive';
+type SheetAndroidKeyboardInputMode = 'adjustPan' | 'adjustResize';
 
 export type PremiumBottomSheetProps = {
   snapPoints?: string[];
@@ -39,6 +42,8 @@ export type PremiumBottomSheetProps = {
   policy?: SheetPolicy;
   showCloseButton?: boolean;
   contentPanningGestureEnabled?: boolean;
+  keyboardBehavior?: SheetKeyboardBehavior;
+  androidKeyboardInputMode?: SheetAndroidKeyboardInputMode;
 };
 
 const SHEET_POLICY_CONFIG = {
@@ -71,6 +76,8 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
     policy = 'passive',
     showCloseButton,
     contentPanningGestureEnabled,
+    keyboardBehavior = 'interactive',
+    androidKeyboardInputMode = 'adjustPan',
   }, ref) => {
     const { colors, isDark } = useAppTheme();
     const insets = useSafeAreaInsets();
@@ -196,6 +203,9 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
         dismiss: () => {
           void requestDismiss();
         },
+        snapToIndex: (index: number) => {
+          modalRef.current?.snapToIndex(index);
+        },
       }),
       [requestDismiss]
     );
@@ -213,8 +223,9 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
         activeOffsetY={[-5, 5]}
         enableDismissOnClose
         animateOnMount
-        keyboardBehavior={Platform.OS === 'ios' ? 'interactive' : 'extend'}
+        keyboardBehavior={keyboardBehavior}
         keyboardBlurBehavior="restore"
+        android_keyboardInputMode={androidKeyboardInputMode}
         onChange={handleSheetChange}
         onDismiss={handleDismiss}
         backdropComponent={renderBackdrop}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { BottomSheetTextInput } from '@gorhom/bottom-sheet';
 import { StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
 import { Theme } from '../../constants/Theme';
 import { useAppTheme } from '../../context/ThemeModeContext';
@@ -13,12 +14,13 @@ interface InputProps extends TextInputProps {
 export function Input({ label, error, containerStyle, onFocus, onBlur, bottomSheet = false, ...props }: InputProps) {
 	const [isFocused, setIsFocused] = useState(false);
 	const { colors, isDark } = useAppTheme();
+	const InputComponent = bottomSheet ? BottomSheetTextInput : TextInput;
 
 
 	return (
 		<View style={[styles.container, containerStyle]}>
 			{label && <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>}
-			<TextInput
+			<InputComponent
 				placeholderTextColor={colors.textMuted}
 				onFocus={(e: any) => {
 					setIsFocused(true);

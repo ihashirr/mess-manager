@@ -121,7 +121,10 @@ export const SpiceTextureOverlay: React.FC<SpiceTextureOverlayProps> = ({
 
 	const textureOpacity = FOOD_THEME.ambient.textureOpacity * layerIntensity;
 	const patternOpacity = textureOpacity * 0.62;
-	const warmLightOpacity = FOOD_THEME.ambient.passivePanelOpacity * layerIntensity;
+	const warmLightOpacity = Math.min(
+		0.18,
+		FOOD_THEME.ambient.passivePanelOpacity * layerIntensity * 2.25
+	);
 
 	return (
 		<View pointerEvents="none" style={[StyleSheet.absoluteFill, style]}>
