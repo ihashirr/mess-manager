@@ -6,7 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { BackHandler, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { X } from 'lucide-react-native';
 import {
@@ -94,6 +94,7 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
     const isPresentedRef = useRef(false);
     const dismissRequestBusyRef = useRef(false);
     const scrollAtTopRef = useRef(true);
+    const [isPresented, setIsPresented] = useState(false);
     const [scrollAtTop, setScrollAtTop] = useState(true);
     const policyConfig = SHEET_POLICY_CONFIG[policy];
     const shouldShowCloseButton = showCloseButton ?? policy === 'critical';
@@ -118,12 +119,14 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
 
     const handleDismiss = useCallback(() => {
       isPresentedRef.current = false;
+      setIsPresented(false);
       onDismiss?.();
     }, [onDismiss]);
 
     const handleSheetChange = useCallback((index: number) => {
       if (index < 0) {
         isPresentedRef.current = false;
+        setIsPresented(false);
       }
     }, []);
 
@@ -146,6 +149,21 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
 
       modalRef.current?.dismiss();
     }, [beforeDismiss]);
+
+    React.useEffect(() => {
+      if (Platform.OS !== 'android' || !isPresented) {
+        return undefined;
+      }
+
+      const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+        void requestDismiss();
+        return true;
+      });
+
+      return () => {
+        subscription.remove();
+      };
+    }, [isPresented, requestDismiss]);
 
     const handleContentScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const nextScrollAtTop = event.nativeEvent.contentOffset.y <= 2;
@@ -234,6 +252,7 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
           }
 
           isPresentedRef.current = true;
+          setIsPresented(true);
           modalRef.current?.present();
         },
         dismiss: () => {
