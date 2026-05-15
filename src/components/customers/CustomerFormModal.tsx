@@ -1,20 +1,23 @@
 import { CalendarDays, ChevronLeft, ChevronRight, Save } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import AnimatedReanimated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
 import { useConfirmDialog } from '../system/dialogs/ConfirmDialog';
-import { type PremiumBottomSheetHandle } from '../ui/PremiumBottomSheet';
+import { type FullScreenModalHandle } from '../ui/FullScreenModal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Theme } from '../../constants/Theme';
 import { useAppTheme } from '../../context/ThemeModeContext';
 import { useResponsiveLayout } from '../../hooks';
-import { PremiumBottomSheet } from '../ui/PremiumBottomSheet';
+import { FullScreenModal } from '../ui/FullScreenModal';
 import { type Customer, type CustomerFormValues } from '../../types';
 import { createInitialCustomerFormValues } from './formValues';
 import { formatISO } from '../../utils/weekLogic';
+import { FOOD_THEME } from '../../theme';
+import { FoodIconBadge } from '../ui/FoodAccents';
 
 interface CustomerFormModalProps {
-	sheetRef: React.RefObject<PremiumBottomSheetHandle | null>;
+	sheetRef: React.RefObject<FullScreenModalHandle | null>;
 	onClose: () => void;
 	onSubmit: (values: CustomerFormValues) => Promise<void>;
 	submitting: boolean;
@@ -300,17 +303,18 @@ export function CustomerFormModal({
 	};
 
 	return (
-		<PremiumBottomSheet
+		<FullScreenModal
 			ref={sheetRef}
 			title={customer ? "Edit Customer" : "Add Customer"}
 			subtitle={customer ? "Update customer details" : "Create a new active member"}
-			snapPoints={['55%', '80%']}
-			policy="critical"
-			contentPanningGestureEnabled={false}
-			activeOffsetY={[-12, 12]}
-			keyboardBehavior="interactive"
-			androidKeyboardInputMode="adjustPan"
-			footerHeight={stacked ? 156 : 96}
+			headerIcon={
+				<FoodIconBadge 
+					iconKey={customer ? "kitchen" : "menu"} 
+					tone={FOOD_THEME.colors.saffronDeep} 
+					size={36} 
+					showSteam={true} 
+				/>
+			}
 			footer={
 				<View style={[styles.footer, stacked && styles.footerStacked]}>
 					<Button
@@ -335,9 +339,9 @@ export function CustomerFormModal({
 			beforeDismiss={handleBeforeDismiss}
 			onDismiss={handleDismiss}
 		>
-			<View style={styles	.form}>
+			<View style={styles.form}>
 				{/* Section 1: Customer Info */}
-				<View style={styles.section}>
+				<AnimatedReanimated.View entering={FadeInUp.delay(100).springify()} style={styles.section}>
 					<Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>CUSTOMER INFO</Text>
 					<View style={[styles.sectionBody, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
 						<Text style={[styles.label, { color: colors.textSecondary }]}>Name - نام *</Text>
@@ -346,7 +350,6 @@ export function CustomerFormModal({
 							onChangeText={(value) => updateField('name', value)}
 							placeholder="Customer Name"
 							error={formErrors.name}
-							bottomSheet
 						/>
 
 						<Text style={[styles.label, { color: colors.textSecondary, marginTop: Theme.spacing.sm }]}>Phone - فون نمبر</Text>
@@ -355,13 +358,12 @@ export function CustomerFormModal({
 							onChangeText={(value) => updateField('phone', value)}
 							placeholder="0300-1234567"
 							keyboardType="phone-pad"
-							bottomSheet
 						/>
 					</View>
-				</View>
+				</AnimatedReanimated.View>
 
 				{/* Section 2: Delivery */}
-				<View style={styles.section}>
+				<AnimatedReanimated.View entering={FadeInUp.delay(200).springify()} style={styles.section}>
 					<Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>DELIVERY</Text>
 					<View style={[styles.sectionBody, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
 						<View style={[styles.row, stacked && styles.rowStacked]}>
@@ -371,7 +373,6 @@ export function CustomerFormModal({
 									value={formValues.location}
 									onChangeText={(value) => updateField('location', value)}
 									placeholder="Building or Area"
-									bottomSheet
 								/>
 							</View>
 							<View style={styles.column}>
@@ -380,7 +381,6 @@ export function CustomerFormModal({
 									value={formValues.flat}
 									onChangeText={(value) => updateField('flat', value)}
 									placeholder="Apt 2B"
-									bottomSheet
 								/>
 							</View>
 						</View>
@@ -392,16 +392,15 @@ export function CustomerFormModal({
 							placeholder="Paste Google Maps link"
 							autoCapitalize="none"
 							autoCorrect={false}
-							bottomSheet
 						/>
 						<Text style={[styles.mapHint, { color: colors.textMuted }]}>
 							Open Google Maps → Share → Copy link
 						</Text>
 					</View>
-				</View>
+				</AnimatedReanimated.View>
 
 				{/* Section 3: Subscription */}
-				<View style={styles.section}>
+				<AnimatedReanimated.View entering={FadeInUp.delay(300).springify()} style={styles.section}>
 					<Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>SUBSCRIPTION</Text>
 					<View style={[styles.sectionBody, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
 						<View style={[styles.row, stacked && styles.rowStacked]}>
@@ -444,7 +443,6 @@ export function CustomerFormModal({
 									onChangeText={(value) => updateField('price', value)}
 									keyboardType="numeric"
 									error={formErrors.price}
-									bottomSheet
 								/>
 							</View>
 						</View>
@@ -538,10 +536,10 @@ export function CustomerFormModal({
 							</View>
 						) : null}
 					</View>
-				</View>
+				</AnimatedReanimated.View>
 
 				{/* Section 4: Operational Notes */}
-				<View style={styles.section}>
+				<AnimatedReanimated.View entering={FadeInUp.delay(400).springify()} style={styles.section}>
 					<Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>OPERATIONAL NOTES</Text>
 					<View style={[styles.sectionBody, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
 						<Text style={[styles.label, { color: colors.textSecondary }]}>Special Instructions - نوٹ</Text>
@@ -549,12 +547,11 @@ export function CustomerFormModal({
 							value={formValues.notes}
 							onChangeText={(value) => updateField('notes', value)}
 							placeholder="Dietary restrictions, delivery times, etc."
-							bottomSheet
 						/>
 					</View>
-				</View>
+				</AnimatedReanimated.View>
 			</View>
-		</PremiumBottomSheet>
+		</FullScreenModal>
 	);
 }
 

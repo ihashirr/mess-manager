@@ -11,7 +11,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ConfirmDialogProvider } from '../components/system/dialogs/ConfirmDialog';
 import { AppToastHost } from '../components/system/feedback/AppToast';
-import { Button, Card, PremiumBottomSheet, QueueStatusButton, ScreenHeader, type PremiumBottomSheetHandle } from '../components/ui';
+import { Button, Card, PremiumBottomSheet, QueueStatusButton, ScreenHeader, GlobalParticleSystem, type PremiumBottomSheetHandle } from '../components/ui';
 import { Theme } from '../constants/Theme';
 import { HeaderProvider, useAppHeader } from '../context/HeaderContext';
 import { OfflineSyncProvider, useOfflineSync } from '../context/OfflineSyncContext';
@@ -75,6 +75,7 @@ function TabLayoutContent() {
 
 	return (
 		<GestureHandlerRootView style={[styles.root, { backgroundColor: colors.bg }]}>
+			<GlobalParticleSystem>
 			<BottomSheetModalProvider>
 				<ScreenHeader
 					{...config}
@@ -205,7 +206,7 @@ function TabLayoutContent() {
 				</PremiumBottomSheet>
 			</BottomSheetModalProvider>
 			<AppToastHost />
-
+			</GlobalParticleSystem>
 		</GestureHandlerRootView>
 	);
 }

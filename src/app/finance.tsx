@@ -28,10 +28,12 @@ import {
 	Card,
 	Input,
 	PremiumBottomSheet,
+	FullScreenModal,
 	Screen,
 	ScreenHeaderActionButton,
 	type BadgeVariant,
 	type PremiumBottomSheetHandle,
+	type FullScreenModalHandle,
 } from '../components/ui';
 import { Theme } from '../constants/Theme';
 import { useAppHeader } from '../context/HeaderContext';
@@ -93,8 +95,8 @@ export default function FinanceScreen() {
 	const [showRawText, setShowRawText] = useState(false);
 	const [selectedExpense, setSelectedExpense] = useState<ExpenseEntry | null>(null);
 	const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
-	const scannerSheetRef = useRef<PremiumBottomSheetHandle>(null);
-	const expenseSheetRef = useRef<PremiumBottomSheetHandle>(null);
+	const scannerSheetRef = useRef<FullScreenModalHandle>(null);
+	const expenseSheetRef = useRef<FullScreenModalHandle>(null);
 	const financeCustomers = useMemo(
 		() => allCustomers.map((customer) => ({
 			id: customer.id,
@@ -657,12 +659,11 @@ export default function FinanceScreen() {
 				</View>
 			</ScrollView>
 
-			<PremiumBottomSheet
+			<FullScreenModal
 				ref={scannerSheetRef}
 				onDismiss={closeScanner}
 				title="Receipt Scanner"
 				subtitle="Review the draft, save locally, then sync when online"
-				policy="critical"
 				beforeDismiss={handleBeforeScannerDismiss}
 			>
 				<View style={styles.sheetContent}>
@@ -890,9 +891,9 @@ export default function FinanceScreen() {
 						</View>
 					) : null}
 				</View>
-			</PremiumBottomSheet>
+			</FullScreenModal>
 
-			<PremiumBottomSheet
+			<FullScreenModal
 				ref={expenseSheetRef}
 				onDismiss={() => setSelectedExpense(null)}
 				title="Expense Details"
@@ -972,7 +973,7 @@ export default function FinanceScreen() {
 						</View>
 					</View>
 				) : null}
-			</PremiumBottomSheet>
+			</FullScreenModal>
 		</Screen>
 	);
 }

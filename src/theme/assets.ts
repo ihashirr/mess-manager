@@ -3,6 +3,8 @@ import type {ImageSourcePropType} from 'react-native';
 export const BrandAssets = {
 	illustrations: {
 		emptyMenu: require('../../assets/illustrations/empty-menu.png') as ImageSourcePropType,
+		biryani: require('../../assets/illustrations/biryani_hero.png') as ImageSourcePropType,
+		karahi: require('../../assets/illustrations/chicken_karahi_hero.png') as ImageSourcePropType,
 	},
 	textures: {
 		spiceGrain: require('../../assets/textures/spice-grain.png') as ImageSourcePropType,

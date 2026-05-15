@@ -16,6 +16,7 @@ import {
 	type CustomerSheetEvent,
 	type OperationalSheetRoute,
 	type PremiumBottomSheetHandle,
+	type FullScreenModalHandle,
 } from '../components/ui';
 import { CustomerCard } from '../components/customers/CustomerCard';
 import { CustomerFormModal } from '../components/customers/CustomerFormModal';
@@ -175,7 +176,7 @@ export default function CustomersScreen() {
 	const [savingCustomer, setSavingCustomer] = useState(false);
 	const [expandedId, setExpandedId] = useState<string | null>(null);
 	const intelligenceSheetRef = useRef<PremiumBottomSheetHandle>(null);
-	const addCustomerSheetRef = useRef<PremiumBottomSheetHandle>(null);
+	const addCustomerSheetRef = useRef<FullScreenModalHandle>(null);
 	const statsSheetRef = useRef<PremiumBottomSheetHandle>(null);
 	const optionsSheetRef = useRef<PremiumBottomSheetHandle>(null);
 	const sheetController = useOperationalSheetController<CustomersSheetRoute>();

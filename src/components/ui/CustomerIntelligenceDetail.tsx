@@ -8,6 +8,7 @@ import { useAppTheme } from '../../context/ThemeModeContext';
 import { type Customer } from '../../types';
 import { type CustomerSheetEvent } from './sheetTypes';
 import { toDate } from '../../utils/customerLogic';
+import { AtmosphereBackground } from './AtmosphereBackground';
 
 interface CustomerIntelligenceDetailProps {
 	customer: Customer;
@@ -78,8 +79,15 @@ export const CustomerIntelligenceDetail: React.FC<CustomerIntelligenceDetailProp
 			{/* Top Operational Hero */}
 			<Animated.View 
 				entering={FadeInDown.delay(100).springify().damping(18).stiffness(200)}
-				style={[styles.hero, { borderColor: colors.border, backgroundColor: isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.6)' }]}
+				style={[styles.hero, { borderColor: colors.border }]}
 			>
+				<AtmosphereBackground
+					intensity="medium"
+					desiPattern
+					spiceGrain
+					backgroundColor={isDark ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.6)'}
+					style={StyleSheet.absoluteFill}
+				/>
 				<View style={styles.heroTop}>
 					<View style={[styles.heroAvatar, { backgroundColor: colors.primary + '18' }]}>
 						<Text style={[styles.heroAvatarText, { color: colors.primary }]}>{initials}</Text>
@@ -109,7 +117,10 @@ export const CustomerIntelligenceDetail: React.FC<CustomerIntelligenceDetailProp
 					<MaterialCommunityIcons name="phone-outline" size={17} color={isDark ? '#A0AEC0' : '#5D6D7E'} />
 					<Text style={[styles.stripBtnText, { color: colors.textPrimary }]}>Call</Text>
 				</TouchableOpacity>
-				<TouchableOpacity style={[styles.stripBtn, { backgroundColor: colors.primary }]} onPress={() => onAction({ type: 'customer.payment', customerId: customer.id })}>
+				<TouchableOpacity 
+					style={[styles.stripBtn, { backgroundColor: colors.primary, overflow: 'hidden' }]} 
+					onPress={() => onAction({ type: 'customer.payment', customerId: customer.id })}
+				>
 					<Banknote size={17} color={colors.textInverted} />
 					<Text style={[styles.stripBtnText, { color: colors.textInverted }]}>Pay</Text>
 				</TouchableOpacity>

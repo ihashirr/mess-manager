@@ -42,13 +42,15 @@ export const FOOD_THEME = {
 	},
 	illustrations: {
 		emptyMenu: BrandAssets.illustrations.emptyMenu,
+		biryani: BrandAssets.illustrations.biryani,
+		karahi: BrandAssets.illustrations.karahi,
 	},
 	ambient: {
 		warmLight: BrandAssets.ambient.warmLight,
 		overlayColor: 'rgba(217, 107, 39, 0.10)',
 		headerOpacity: 0.12,
 		passivePanelOpacity: 0.08,
-		textureOpacity: 0.025,
+		textureOpacity: 0.12,
 	},
 	mealColors: {
 		lunch: '#FFB457',

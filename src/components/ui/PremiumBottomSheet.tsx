@@ -6,7 +6,17 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { BackHandler, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  BackHandler,
+  LayoutChangeEvent,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { BlurView } from 'expo-blur';
 import { X } from 'lucide-react-native';
 import {
@@ -49,7 +59,6 @@ export type PremiumBottomSheetProps = {
   androidKeyboardInputMode?: SheetAndroidKeyboardInputMode;
   activeOffsetY?: SheetActiveOffsetY;
   footer?: React.ReactNode;
-  footerHeight?: number;
 };
 
 const SHEET_POLICY_CONFIG = {
@@ -86,7 +95,6 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
     androidKeyboardInputMode = 'adjustPan',
     activeOffsetY = [-5, 5],
     footer,
-    footerHeight = 96,
   }, ref) => {
     const { colors, isDark } = useAppTheme();
     const insets = useSafeAreaInsets();
@@ -96,6 +104,7 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
     const scrollAtTopRef = useRef(true);
     const [isPresented, setIsPresented] = useState(false);
     const [scrollAtTop, setScrollAtTop] = useState(true);
+    const [footerHeight, setFooterHeight] = useState(0);
     const policyConfig = SHEET_POLICY_CONFIG[policy];
     const shouldShowCloseButton = showCloseButton ?? policy === 'critical';
     const hasDismissGuard = Boolean(beforeDismiss);
@@ -175,6 +184,17 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
       setScrollAtTop(nextScrollAtTop);
     }, []);
 
+    const handleFooterLayout = useCallback((event: LayoutChangeEvent) => {
+      const nextFooterHeight = Math.ceil(event.nativeEvent.layout.height);
+      setFooterHeight((currentFooterHeight) => {
+        if (Math.abs(currentFooterHeight - nextFooterHeight) <= 1) {
+          return currentFooterHeight;
+        }
+
+        return nextFooterHeight;
+      });
+    }, []);
+
     const renderBackdrop = useCallback(
       (props: BottomSheetBackdropProps) => (
         <BottomSheetBackdrop
@@ -228,19 +248,27 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
             {...props}
             bottomInset={0}
             style={StyleSheet.flatten([
-              styles.footerWrap,
               {
                 backgroundColor: isDark ? colors.surface : 'rgba(250, 248, 245, 0.96)',
-                borderTopColor: colors.border,
-                paddingBottom: Math.max(insets.bottom, 16),
               },
             ])}
           >
-            {footer}
+            <View
+              onLayout={handleFooterLayout}
+              style={[
+                styles.footerWrap,
+                {
+                  borderTopColor: colors.border,
+                  paddingBottom: Math.max(insets.bottom, 16),
+                },
+              ]}
+            >
+              {footer}
+            </View>
           </BottomSheetFooter>
         );
       },
-      [colors.border, colors.surface, footer, insets.bottom, isDark]
+      [colors.border, colors.surface, footer, handleFooterLayout, insets.bottom, isDark]
     );
 
     useImperativeHandle(
