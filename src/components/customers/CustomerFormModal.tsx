@@ -1,6 +1,6 @@
-import { Save } from 'lucide-react-native';
+import { CalendarDays, ChevronLeft, ChevronRight, Save } from 'lucide-react-native';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useConfirmDialog } from '../system/dialogs/ConfirmDialog';
 import { type PremiumBottomSheetHandle } from '../ui/PremiumBottomSheet';
 import { Button } from '../ui/Button';
@@ -11,6 +11,7 @@ import { useResponsiveLayout } from '../../hooks';
 import { PremiumBottomSheet } from '../ui/PremiumBottomSheet';
 import { type Customer, type CustomerFormValues } from '../../types';
 import { createInitialCustomerFormValues } from './formValues';
+import { formatISO } from '../../utils/weekLogic';
 
 interface CustomerFormModalProps {
 	sheetRef: React.RefObject<PremiumBottomSheetHandle | null>;
@@ -21,8 +22,10 @@ interface CustomerFormModalProps {
 }
 
 type CustomerFormErrors = Partial<Record<keyof CustomerFormValues | 'plan', string>>;
+type DateField = 'startDate' | 'endDate';
 
 const DATE_INPUT_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const CALENDAR_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const getMealPrice = (isLunch: boolean, isDinner: boolean) => {
 	if (isLunch && isDinner) {
@@ -84,6 +87,53 @@ const validateCustomerForm = (values: CustomerFormValues): CustomerFormErrors =>
 	return nextErrors;
 };
 
+const getCalendarDays = (monthDate: Date) => {
+	const year = monthDate.getFullYear();
+	const month = monthDate.getMonth();
+	const firstOfMonth = new Date(year, month, 1);
+	const startDay = firstOfMonth.getDay();
+	const daysInMonth = new Date(year, month + 1, 0).getDate();
+	const cells: (Date | null)[] = [];
+
+	for (let index = 0; index < startDay; index += 1) {
+		cells.push(null);
+	}
+
+	for (let day = 1; day <= daysInMonth; day += 1) {
+		cells.push(new Date(year, month, day));
+	}
+
+	while (cells.length % 7 !== 0) {
+		cells.push(null);
+	}
+
+	return cells;
+};
+
+const formatDisplayDate = (value: string) => {
+	const date = parseDateInput(value);
+	if (!date) {
+		return value || 'Select date';
+	}
+
+	return date.toLocaleDateString('en-US', {
+		month: 'short',
+		day: 'numeric',
+		year: 'numeric',
+	});
+};
+
+const formatCalendarTitle = (date: Date) => (
+	date.toLocaleDateString('en-US', {
+		month: 'long',
+		year: 'numeric',
+	})
+);
+
+const shiftMonth = (date: Date, amount: number) => (
+	new Date(date.getFullYear(), date.getMonth() + amount, 1)
+);
+
 export function CustomerFormModal({
 	sheetRef,
 	onClose,
@@ -96,6 +146,11 @@ export function CustomerFormModal({
 	const { confirm } = useConfirmDialog();
 	const [formValues, setFormValues] = useState<CustomerFormValues>(createInitialCustomerFormValues());
 	const [formErrors, setFormErrors] = useState<CustomerFormErrors>({});
+	const [activeDateField, setActiveDateField] = useState<DateField | null>(null);
+	const [calendarMonth, setCalendarMonth] = useState(() => {
+		const startDate = parseDateInput(createInitialCustomerFormValues().startDate);
+		return startDate ?? new Date();
+	});
 	const baselineValuesRef = useRef<CustomerFormValues>(formValues);
 
 	useEffect(() => {
@@ -133,6 +188,8 @@ export function CustomerFormModal({
 		baselineValuesRef.current = nextValues;
 		setFormValues(nextValues);
 		setFormErrors({});
+		setActiveDateField(null);
+		setCalendarMonth(parseDateInput(nextValues.startDate) ?? new Date());
 	}, [customer]);
 
 	const updateField = <K extends keyof CustomerFormValues,>(
@@ -166,6 +223,30 @@ export function CustomerFormModal({
 			const { plan: _plan, price: _price, ...rest } = current;
 			return rest;
 		});
+	};
+
+	const openDatePicker = (field: DateField) => {
+		const selectedDate = parseDateInput(formValues[field]);
+		setActiveDateField(field);
+		setCalendarMonth(selectedDate ?? new Date());
+	};
+
+	const selectDate = (date: Date) => {
+		if (!activeDateField) {
+			return;
+		}
+
+		const nextValue = formatISO(date);
+		updateField(activeDateField, nextValue);
+
+		if (activeDateField === 'startDate') {
+			setActiveDateField('endDate');
+			const endDate = parseDateInput(formValues.endDate);
+			setCalendarMonth(endDate ?? date);
+			return;
+		}
+
+		setActiveDateField(null);
 	};
 
 	const formIsDirty = JSON.stringify(formValues) !== JSON.stringify(baselineValuesRef.current);
@@ -206,7 +287,7 @@ export function CustomerFormModal({
 			ref={sheetRef}
 			title={customer ? "Edit Customer" : "Add Customer"}
 			subtitle={customer ? "Update customer details" : "Create a new active member"}
-			snapPoints={['50%', '80%']}
+			snapPoints={['55%', '80%']}
 			policy="critical"
 			beforeDismiss={handleBeforeDismiss}
 			onDismiss={handleDismiss}
@@ -325,28 +406,87 @@ export function CustomerFormModal({
 							</View>
 						</View>
 
-						<View style={[styles.row, stacked && styles.rowStacked, { marginTop: Theme.spacing.sm }]}>
-							<View style={[styles.column, stacked ? styles.columnStacked : styles.columnSpaced]}>
-								<Text style={[styles.label, { color: colors.textSecondary }]}>Start Date - آغاز</Text>
-								<Input
-									value={formValues.startDate}
-									onChangeText={(value) => updateField('startDate', value)}
-									placeholder="YYYY-MM-DD"
-									error={formErrors.startDate}
-									bottomSheet
-								/>
-							</View>
-							<View style={styles.column}>
-								<Text style={[styles.label, { color: colors.textSecondary }]}>End Date - ختم</Text>
-								<Input
-									value={formValues.endDate}
-									onChangeText={(value) => updateField('endDate', value)}
-									placeholder="YYYY-MM-DD"
-									error={formErrors.endDate}
-									bottomSheet
-								/>
-							</View>
+						<View style={[styles.dateFieldRow, stacked && styles.rowStacked]}>
+							<DateFieldButton
+								label="Start Date - آغاز"
+								value={formValues.startDate}
+								error={formErrors.startDate}
+								active={activeDateField === 'startDate'}
+								onPress={() => openDatePicker('startDate')}
+							/>
+							<DateFieldButton
+								label="End Date - ختم"
+								value={formValues.endDate}
+								error={formErrors.endDate}
+								active={activeDateField === 'endDate'}
+								onPress={() => openDatePicker('endDate')}
+							/>
 						</View>
+						{activeDateField ? (
+							<View style={[styles.calendarPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+								<View style={styles.calendarHeader}>
+									<Pressable
+										accessibilityLabel="Previous month"
+										accessibilityRole="button"
+										onPress={() => setCalendarMonth((current) => shiftMonth(current, -1))}
+										style={[styles.calendarNavButton, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
+									>
+										<ChevronLeft size={18} color={colors.textSecondary} />
+									</Pressable>
+									<View style={styles.calendarTitleWrap}>
+										<Text style={[styles.calendarTitle, { color: colors.textPrimary }]}>
+											{formatCalendarTitle(calendarMonth)}
+										</Text>
+									</View>
+									<Pressable
+										accessibilityLabel="Next month"
+										accessibilityRole="button"
+										onPress={() => setCalendarMonth((current) => shiftMonth(current, 1))}
+										style={[styles.calendarNavButton, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}
+									>
+										<ChevronRight size={18} color={colors.textSecondary} />
+									</Pressable>
+								</View>
+								<View style={styles.weekdayRow}>
+									{CALENDAR_WEEKDAYS.map((weekday) => (
+										<Text key={weekday} style={[styles.weekdayText, { color: colors.textMuted }]}>
+											{weekday}
+										</Text>
+									))}
+								</View>
+								<View style={styles.calendarGrid}>
+									{getCalendarDays(calendarMonth).map((date, index) => {
+										const dateValue = date ? formatISO(date) : '';
+										const isStart = dateValue === formValues.startDate;
+										const isEnd = dateValue === formValues.endDate;
+										const isSelected = isStart || isEnd;
+
+										return (
+											<View key={`${dateValue || 'empty'}-${index}`} style={styles.calendarCell}>
+												{date ? (
+													<Pressable
+														accessibilityLabel={`Select ${date.toDateString()}`}
+														accessibilityRole="button"
+														onPress={() => selectDate(date)}
+														style={[
+															styles.calendarDay,
+															{
+																backgroundColor: isSelected ? colors.primary : colors.surfaceElevated,
+																borderColor: isSelected ? colors.primary : colors.border,
+															},
+														]}
+													>
+														<Text style={[styles.calendarDayText, { color: isSelected ? colors.textInverted : colors.textPrimary }]}>
+															{date.getDate()}
+														</Text>
+													</Pressable>
+												) : null}
+											</View>
+										);
+									})}
+								</View>
+							</View>
+						) : null}
 					</View>
 				</View>
 
@@ -385,6 +525,47 @@ export function CustomerFormModal({
 				</View>
 			</View>
 		</PremiumBottomSheet>
+	);
+}
+
+function DateFieldButton({
+	label,
+	value,
+	error,
+	active,
+	onPress,
+}: {
+	label: string;
+	value: string;
+	error?: string;
+	active: boolean;
+	onPress: () => void;
+}) {
+	const { colors } = useAppTheme();
+
+	return (
+		<View style={styles.dateFieldColumn}>
+			<Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
+			<Pressable
+				accessibilityRole="button"
+				accessibilityLabel={`${label}: ${formatDisplayDate(value)}`}
+				onPress={onPress}
+				style={[
+					styles.dateButton,
+					{
+						backgroundColor: active ? colors.primary + '10' : colors.surfaceElevated,
+						borderColor: active ? colors.primary : error ? colors.danger : colors.border,
+					},
+				]}
+			>
+				<CalendarDays size={17} color={active ? colors.primary : colors.textMuted} />
+				<View style={styles.dateButtonCopy}>
+					<Text style={[styles.dateButtonText, { color: colors.textPrimary }]}>{formatDisplayDate(value)}</Text>
+					<Text style={[styles.dateButtonMeta, { color: active ? colors.primary : colors.textMuted }]}>Tap to choose</Text>
+				</View>
+			</Pressable>
+			{error ? <Text style={[styles.inlineError, { color: colors.danger }]}>{error}</Text> : null}
+		</View>
 	);
 }
 
@@ -448,6 +629,95 @@ const styles = StyleSheet.create({
 	inlineError: {
 		...Theme.typography.detail,
 		marginTop: Theme.spacing.xs,
+	},
+	dateFieldRow: {
+		flexDirection: 'row',
+		gap: Theme.spacing.sm,
+		marginTop: Theme.spacing.sm,
+	},
+	dateFieldColumn: {
+		flex: 1,
+	},
+	dateButton: {
+		minHeight: 56,
+		borderWidth: 1,
+		borderRadius: Theme.radius.md,
+		paddingHorizontal: Theme.spacing.md,
+		paddingVertical: Theme.spacing.sm,
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: Theme.spacing.sm,
+	},
+	dateButtonCopy: {
+		flex: 1,
+		minWidth: 0,
+	},
+	dateButtonText: {
+		...Theme.typography.labelMedium,
+	},
+	dateButtonMeta: {
+		...Theme.typography.detail,
+		marginTop: 2,
+	},
+	calendarPanel: {
+		borderWidth: 1,
+		borderRadius: 14,
+		padding: Theme.spacing.sm,
+		marginTop: Theme.spacing.sm,
+	},
+	calendarHeader: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: Theme.spacing.sm,
+		marginBottom: Theme.spacing.sm,
+	},
+	calendarNavButton: {
+		width: 32,
+		height: 32,
+		borderRadius: 16,
+		borderWidth: 1,
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	calendarTitleWrap: {
+		flex: 1,
+		alignItems: 'center',
+	},
+	calendarTitle: {
+		...Theme.typography.labelMedium,
+		fontSize: 13,
+		fontWeight: '800',
+	},
+	weekdayRow: {
+		flexDirection: 'row',
+		marginBottom: 2,
+	},
+	weekdayText: {
+		...Theme.typography.detail,
+		flex: 1,
+		textAlign: 'center',
+		fontSize: 9,
+	},
+	calendarGrid: {
+		flexDirection: 'row',
+		flexWrap: 'wrap',
+		rowGap: 2,
+	},
+	calendarCell: {
+		width: `${100 / 7}%`,
+		aspectRatio: 1.26,
+		padding: 1.5,
+	},
+	calendarDay: {
+		flex: 1,
+		borderWidth: 1,
+		borderRadius: 9,
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	calendarDayText: {
+		...Theme.typography.labelMedium,
+		fontSize: 12,
 	},
 	footer: {
 		flexDirection: 'row',

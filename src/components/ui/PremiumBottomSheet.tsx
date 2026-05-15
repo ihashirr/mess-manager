@@ -38,6 +38,7 @@ export type PremiumBottomSheetProps = {
   scrollable?: boolean;
   policy?: SheetPolicy;
   showCloseButton?: boolean;
+  contentPanningGestureEnabled?: boolean;
 };
 
 const SHEET_POLICY_CONFIG = {
@@ -69,6 +70,7 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
     scrollable = true,
     policy = 'passive',
     showCloseButton,
+    contentPanningGestureEnabled,
   }, ref) => {
     const { colors, isDark } = useAppTheme();
     const insets = useSafeAreaInsets();
@@ -80,12 +82,13 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
     const policyConfig = SHEET_POLICY_CONFIG[policy];
     const shouldShowCloseButton = showCloseButton ?? policy === 'critical';
     const hasDismissGuard = Boolean(beforeDismiss);
+    const enableContentPanningGesture = contentPanningGestureEnabled ?? policyConfig.enableContentPanningGesture;
     const enablePanDownToClose = policyConfig.enablePanDownToClose && !hasDismissGuard && (!scrollable || scrollAtTop);
     const animationConfigs = useBottomSheetSpringConfigs({
-      damping: 50,
-      stiffness: 500,
-      mass: 1,
-      overshootClamping: true,
+      damping: 34,
+      stiffness: 360,
+      mass: 0.85,
+      overshootClamping: false,
     });
 
     const resolvedSnapPoints = useMemo(() => {
@@ -203,8 +206,11 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
         snapPoints={resolvedSnapPoints}
         enableDynamicSizing={false}
         enablePanDownToClose={enablePanDownToClose}
-        enableContentPanningGesture={policyConfig.enableContentPanningGesture}
+        enableContentPanningGesture={enableContentPanningGesture}
         enableHandlePanningGesture
+        enableBlurKeyboardOnGesture
+        overDragResistanceFactor={2}
+        activeOffsetY={[-5, 5]}
         enableDismissOnClose
         animateOnMount
         keyboardBehavior={Platform.OS === 'ios' ? 'interactive' : 'extend'}
@@ -261,6 +267,8 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
           <BottomSheetScrollView
             keyboardShouldPersistTaps="handled"
             onScroll={handleContentScroll}
+            nestedScrollEnabled
+            overScrollMode="never"
             showsVerticalScrollIndicator
             contentContainerStyle={[
               styles.scrollContent,
