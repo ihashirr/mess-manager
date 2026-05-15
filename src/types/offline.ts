@@ -43,7 +43,32 @@ export type ExpenseEntry = {
 	tax?: number | null;
 };
 
-export type SyncEntityType = 'customer' | 'attendance' | 'menu' | 'payment' | 'expense';
+export type OneTimeOrderItem = {
+	id: string;
+	name: string;
+	quantity: number;
+	price: number;
+};
+
+export type OneTimeOrder = {
+	id: string;
+	customerId?: string | null;
+	customerName: string;
+	phone?: string;
+	orderDate: string;
+	mealSlot: 'lunch' | 'dinner' | 'custom';
+	items: OneTimeOrderItem[];
+	total: number;
+	paidAmount: number;
+	paymentStatus: 'unpaid' | 'partial' | 'paid';
+	fulfillmentStatus: 'pending' | 'preparing' | 'delivered' | 'cancelled';
+	notes?: string;
+	monthTag: string;
+	createdAt: string;
+	updatedAt: string;
+};
+
+export type SyncEntityType = 'customer' | 'attendance' | 'menu' | 'payment' | 'expense' | 'order';
 
 export type SyncOperationKind =
 	| 'customer_create'
@@ -53,7 +78,9 @@ export type SyncOperationKind =
 	| 'payment_record'
 	| 'payment_delete'
 	| 'expense_upsert'
-	| 'expense_delete';
+	| 'expense_delete'
+	| 'order_upsert'
+	| 'order_delete';
 
 export type SyncQueueStatus = 'pending' | 'failed';
 
@@ -95,6 +122,14 @@ export type ExpenseUpsertPayload = {
 	expense: ExpenseEntry;
 };
 
+export type OrderUpsertPayload = {
+	order: OneTimeOrder;
+};
+
+export type OrderDeletePayload = {
+	orderId: string;
+};
+
 export type SyncQueuePayload =
 	| CustomerCreatePayload
 	| CustomerDeletePayload
@@ -103,7 +138,9 @@ export type SyncQueuePayload =
 	| PaymentRecordPayload
 	| PaymentDeletePayload
 	| ExpenseUpsertPayload
-	| ExpenseDeletePayload;
+	| ExpenseDeletePayload
+	| OrderUpsertPayload
+	| OrderDeletePayload;
 
 export type SyncQueueOperation = {
 	id: string;
@@ -135,9 +172,9 @@ export type OfflineSnapshot = {
 	customers: Customer[];
 	payments: PaymentEntry[];
 	expenses: ExpenseEntry[];
+	orders: OneTimeOrder[];
 	menuByDate: Record<string, DayMenu>;
 	attendanceByDate: Record<string, AttendanceEntry[]>;
 	queueOperations: SyncQueueOperation[];
 	pendingQueueCount: number;
 };
-

@@ -9,6 +9,7 @@ import { type Customer } from '../../types';
 import { type CustomerSheetEvent } from './sheetTypes';
 import { toDate } from '../../utils/customerLogic';
 import { AtmosphereBackground } from './AtmosphereBackground';
+import { TapBurst, type TapBurstHandle } from './TapBurst';
 
 interface CustomerIntelligenceDetailProps {
 	customer: Customer;
@@ -36,6 +37,7 @@ export const CustomerIntelligenceDetail: React.FC<CustomerIntelligenceDetailProp
 	onAction,
 }) => {
 	const { colors, isDark } = useAppTheme();
+	const payBurstRef = React.useRef<TapBurstHandle>(null);
 	const planLabel = customer.mealsPerDay.lunch && customer.mealsPerDay.dinner
 		? 'Lunch + Dinner'
 		: customer.mealsPerDay.lunch
@@ -119,10 +121,14 @@ export const CustomerIntelligenceDetail: React.FC<CustomerIntelligenceDetailProp
 				</TouchableOpacity>
 				<TouchableOpacity 
 					style={[styles.stripBtn, { backgroundColor: colors.primary, overflow: 'hidden' }]} 
-					onPress={() => onAction({ type: 'customer.payment', customerId: customer.id })}
+					onPress={() => {
+						payBurstRef.current?.burst();
+						setTimeout(() => onAction({ type: 'customer.payment', customerId: customer.id }), 350);
+					}}
 				>
 					<Banknote size={17} color={colors.textInverted} />
 					<Text style={[styles.stripBtnText, { color: colors.textInverted }]}>Pay</Text>
+					<TapBurst ref={payBurstRef} count={12} distance={45} colors={['#F5B041', '#F8C471', '#D35400']} />
 				</TouchableOpacity>
 			</Animated.View>
 

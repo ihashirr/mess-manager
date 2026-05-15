@@ -10,6 +10,7 @@ import Svg, {Defs, RadialGradient, Rect, Stop} from 'react-native-svg';
 
 import {useAppTheme} from '../../context/ThemeModeContext';
 import {FOOD_THEME} from '../../theme';
+import {AtmosphericCanvas} from './AtmosphericCanvas';
 
 export type AtmosphereIntensity = 'none' | 'subtle' | 'medium' | 'strong' | number;
 
@@ -23,6 +24,8 @@ export interface AtmosphereBackgroundProps {
 	spiceGrain?: boolean;
 	desiPattern?: boolean;
 	warmLighting?: boolean;
+	ambientMotion?: boolean;
+	ambientEnergy?: 'neutral' | 'calm' | 'ember' | 'lunch' | 'dinner';
 }
 
 export interface WarmGlowProps {
@@ -168,6 +171,8 @@ export const AtmosphereBackground: React.FC<AtmosphereBackgroundProps> = ({
 	spiceGrain = false,
 	desiPattern = false,
 	warmLighting = false,
+	ambientMotion = true,
+	ambientEnergy = 'neutral',
 }) => {
 	const {colors} = useAppTheme();
 	const canvasColor = backgroundColor ?? colors.bg;
@@ -175,6 +180,13 @@ export const AtmosphereBackground: React.FC<AtmosphereBackgroundProps> = ({
 	return (
 		<View style={[styles.root, {backgroundColor: canvasColor}, style]}>
 			{saffronGlow ? <WarmGlow intensity={intensity} /> : null}
+
+			{ambientMotion ? (
+				<AtmosphericCanvas
+					intensity={intensity}
+					energy={ambientEnergy}
+				/>
+			) : null}
 
 			{warmLighting || desiPattern || spiceGrain ? (
 				<SpiceTextureOverlay

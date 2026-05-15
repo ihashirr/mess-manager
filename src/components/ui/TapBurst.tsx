@@ -91,9 +91,9 @@ export const TapBurst = forwardRef<TapBurstHandle, TapBurstProps>(
     const burst = useCallback(() => {
       const newParticles = Array.from({ length: count }).map((_, i) => ({
         id: Date.now() + i,
-        angle: (i * (Math.PI * 2)) / count + (Math.random() * 0.5 - 0.25),
+        angle: (i * (Math.PI * 2)) / count + (Math.random() * 1.5 - 0.75), // more chaotic
         color: palette[Math.floor(Math.random() * palette.length)],
-        delay: Math.random() * 50,
+        delay: Math.random() * 15,
       }));
       setParticles(newParticles);
     }, [count, palette]);
@@ -116,7 +116,7 @@ export const TapBurst = forwardRef<TapBurstHandle, TapBurstProps>(
               key={p.id}
               color={p.color}
               angle={p.angle}
-              distance={distance + Math.random() * 20}
+              distance={distance + Math.random() * 30} // wider spread
               delay={p.delay}
               onComplete={() => handleComplete(p.id)}
             />
@@ -137,10 +137,11 @@ const styles = StyleSheet.create({
   },
   particle: {
     position: 'absolute',
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginLeft: -3,
-    marginTop: -3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginLeft: -4,
+    marginTop: -4,
+    opacity: 0.85,
   },
 });

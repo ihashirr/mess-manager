@@ -1,11 +1,11 @@
 import { XCircle, Settings, Save, Copy, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { showToast } from '../components/system/feedback/AppToast';
 import { Badge, Button, FoodIconBadge, Input, KitchenActivityPulse, PremiumBottomSheet, Screen, ScreenHeaderActionButton, type PremiumBottomSheetHandle } from '../components/ui';
 import { useAppHeader } from '../context/HeaderContext';
 import { useOfflineSync } from '../context/OfflineSyncContext';
+import { usePagerFocusEffect } from '../context/PagerFocusContext';
 import { useAppTheme } from '../context/ThemeModeContext';
 import { useResponsiveLayout } from '../hooks';
 import { FOOD_THEME } from '../theme';
@@ -72,7 +72,8 @@ export default function MenuScreen() {
 		}
 	}, [showCopyModal]);
 
-	useFocusEffect(
+	usePagerFocusEffect(
+		'menu',
 		useCallback(() => {
 			setHeaderConfig({
 				title: 'Weekly Menu',

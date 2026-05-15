@@ -1,5 +1,5 @@
-import { CalendarCheck, PlusCircle, Sun, Moon, ChefHat, Bell, ChevronRight, Clock3 } from 'lucide-react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { CalendarCheck, PlusCircle, Sun, Moon, ChefHat, Bell, ChevronRight, Clock3, ShoppingBag } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
@@ -20,6 +20,7 @@ import {
 import { Theme } from '../constants/Theme';
 import { useAppHeader } from '../context/HeaderContext';
 import { useOfflineSync } from '../context/OfflineSyncContext';
+import { usePagerFocusEffect } from '../context/PagerFocusContext';
 import { useAppTheme } from '../context/ThemeModeContext';
 import { useOperationalSheetController, useResponsiveLayout } from '../hooks';
 import { FOOD_THEME } from '../theme';
@@ -37,7 +38,7 @@ export default function Index() {
 	const router = useRouter();
 	const { colors } = useAppTheme();
 	const { setHeaderConfig } = useAppHeader();
-	const { ready, customers: allCustomers, menuByDate, attendanceByDate, saveAttendanceBatch } = useOfflineSync();
+	const { ready, customers: allCustomers, orders, menuByDate, attendanceByDate, saveAttendanceBatch } = useOfflineSync();
 	const { maxReadableWidth, scale, icon } = useResponsiveLayout();
 	const todayDate = formatISO(new Date());
 
@@ -72,6 +73,37 @@ export default function Index() {
 		}
 		return state;
 	}, [attendanceByDate, todayDate]);
+	const todayOrderStats = useMemo(() => {
+		const todaysOrders = orders.filter((order) => order.orderDate === todayDate && order.fulfillmentStatus !== 'cancelled');
+		let lunchCount = 0;
+		let dinnerCount = 0;
+		let customCount = 0;
+		let dueAmount = 0;
+		let collectedAmount = 0;
+
+		for (const order of todaysOrders) {
+			const servings = order.items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+			if (order.mealSlot === 'lunch') {
+				lunchCount += servings;
+			} else if (order.mealSlot === 'dinner') {
+				dinnerCount += servings;
+			} else {
+				customCount += servings;
+			}
+			dueAmount += Math.max(0, (order.total || 0) - (order.paidAmount || 0));
+			collectedAmount += order.paidAmount || 0;
+		}
+
+		return {
+			count: todaysOrders.length,
+			lunchCount,
+			dinnerCount,
+			customCount,
+			servings: lunchCount + dinnerCount + customCount,
+			dueAmount,
+			collectedAmount,
+		};
+	}, [orders, todayDate]);
 	
 	const stats = useMemo(() => {
 		let lunchCount = 0;
@@ -123,7 +155,8 @@ export default function Index() {
 		}
 	}, [selectedCustomer]);
 
-	useFocusEffect(
+	usePagerFocusEffect(
+		'index',
 		useCallback(() => {
 			setHeaderConfig({ title: 'Home' });
 		}, [setHeaderConfig])
@@ -134,7 +167,7 @@ export default function Index() {
 			return;
 		}
 		setLastUpdated(new Date());
-	}, [attendance, customers, ready, todayMenu]);
+	}, [attendance, customers, ready, todayMenu, todayOrderStats]);
 
 	const [timeAgo, setTimeAgo] = useState('just now');
 	useEffect(() => {
@@ -181,8 +214,10 @@ export default function Index() {
 
 	if (!ready) return <View style={[styles.centered, { backgroundColor: colors.bg }]}><ActivityIndicator size="large" color={colors.primary} /></View>;
 
-	const totalServings = stats.lunchCount + stats.dinnerCount;
-	const hasActiveCustomers = stats.dailyCapacity > 0;
+	const subscriptionServings = stats.lunchCount + stats.dinnerCount;
+	const totalServings = subscriptionServings + todayOrderStats.servings;
+	const totalCapacity = stats.dailyCapacity + todayOrderStats.servings;
+	const hasActiveCustomers = stats.dailyCapacity > 0 || todayOrderStats.servings > 0;
 	const missingMeals = [!todayMenu.lunch.main, !todayMenu.dinner.main].filter(Boolean).length;
 	const menuReady = missingMeals === 0;
 	const productionTone = menuReady ? 'Ready for service' : `${missingMeals} menu slot${missingMeals === 1 ? '' : 's'} missing`;
@@ -315,7 +350,7 @@ export default function Index() {
 											<Text style={[styles.summaryLabel, { color: colors.textMuted }]}>TOTAL SERVINGS</Text>
 											<View style={styles.summaryValueRow}>
 												<Text style={[styles.summaryLargeValue, { color: colors.primary }]}>{totalServings}</Text>
-												<Text style={[styles.summaryOfText, { color: colors.textMuted }]}>of {stats.dailyCapacity}</Text>
+												<Text style={[styles.summaryOfText, { color: colors.textMuted }]}>of {totalCapacity}</Text>
 											</View>
 										</TouchableOpacity>
 										<View style={[styles.summaryCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -332,8 +367,8 @@ export default function Index() {
 									<View style={styles.mealsRow}>
 										<MealCard 
 											title="LUNCH" 
-											subtitle="scheduled today"
-											value={stats.lunchCount}
+											subtitle={todayOrderStats.lunchCount > 0 ? `${todayOrderStats.lunchCount} one-time` : 'scheduled today'}
+											value={stats.lunchCount + todayOrderStats.lunchCount}
 											color={FOOD_THEME.mealColors.lunch}
 											bgColor={colors.surface}
 											borderColor={colors.border}
@@ -341,14 +376,34 @@ export default function Index() {
 										/>
 										<MealCard 
 											title="DINNER" 
-											subtitle="scheduled today"
-											value={stats.dinnerCount}
+											subtitle={todayOrderStats.dinnerCount > 0 ? `${todayOrderStats.dinnerCount} one-time` : 'scheduled today'}
+											value={stats.dinnerCount + todayOrderStats.dinnerCount}
 											color={FOOD_THEME.mealColors.dinner}
 											bgColor={colors.surface}
 											borderColor={colors.border}
 											onPress={() => sheetController.open({ name: 'serving-breakdown', meal: 'dinner' })}
 										/>
 									</View>
+
+									{todayOrderStats.count > 0 ? (
+										<View style={[styles.oneTimeOrderPanel, { backgroundColor: colors.success + '0D', borderColor: colors.success + '24' }]}>
+											<View style={[styles.oneTimeOrderIcon, { backgroundColor: colors.success + '18' }]}>
+												<ShoppingBag size={18} color={colors.success} />
+											</View>
+											<View style={styles.oneTimeOrderCopy}>
+												<Text style={[styles.oneTimeOrderTitle, { color: colors.textPrimary }]}>One-time orders today</Text>
+												<Text style={[styles.oneTimeOrderMeta, { color: colors.textSecondary }]}>
+													{todayOrderStats.count} order{todayOrderStats.count === 1 ? '' : 's'} • {todayOrderStats.servings} extra serving{todayOrderStats.servings === 1 ? '' : 's'}
+												</Text>
+											</View>
+											<View style={styles.oneTimeOrderMoney}>
+												<Text style={[styles.oneTimeOrderAmount, { color: todayOrderStats.dueAmount > 0 ? colors.warning : colors.success }]}>
+													DHS {Math.round(todayOrderStats.dueAmount)}
+												</Text>
+												<Text style={[styles.oneTimeOrderHint, { color: colors.textMuted }]}>due</Text>
+											</View>
+										</View>
+									) : null}
 
 									{/* Live Overview Footer */}
 									<View style={[styles.overviewPanel, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
@@ -789,6 +844,47 @@ const styles = StyleSheet.create({
 	mealIconCircle: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
 	mealCardTitle: { fontSize: 12, fontWeight: '800', letterSpacing: 0.5 },
 	mealCardSubtitle: { fontSize: 11, fontWeight: '600', marginTop: 2 },
+	oneTimeOrderPanel: {
+		borderWidth: 1,
+		borderRadius: 20,
+		padding: 16,
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 12,
+	},
+	oneTimeOrderIcon: {
+		width: 40,
+		height: 40,
+		borderRadius: 14,
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	oneTimeOrderCopy: {
+		flex: 1,
+		minWidth: 0,
+	},
+	oneTimeOrderTitle: {
+		fontSize: 14,
+		fontWeight: '900',
+	},
+	oneTimeOrderMeta: {
+		fontSize: 12,
+		fontWeight: '600',
+		marginTop: 3,
+	},
+	oneTimeOrderMoney: {
+		alignItems: 'flex-end',
+	},
+	oneTimeOrderAmount: {
+		fontSize: 15,
+		fontWeight: '900',
+	},
+	oneTimeOrderHint: {
+		fontSize: 10,
+		fontWeight: '800',
+		textTransform: 'uppercase',
+		letterSpacing: 0.5,
+	},
 
 	// Overview Panel
 	overviewPanel: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 18, borderRadius: 20, borderWidth: 1, marginTop: 4, shadowColor: '#1A162B', shadowOpacity: 0.03, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, overflow: 'hidden' },

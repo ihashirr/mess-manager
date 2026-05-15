@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react';
-import {StyleProp, StyleSheet, View, ViewStyle} from 'react-native';
+import {DimensionValue, StyleProp, StyleSheet, View, ViewStyle} from 'react-native';
 import Animated, {
 	Easing,
 	interpolate,
@@ -253,7 +253,7 @@ const SteamWisp = ({
 		};
 	});
 
-	const left = `${24 + index * (52 / Math.max(count - 1, 1))}%`;
+	const left = `${24 + index * (52 / Math.max(count - 1, 1))}%` as DimensionValue;
 
 	return (
 		<Animated.View
@@ -340,8 +340,8 @@ const SpiceParticle = ({
 			style={[
 				styles.spiceParticle,
 				{
-					left: particle.left,
-					top: particle.top,
+					left: particle.left as DimensionValue,
+					top: particle.top as DimensionValue,
 					width: particle.size,
 					height: particle.size,
 					borderRadius: particle.size / 2,

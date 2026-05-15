@@ -4,6 +4,7 @@ import type {
 	AttendanceEntry,
 	Customer,
 	ExpenseEntry,
+	OneTimeOrder,
 	OfflineSnapshot,
 	PaymentEntry,
 	SyncQueueOperation,
@@ -37,6 +38,11 @@ type PaymentRow = CacheRow & {
 
 type ExpenseRow = CacheRow & {
 	month_tag: string;
+};
+
+type OrderRow = CacheRow & {
+	month_tag: string;
+	order_date: string;
 };
 
 type QueueRow = {
@@ -77,6 +83,9 @@ export async function loadOfflineSnapshot(weekDates: string[]): Promise<OfflineS
 	);
 	const expenseRows = await database.getAllAsync<ExpenseRow>(
 		'SELECT * FROM expenses WHERE deleted = 0 ORDER BY month_tag DESC, updated_at DESC'
+	);
+	const orderRows = await database.getAllAsync<OrderRow>(
+		'SELECT * FROM orders WHERE deleted = 0 ORDER BY order_date DESC, updated_at DESC'
 	);
 	const menuRows = weekDates.length
 		? await database.getAllAsync<MenuRow>(
@@ -122,6 +131,7 @@ export async function loadOfflineSnapshot(weekDates: string[]): Promise<OfflineS
 		customers: customerRows.map((row) => parseJson<Customer>(row.data_json)),
 		payments: paymentRows.map((row) => parseJson<PaymentEntry>(row.data_json)),
 		expenses: expenseRows.map((row) => parseJson<ExpenseEntry>(row.data_json)),
+		orders: orderRows.map((row) => parseJson<OneTimeOrder>(row.data_json)),
 		menuByDate,
 		attendanceByDate,
 		queueOperations: queueRows.map(mapQueueRow),
@@ -191,6 +201,28 @@ export async function syncRemoteExpenses(expenses: ExpenseEntry[]) {
 	for (const row of localRows) {
 		if (!remoteIds.has(row.id) && row.dirty === 0 && row.deleted === 0) {
 			await database.runAsync('DELETE FROM expenses WHERE id = ?', row.id);
+		}
+	}
+}
+
+export async function syncRemoteOrders(orders: OneTimeOrder[]) {
+	const database = await getDatabase();
+	const localRows = await database.getAllAsync<OrderRow>('SELECT * FROM orders');
+	const localMap = new Map(localRows.map((row) => [row.id, row]));
+	const remoteIds = new Set(orders.map((order) => order.id));
+
+	for (const order of orders) {
+		const local = localMap.get(order.id);
+		if (local && (local.dirty === 1 || local.deleted === 1)) {
+			continue;
+		}
+
+		await upsertOrderRow(database, order, false, false);
+	}
+
+	for (const row of localRows) {
+		if (!remoteIds.has(row.id) && row.dirty === 0 && row.deleted === 0) {
+			await database.runAsync('DELETE FROM orders WHERE id = ?', row.id);
 		}
 	}
 }
@@ -272,6 +304,11 @@ export async function saveLocalPayment(payment: PaymentEntry) {
 	await upsertPaymentRow(database, payment, true, false);
 }
 
+export async function saveLocalOrder(order: OneTimeOrder) {
+	const database = await getDatabase();
+	await upsertOrderRow(database, order, true, false);
+}
+
 export async function applyLocalCustomerPatch(
 	customerId: string,
 	patch: Partial<Customer>
@@ -313,6 +350,17 @@ export async function markExpenseDeleted(expenseId: string) {
 		 WHERE id = ?`,
 		new Date().toISOString(),
 		expenseId
+	);
+}
+
+export async function markOrderDeleted(orderId: string) {
+	const database = await getDatabase();
+	await database.runAsync(
+		`UPDATE orders
+		 SET deleted = 1, dirty = 1, updated_at = ?
+		 WHERE id = ?`,
+		new Date().toISOString(),
+		orderId
 	);
 }
 
@@ -422,6 +470,12 @@ export async function completeSyncOperation(operation: SyncQueueOperation) {
 		case 'expense_delete':
 			await database.runAsync('DELETE FROM expenses WHERE id = ?', operation.entityId);
 			break;
+		case 'order_upsert':
+			await clearDirty(database, 'orders', operation.entityId);
+			break;
+		case 'order_delete':
+			await database.runAsync('DELETE FROM orders WHERE id = ?', operation.entityId);
+			break;
 		default:
 			break;
 	}
@@ -481,6 +535,15 @@ async function initializeDatabase() {
 			deleted INTEGER NOT NULL DEFAULT 0,
 			updated_at TEXT NOT NULL
 		);
+		CREATE TABLE IF NOT EXISTS orders (
+			id TEXT PRIMARY KEY NOT NULL,
+			month_tag TEXT NOT NULL,
+			order_date TEXT NOT NULL,
+			data_json TEXT NOT NULL,
+			dirty INTEGER NOT NULL DEFAULT 0,
+			deleted INTEGER NOT NULL DEFAULT 0,
+			updated_at TEXT NOT NULL
+		);
 		CREATE TABLE IF NOT EXISTS sync_queue (
 			id TEXT PRIMARY KEY NOT NULL,
 			entity_type TEXT NOT NULL,
@@ -500,6 +563,8 @@ async function initializeDatabase() {
 		CREATE INDEX IF NOT EXISTS idx_attendance_date ON attendance_entries(date, customer_id);
 		CREATE INDEX IF NOT EXISTS idx_payments_month ON payments(month_tag, updated_at DESC);
 		CREATE INDEX IF NOT EXISTS idx_expenses_month ON expenses(month_tag, updated_at DESC);
+		CREATE INDEX IF NOT EXISTS idx_orders_date ON orders(order_date DESC, updated_at DESC);
+		CREATE INDEX IF NOT EXISTS idx_orders_month ON orders(month_tag, updated_at DESC);
 		CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON sync_queue(status, created_at ASC);
 	`);
 
@@ -670,9 +735,44 @@ async function upsertExpenseRow(
 	);
 }
 
+async function upsertOrderRow(
+	database: SafeSQLiteDatabase,
+	order: OneTimeOrder,
+	dirty: boolean,
+	deleted: boolean
+) {
+	const now = new Date().toISOString();
+	const normalized = normalizeForStorage(order) as OneTimeOrder;
+	await database.runAsync(
+		`INSERT INTO orders (
+			id,
+			month_tag,
+			order_date,
+			data_json,
+			dirty,
+			deleted,
+			updated_at
+		) VALUES (?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			month_tag = excluded.month_tag,
+			order_date = excluded.order_date,
+			data_json = excluded.data_json,
+			dirty = excluded.dirty,
+			deleted = excluded.deleted,
+			updated_at = excluded.updated_at`,
+		normalized.id,
+		normalized.monthTag,
+		normalized.orderDate,
+		serializeJson(normalized),
+		dirty ? 1 : 0,
+		deleted ? 1 : 0,
+		now
+	);
+}
+
 async function clearDirty(
 	database: SafeSQLiteDatabase,
-	table: 'customers' | 'menu_entries' | 'attendance_entries' | 'payments' | 'expenses',
+	table: 'customers' | 'menu_entries' | 'attendance_entries' | 'payments' | 'expenses' | 'orders',
 	id: string
 ) {
 	await database.runAsync(

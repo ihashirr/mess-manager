@@ -10,6 +10,7 @@ import {
 	Plus,
 	ReceiptText,
 	RefreshCw,
+	ShoppingBag,
 	Store,
 	Trash2,
 	TrendingDown,
@@ -17,9 +18,9 @@ import {
 	Wallet,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import AnimatedReanimated, { FadeIn, FadeInUp, FadeOut } from 'react-native-reanimated';
 import { useConfirmDialog } from '../components/system/dialogs/ConfirmDialog';
 import { showToast } from '../components/system/feedback/AppToast';
 import {
@@ -27,17 +28,17 @@ import {
 	Button,
 	Card,
 	Input,
-	PremiumBottomSheet,
 	FullScreenModal,
 	Screen,
 	ScreenHeaderActionButton,
 	type BadgeVariant,
-	type PremiumBottomSheetHandle,
 	type FullScreenModalHandle,
 } from '../components/ui';
+import { PaymentsCollectView } from './payments';
 import { Theme } from '../constants/Theme';
 import { useAppHeader } from '../context/HeaderContext';
 import { useOfflineSync } from '../context/OfflineSyncContext';
+import { usePagerFocusEffect } from '../context/PagerFocusContext';
 import { useAppTheme } from '../context/ThemeModeContext';
 import { useResponsiveLayout } from '../hooks';
 import { toDate } from '../utils/customerLogic';
@@ -54,6 +55,8 @@ import {
 } from '../utils/receiptQueue';
 import type { ExpenseEntry } from '../types';
 
+type MoneySection = 'collect' | 'expenses';
+
 type Transaction = {
 	id: string;
 	customerId: string;
@@ -66,13 +69,128 @@ type Transaction = {
 
 export default function FinanceScreen() {
 	const { colors } = useAppTheme();
-	const { confirm } = useConfirmDialog();
 	const { setHeaderConfig } = useAppHeader();
+	const [activeSection, setActiveSection] = useState<MoneySection>('collect');
+	const [expenseActions, setExpenseActions] = useState<ReactNode>(null);
+	const isCollect = activeSection === 'collect';
+
+	usePagerFocusEffect(
+		'finance',
+		useCallback(() => {
+			setHeaderConfig({
+				title: 'Money',
+				subtitle: isCollect
+					? 'Collect customer payments'
+					: 'Expenses, receipts, and monthly records',
+				rightAction: isCollect ? undefined : expenseActions,
+			});
+		}, [expenseActions, isCollect, setHeaderConfig])
+	);
+
+	return (
+		<View style={[styles.moneyShell, { backgroundColor: colors.bg }]}>
+			<MoneySegmentControl value={activeSection} onChange={setActiveSection} />
+			<AnimatedReanimated.View
+				key={activeSection}
+				entering={FadeIn.duration(130)}
+				exiting={FadeOut.duration(90)}
+				style={styles.moneyPane}
+			>
+				{isCollect ? (
+					<PaymentsCollectView />
+				) : (
+					<FinanceExpensesView active onActionsChange={setExpenseActions} />
+				)}
+			</AnimatedReanimated.View>
+		</View>
+	);
+}
+
+function MoneySegmentControl({
+	value,
+	onChange,
+}: {
+	value: MoneySection;
+	onChange: (next: MoneySection) => void;
+}) {
+	const { colors, isDark } = useAppTheme();
+	const options: { value: MoneySection; label: string; caption: string; icon: typeof Wallet }[] = [
+		{ value: 'collect', label: 'Collect', caption: 'Who owes now', icon: Wallet },
+		{ value: 'expenses', label: 'Expenses', caption: 'Money out + receipts', icon: TrendingDown },
+	];
+
+	return (
+		<View style={[styles.moneySegmentWrap, { backgroundColor: colors.bg }]}>
+			<View style={[styles.moneySegmentBar, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+				{options.map((option) => {
+					const active = value === option.value;
+					const SegmentIcon = option.icon;
+
+					return (
+						<TouchableOpacity
+							key={option.value}
+							activeOpacity={0.82}
+							onPress={() => onChange(option.value)}
+							style={[
+								styles.moneySegment,
+								active && {
+									backgroundColor: option.value === 'collect'
+										? isDark ? 'rgba(46, 204, 113, 0.18)' : 'rgba(46, 204, 113, 0.12)'
+										: isDark ? 'rgba(231, 76, 60, 0.17)' : 'rgba(231, 76, 60, 0.10)',
+									borderColor: colors.primary + '33',
+								},
+							]}
+						>
+							<View style={styles.moneySegmentTopRow}>
+								<View
+									style={[
+										styles.moneySegmentIcon,
+										{
+											backgroundColor: active
+												? option.value === 'collect' ? colors.success + '18' : colors.danger + '14'
+												: colors.surface,
+											borderColor: active
+												? option.value === 'collect' ? colors.success + '35' : colors.danger + '28'
+												: colors.border,
+										},
+									]}
+								>
+									<SegmentIcon
+										size={15}
+										color={active ? option.value === 'collect' ? colors.success : colors.danger : colors.textMuted}
+										strokeWidth={2.4}
+									/>
+								</View>
+								<Text style={[styles.moneySegmentLabel, { color: active ? colors.textPrimary : colors.textSecondary }]}>
+									{option.label}
+								</Text>
+							</View>
+							<Text style={[styles.moneySegmentCaption, { color: active ? colors.textSecondary : colors.textMuted }]}>
+								{option.caption}
+							</Text>
+						</TouchableOpacity>
+					);
+				})}
+			</View>
+		</View>
+	);
+}
+
+function FinanceExpensesView({
+	active,
+	onActionsChange,
+}: {
+	active: boolean;
+	onActionsChange: (actions: ReactNode) => void;
+}) {
+	const { colors } = useAppTheme();
+	const { confirm } = useConfirmDialog();
 	const {
 		ready,
 		customers: allCustomers,
 		payments: cachedPayments,
 		expenses: cachedExpenses,
+		orders: cachedOrders,
 		queuedReceipts,
 		syncBusy,
 		runSync,
@@ -112,6 +230,14 @@ export default function FinanceScreen() {
 	const expenses = useMemo(
 		() => cachedExpenses.filter((expense) => expense.monthTag === currentMonthTag) as ExpenseEntry[],
 		[cachedExpenses, currentMonthTag]
+	);
+	const monthOrders = useMemo(
+		() => cachedOrders.filter((order) => order.monthTag === currentMonthTag && order.fulfillmentStatus !== 'cancelled'),
+		[cachedOrders, currentMonthTag]
+	);
+	const paidMonthOrders = useMemo(
+		() => monthOrders.filter((order) => (order.paidAmount || 0) > 0),
+		[monthOrders]
 	);
 
 	useEffect(() => {
@@ -182,30 +308,39 @@ export default function FinanceScreen() {
 		setTimeout(() => setScannerOpen(true), 350);
 	}, []);
 
-	useFocusEffect(
+	useEffect(() => {
+		if (!active) {
+			onActionsChange(null);
+			return;
+		}
+
+		onActionsChange(
+			<View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+				<ScreenHeaderActionButton
+					icon={FilePlus}
+					onPress={handleOpenManualEntry}
+					accessibilityLabel="Manual entry"
+					variant="default"
+				/>
+				<ScreenHeaderActionButton
+					icon={ReceiptText}
+					onPress={handleOpenScanner}
+					accessibilityLabel="Scan receipt"
+					variant={scannerEnabled ? 'primary' : 'default'}
+				/>
+			</View>
+		);
+	}, [active, handleOpenManualEntry, handleOpenScanner, onActionsChange, scannerEnabled]);
+
+	usePagerFocusEffect(
+		'finance',
 		useCallback(() => {
-			setHeaderConfig({
-				title: 'Finance Panel',
-				subtitle: `${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })} Summary`,
-				rightAction: (
-					<View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-						<ScreenHeaderActionButton
-							icon={FilePlus}
-							onPress={handleOpenManualEntry}
-							accessibilityLabel="Manual entry"
-							variant="default"
-						/>
-						<ScreenHeaderActionButton
-							icon={ReceiptText}
-							onPress={handleOpenScanner}
-							accessibilityLabel="Scan receipt"
-							variant={scannerEnabled ? 'primary' : 'default'}
-						/>
-					</View>
-				),
-			});
+			if (!active) {
+				return;
+			}
+
 			void runSync(true);
-		}, [handleOpenManualEntry, handleOpenScanner, runSync, scannerEnabled, setHeaderConfig])
+		}, [active, runSync])
 	);
 
 	const transactions = rawTransactions.map((transaction) => ({
@@ -217,7 +352,9 @@ export default function FinanceScreen() {
 		(entry) => entry.monthTag === currentMonthTag && entry.status !== 'synced'
 	);
 
-	const revenue = transactions.reduce((sum, transaction) => sum + (transaction.amount || 0), 0);
+	const subscriptionRevenue = transactions.reduce((sum, transaction) => sum + (transaction.amount || 0), 0);
+	const orderRevenue = monthOrders.reduce((sum, order) => sum + (order.paidAmount || 0), 0);
+	const revenue = subscriptionRevenue + orderRevenue;
 	const syncedExpenseTotal = expenses.reduce((sum, expense) => sum + (expense.total || 0), 0);
 	const queuedExpenseTotal = visibleQueuedReceipts.reduce((sum, expense) => sum + (expense.total || 0), 0);
 	const cost = syncedExpenseTotal + queuedExpenseTotal;
@@ -490,10 +627,57 @@ export default function FinanceScreen() {
 	}
 
 	return (
-		<Screen scrollable={false} maxContentWidth={maxContentWidth}>
+		<Screen
+			scrollable={false}
+			maxContentWidth={maxContentWidth}
+			atmosphere={{
+				ambientEnergy: 'ember',
+				intensity: 'subtle',
+				warmLighting: true,
+			}}
+		>
 			<ScrollView contentContainerStyle={[styles.scrollContent, { paddingHorizontal: contentPadding }]}>
+				<AnimatedReanimated.View entering={FadeInUp.duration(170).delay(20)}>
+				<Card style={[styles.expenseIntroCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.danger + '24' }]}>
+					<View pointerEvents="none" style={[styles.expenseIntroAccent, { backgroundColor: colors.danger }]} />
+					<View style={styles.expenseIntroCopy}>
+						<Text style={[styles.expenseIntroEyebrow, { color: colors.textMuted }]}>Expenses</Text>
+						<Text style={[styles.expenseIntroTitle, { color: colors.textPrimary }]}>
+							Control money going out
+						</Text>
+						<Text style={[styles.expenseIntroSubtitle, { color: colors.textSecondary }]}>
+							Log kitchen purchases, delivery costs, and receipt scans before they blur into memory.
+						</Text>
+					</View>
+					<View style={styles.expenseIntroActions}>
+						<Button
+							title="Manual"
+							iconLeft={FilePlus}
+							size="sm"
+							variant="secondary"
+							onPress={handleOpenManualEntry}
+							style={styles.expenseIntroButton}
+						/>
+						<Button
+							title="Scan"
+							iconLeft={ReceiptText}
+							size="sm"
+							onPress={handleOpenScanner}
+							style={styles.expenseIntroButton}
+						/>
+					</View>
+				</Card>
+				</AnimatedReanimated.View>
+
 				<View style={styles.metricsGrid}>
-					<FinanceMetric icon={Wallet} label="Revenue" value={revenue} projected={projected} color={colors.primary} />
+					<FinanceMetric
+						icon={Wallet}
+						label="Revenue"
+						value={revenue}
+						projected={projected}
+						helper={orderRevenue > 0 ? `${formatAmount(orderRevenue)} from one-time orders` : undefined}
+						color={colors.primary}
+					/>
 					<FinanceMetric
 						icon={TrendingDown}
 						label="Expenses"
@@ -503,10 +687,13 @@ export default function FinanceScreen() {
 					/>
 				</View>
 
-				<Card style={[styles.netCard, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+				<Card style={[styles.netCard, { backgroundColor: net >= 0 ? colors.success + '0F' : colors.danger + '0E', borderColor: net >= 0 ? colors.success + '24' : colors.danger + '24' }]}>
 					<View style={styles.netHeader}>
 						<TrendingUp size={18} color={net >= 0 ? colors.success : colors.danger} />
-						<Text style={[styles.netLabel, { color: colors.textSecondary }]}>Net Profit</Text>
+						<View style={styles.netCopy}>
+							<Text style={[styles.netLabel, { color: colors.textSecondary }]}>Net position</Text>
+							<Text style={[styles.netHelper, { color: colors.textMuted }]}>Revenue minus recorded expenses</Text>
+						</View>
 						{visibleQueuedReceipts.length > 0 ? (
 							<Badge label={`${visibleQueuedReceipts.length} pending sync`} variant="warning" />
 						) : null}
@@ -516,10 +703,50 @@ export default function FinanceScreen() {
 					</Text>
 				</Card>
 
+				<View style={styles.section}>
+					<View style={styles.sectionCopy}>
+						<Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>One-time order income</Text>
+						<Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>
+							Extra orders collected this month, separate from monthly subscriptions.
+						</Text>
+					</View>
+					{paidMonthOrders.length === 0 ? (
+						<View style={styles.emptyCard}>
+							<Text style={{ color: colors.textMuted }}>No one-time order income this month</Text>
+						</View>
+					) : (
+						paidMonthOrders.slice(0, 5).map((order) => (
+							<Card key={order.id} style={[styles.paymentCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+								<View style={styles.iconBox}>
+									<ShoppingBag size={18} color={colors.success} />
+								</View>
+								<View style={styles.cardCopy}>
+									<Text style={[styles.primaryText, { color: colors.textPrimary }]} numberOfLines={1}>
+										{order.customerName}
+									</Text>
+									<Text style={[styles.secondaryText, { color: colors.textMuted }]}>
+										{formatReceiptDate(order.orderDate)} • {order.fulfillmentStatus}
+									</Text>
+								</View>
+								<View style={styles.amountBlock}>
+									<Text style={[styles.amountText, { color: colors.success }]}>{formatAmount(order.paidAmount || 0)}</Text>
+									<Badge
+										label={order.paymentStatus}
+										variant={order.paymentStatus === 'paid' ? 'success' : order.paymentStatus === 'partial' ? 'warning' : 'danger'}
+									/>
+								</View>
+							</Card>
+						))
+					)}
+				</View>
+
 				{visibleQueuedReceipts.length > 0 ? (
 					<View style={styles.section}>
 						<View style={styles.sectionHeader}>
-							<Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Pending Receipt Queue</Text>
+							<View style={styles.sectionCopy}>
+								<Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Pending receipt queue</Text>
+								<Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>Saved locally until Firestore confirms the upload.</Text>
+							</View>
 							<Button
 								title="Sync Now"
 								iconLeft={RefreshCw}
@@ -570,7 +797,10 @@ export default function FinanceScreen() {
 				) : null}
 
 				<View style={styles.section}>
-					<Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Expense Deductions</Text>
+					<View style={styles.sectionCopy}>
+						<Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Expense records</Text>
+						<Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>Synced purchases and costs deducted from this month.</Text>
+					</View>
 					{expenses.length === 0 ? (
 						<View style={styles.emptyCard}>
 							<Text style={{ color: colors.textMuted }}>No synced expenses recorded this month</Text>
@@ -619,7 +849,10 @@ export default function FinanceScreen() {
 				</View>
 
 				<View style={styles.section}>
-					<Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Recent Payments</Text>
+					<View style={styles.sectionCopy}>
+						<Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>Collection records</Text>
+						<Text style={[styles.sectionSubtitle, { color: colors.textSecondary }]}>Payments already collected this month for comparison.</Text>
+					</View>
 					{transactions.map((transaction) => (
 						<Card
 							key={transaction.id}
@@ -1076,6 +1309,60 @@ function getReceiptDraftWarnings(draft: ReceiptExpenseDraft) {
 }
 
 const styles = StyleSheet.create({
+	moneyShell: {
+		flex: 1,
+	},
+	moneyPane: {
+		flex: 1,
+	},
+	moneySegmentWrap: {
+		paddingHorizontal: Theme.spacing.screen,
+		paddingTop: Theme.spacing.sm,
+		paddingBottom: Theme.spacing.sm,
+	},
+	moneySegmentBar: {
+		flexDirection: 'row',
+		gap: Theme.spacing.xs,
+		borderWidth: 1,
+		borderRadius: 26,
+		padding: 5,
+		maxWidth: 720,
+		width: '100%',
+		alignSelf: 'center',
+	},
+	moneySegment: {
+		flex: 1,
+		borderWidth: 1,
+		borderColor: 'transparent',
+		borderRadius: 21,
+		paddingVertical: 11,
+		paddingHorizontal: Theme.spacing.md,
+	},
+	moneySegmentTopRow: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		justifyContent: 'center',
+		gap: Theme.spacing.sm,
+	},
+	moneySegmentIcon: {
+		width: 27,
+		height: 27,
+		borderRadius: 10,
+		borderWidth: 1,
+		alignItems: 'center',
+		justifyContent: 'center',
+	},
+	moneySegmentLabel: {
+		...Theme.typography.labelMedium,
+		fontWeight: '900',
+		textAlign: 'center',
+	},
+	moneySegmentCaption: {
+		...Theme.typography.detail,
+		fontSize: 11,
+		textAlign: 'center',
+		marginTop: 2,
+	},
 	centered: {
 		flex: 1,
 		alignItems: 'center',
@@ -1084,6 +1371,45 @@ const styles = StyleSheet.create({
 	scrollContent: {
 		paddingVertical: Theme.spacing.xl,
 		paddingBottom: 120,
+	},
+	expenseIntroCard: {
+		borderWidth: 1,
+		borderRadius: 24,
+		padding: Theme.spacing.lg,
+		marginBottom: Theme.spacing.md,
+		gap: Theme.spacing.md,
+		overflow: 'hidden',
+	},
+	expenseIntroAccent: {
+		position: 'absolute',
+		left: 0,
+		top: 0,
+		bottom: 0,
+		width: 5,
+	},
+	expenseIntroCopy: {
+		gap: 5,
+	},
+	expenseIntroEyebrow: {
+		...Theme.typography.detailBold,
+		textTransform: 'uppercase',
+		letterSpacing: 0.6,
+	},
+	expenseIntroTitle: {
+		...Theme.typography.labelMedium,
+		fontWeight: '900',
+	},
+	expenseIntroSubtitle: {
+		...Theme.typography.detail,
+		fontSize: 13,
+		lineHeight: 19,
+	},
+	expenseIntroActions: {
+		flexDirection: 'row',
+		gap: Theme.spacing.sm,
+	},
+	expenseIntroButton: {
+		flex: 1,
 	},
 	metricsGrid: {
 		flexDirection: 'row',
@@ -1127,15 +1453,24 @@ const styles = StyleSheet.create({
 	},
 	netHeader: {
 		flexDirection: 'row',
-		alignItems: 'center',
+		alignItems: 'flex-start',
 		gap: Theme.spacing.sm,
 		flexWrap: 'wrap',
 		marginBottom: Theme.spacing.sm,
+	},
+	netCopy: {
+		flex: 1,
+		minWidth: 0,
 	},
 	netLabel: {
 		fontWeight: '700',
 		fontSize: 13,
 		textTransform: 'uppercase',
+	},
+	netHelper: {
+		fontSize: 11,
+		fontWeight: '600',
+		marginTop: 3,
 	},
 	netValue: {
 		fontSize: 32,
@@ -1151,10 +1486,18 @@ const styles = StyleSheet.create({
 		gap: Theme.spacing.md,
 		marginBottom: Theme.spacing.md,
 	},
+	sectionCopy: {
+		gap: 4,
+		marginBottom: Theme.spacing.md,
+	},
 	sectionTitle: {
 		fontSize: 16,
 		fontWeight: '800',
-		marginBottom: Theme.spacing.md,
+	},
+	sectionSubtitle: {
+		fontSize: 12,
+		fontWeight: '600',
+		lineHeight: 17,
 	},
 	infoCard: {
 		padding: Theme.spacing.lg,

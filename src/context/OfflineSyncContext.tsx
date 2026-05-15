@@ -39,21 +39,25 @@ import {
 	loadOfflineSnapshot,
 	markCustomerDeleted,
 	markExpenseDeleted,
+	markOrderDeleted,
 	markPaymentDeleted,
 	saveLocalAttendanceBatch,
 	saveLocalCustomer,
 	saveLocalMenu,
+	saveLocalOrder,
 	saveLocalPayment,
 	syncRemoteAttendanceDate,
 	syncRemoteCustomers,
 	syncRemoteExpenses,
 	syncRemoteMenu,
+	syncRemoteOrders,
 	syncRemotePayments,
 } from '../offline/localStore';
 import type {
 	AttendanceEntry,
 	Customer,
 	ExpenseEntry,
+	OneTimeOrder,
 	PaymentEntry,
 	QueuePreviewItem,
 	SyncQueueOperation,
@@ -67,12 +71,25 @@ type PaymentRecordInput = {
 	currentEndDate: unknown;
 };
 
+type OneTimeOrderInput = {
+	customerId?: string | null;
+	customerName: string;
+	phone?: string;
+	orderDate: string;
+	mealSlot: OneTimeOrder['mealSlot'];
+	items: OneTimeOrder['items'];
+	paidAmount: number;
+	fulfillmentStatus?: OneTimeOrder['fulfillmentStatus'];
+	notes?: string;
+};
+
 type OfflineSyncContextValue = {
 	ready: boolean;
 	syncBusy: boolean;
 	customers: Customer[];
 	payments: PaymentEntry[];
 	expenses: ExpenseEntry[];
+	orders: OneTimeOrder[];
 	menuByDate: Record<string, DayMenu>;
 	attendanceByDate: Record<string, AttendanceEntry[]>;
 	queuedReceipts: QueuedReceiptExpense[];
@@ -88,6 +105,9 @@ type OfflineSyncContextValue = {
 	deletePayment: (paymentId: string, customerName?: string) => Promise<void>;
 	deleteExpense: (expenseId: string, expenseTitle?: string) => Promise<void>;
 	updateExpense: (expense: ExpenseEntry) => Promise<void>;
+	createOneTimeOrder: (input: OneTimeOrderInput) => Promise<void>;
+	updateOneTimeOrder: (order: OneTimeOrder) => Promise<void>;
+	deleteOneTimeOrder: (orderId: string, orderTitle?: string) => Promise<void>;
 	deleteQueuedReceipt: (localId: string) => Promise<void>;
 };
 
@@ -97,6 +117,7 @@ type OfflineState = {
 	customers: Customer[];
 	payments: PaymentEntry[];
 	expenses: ExpenseEntry[];
+	orders: OneTimeOrder[];
 	menuByDate: Record<string, DayMenu>;
 	attendanceByDate: Record<string, AttendanceEntry[]>;
 	queueOperations: SyncQueueOperation[];
@@ -108,6 +129,7 @@ const EMPTY_STATE: OfflineState = {
 	customers: [],
 	payments: [],
 	expenses: [],
+	orders: [],
 	menuByDate: {},
 	attendanceByDate: {},
 	queueOperations: [],
@@ -138,6 +160,7 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
 			customers: snapshot.customers,
 			payments: snapshot.payments,
 			expenses: snapshot.expenses,
+			orders: snapshot.orders,
 			menuByDate: snapshot.menuByDate,
 			attendanceByDate: snapshot.attendanceByDate,
 			queueOperations: snapshot.queueOperations,
@@ -230,6 +253,19 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
 					paymentMethod: payload.expense.paymentMethod || '',
 					receiptDate: payload.expense.receiptDate || '',
 				}, { merge: true });
+				return;
+			}
+			case 'order_upsert': {
+				const payload = operation.payload as { order: OneTimeOrder };
+				await setDoc(
+					doc(db, 'orders', operation.entityId),
+					mapOrderForFirestore(payload.order),
+					{ merge: true }
+				);
+				return;
+			}
+			case 'order_delete': {
+				await deleteDoc(doc(db, 'orders', operation.entityId));
 				return;
 			}
 			default:
@@ -351,6 +387,21 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
 			}
 		);
 
+		const unsubscribeOrders = onSnapshot(
+			collection(db, 'orders'),
+			async (snapshot) => {
+				const nextOrders = snapshot.docs.map((entry) => ({
+					id: entry.id,
+					...entry.data(),
+				} as OneTimeOrder));
+				await syncRemoteOrders(nextOrders);
+				await refreshOfflineState();
+			},
+			(error) => {
+				console.error('Remote order sync failed:', error);
+			}
+		);
+
 		const unsubscribeMenus = weekDates.map((date) =>
 			onSnapshot(
 				doc(db, 'menu', date),
@@ -388,6 +439,7 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
 			unsubscribeCustomers();
 			unsubscribePayments();
 			unsubscribeExpenses();
+			unsubscribeOrders();
 			unsubscribeMenus.forEach((unsubscribe) => unsubscribe());
 			unsubscribeAttendance.forEach((unsubscribe) => unsubscribe());
 		};
@@ -605,6 +657,117 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
 		void runSync(true);
 	}, [refreshOfflineState, runSync]);
 
+	const saveOneTimeOrderToQueue = useCallback(async (
+		order: OneTimeOrder,
+		title?: string,
+		subtitle?: string
+	) => {
+		await saveLocalOrder(order);
+		await enqueueSyncOperation({
+			id: createLocalId('queue-order-upsert', localCounterRef),
+			entityType: 'order',
+			entityId: order.id,
+			kind: 'order_upsert',
+			title: title ?? `Save order for ${order.customerName}`,
+			subtitle: subtitle ?? 'One-time order saved locally and queued for sync',
+			payload: { order },
+			status: 'pending',
+			attempts: 0,
+			error: '',
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
+		});
+		await refreshOfflineState();
+		void runSync(true);
+	}, [refreshOfflineState, runSync]);
+
+	const createOneTimeOrder = useCallback(async (input: OneTimeOrderInput) => {
+		const now = new Date().toISOString();
+		const items = normalizeOrderItems(input.items);
+		if (items.length === 0) {
+			throw new Error('Add at least one order item.');
+		}
+
+		const total = getOrderTotal(items);
+		const paidAmount = clampPaidAmount(input.paidAmount, total);
+		const customerName = input.customerName.trim();
+		if (!customerName) {
+			throw new Error('Customer name is required.');
+		}
+
+		const order: OneTimeOrder = {
+			id: createLocalId('order', localCounterRef),
+			customerId: input.customerId ?? null,
+			customerName,
+			phone: input.phone?.trim() || '',
+			orderDate: input.orderDate,
+			mealSlot: input.mealSlot,
+			items,
+			total,
+			paidAmount,
+			paymentStatus: getOrderPaymentStatus(total, paidAmount),
+			fulfillmentStatus: input.fulfillmentStatus ?? 'pending',
+			notes: input.notes?.trim() || '',
+			monthTag: input.orderDate.slice(0, 7),
+			createdAt: now,
+			updatedAt: now,
+		};
+
+		await saveOneTimeOrderToQueue(
+			order,
+			`Add order for ${order.customerName}`,
+			`${formatOrderQueueAmount(order.total)} one-time order saved locally`
+		);
+	}, [saveOneTimeOrderToQueue]);
+
+	const updateOneTimeOrder = useCallback(async (order: OneTimeOrder) => {
+		const items = normalizeOrderItems(order.items);
+		if (items.length === 0) {
+			throw new Error('Order must keep at least one item.');
+		}
+
+		const total = getOrderTotal(items);
+		const paidAmount = clampPaidAmount(order.paidAmount, total);
+		const nextOrder: OneTimeOrder = {
+			...order,
+			customerName: order.customerName.trim(),
+			phone: order.phone?.trim() || '',
+			items,
+			total,
+			paidAmount,
+			paymentStatus: getOrderPaymentStatus(total, paidAmount),
+			notes: order.notes?.trim() || '',
+			monthTag: order.orderDate.slice(0, 7),
+			updatedAt: new Date().toISOString(),
+		};
+
+		await saveOneTimeOrderToQueue(
+			nextOrder,
+			`Update order for ${nextOrder.customerName}`,
+			'One-time order update queued for sync'
+		);
+	}, [saveOneTimeOrderToQueue]);
+
+	const deleteOneTimeOrder = useCallback(async (orderId: string, orderTitle?: string) => {
+		await markOrderDeleted(orderId);
+		await enqueueSyncOperation({
+			id: createLocalId('queue-order-delete', localCounterRef),
+			entityType: 'order',
+			entityId: orderId,
+			kind: 'order_delete',
+			title: orderTitle ? `Delete ${orderTitle}` : 'Delete one-time order',
+			subtitle: 'Order removed locally and queued for Firestore deletion',
+			payload: { orderId },
+			status: 'pending',
+			attempts: 0,
+			error: '',
+			createdAt: new Date().toISOString(),
+			updatedAt: new Date().toISOString(),
+		});
+		await refreshOfflineState();
+		void runSync(true);
+	}, [refreshOfflineState, runSync]);
+
 	const deleteQueuedReceipt = useCallback(async (localId: string) => {
 		await deleteQueuedReceiptExpense(localId);
 		await refreshOfflineState();
@@ -648,6 +811,7 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
 		customers: state.customers,
 		payments: state.payments,
 		expenses: state.expenses,
+		orders: state.orders,
 		menuByDate: state.menuByDate,
 		attendanceByDate: state.attendanceByDate,
 		queuedReceipts: state.queuedReceipts,
@@ -663,11 +827,16 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
 		deletePayment,
 		deleteExpense,
 		updateExpense,
+		createOneTimeOrder,
+		updateOneTimeOrder,
+		deleteOneTimeOrder,
 		deleteQueuedReceipt,
 	}), [
 		addCustomer,
+		createOneTimeOrder,
 		deleteCustomer,
 		deleteExpense,
+		deleteOneTimeOrder,
 		deletePayment,
 		deleteQueuedReceipt,
 		queueItems,
@@ -681,11 +850,13 @@ export function OfflineSyncProvider({ children }: { children: ReactNode }) {
 		state.customers,
 		state.expenses,
 		state.menuByDate,
+		state.orders,
 		state.payments,
 		state.pendingQueueCount,
 		state.queuedReceipts,
 		syncBusy,
 		updateExpense,
+		updateOneTimeOrder,
 	]);
 
 	return (
@@ -726,6 +897,69 @@ function mapPaymentForFirestore(payment: PaymentEntry) {
 		method: payment.method || 'cash',
 		monthTag: payment.monthTag,
 	};
+}
+
+function mapOrderForFirestore(order: OneTimeOrder) {
+	return {
+		id: order.id,
+		customerId: order.customerId ?? null,
+		customerName: order.customerName,
+		phone: order.phone || '',
+		orderDate: order.orderDate,
+		mealSlot: order.mealSlot,
+		items: order.items,
+		total: order.total,
+		paidAmount: order.paidAmount,
+		paymentStatus: order.paymentStatus,
+		fulfillmentStatus: order.fulfillmentStatus,
+		notes: order.notes || '',
+		monthTag: order.monthTag,
+		createdAt: order.createdAt,
+		updatedAt: order.updatedAt,
+	};
+}
+
+function normalizeOrderItems(items: OneTimeOrder['items']) {
+	return items
+		.map((item, index) => ({
+			id: item.id || `item-${index + 1}`,
+			name: item.name.trim(),
+			quantity: normalizePositiveNumber(item.quantity),
+			price: normalizeMoney(item.price),
+		}))
+		.filter((item) => item.name.length > 0 && item.quantity > 0 && item.price > 0);
+}
+
+function getOrderTotal(items: OneTimeOrder['items']) {
+	return normalizeMoney(items.reduce((sum, item) => sum + item.quantity * item.price, 0));
+}
+
+function clampPaidAmount(value: number, total: number) {
+	return Math.min(normalizeMoney(value), total);
+}
+
+function normalizePositiveNumber(value: number) {
+	if (!Number.isFinite(value)) {
+		return 0;
+	}
+
+	return Math.max(0, Math.round(value * 100) / 100);
+}
+
+function normalizeMoney(value: number) {
+	return normalizePositiveNumber(value);
+}
+
+function getOrderPaymentStatus(total: number, paidAmount: number): OneTimeOrder['paymentStatus'] {
+	if (paidAmount <= 0) {
+		return 'unpaid';
+	}
+
+	return paidAmount >= total ? 'paid' : 'partial';
+}
+
+function formatOrderQueueAmount(value: number) {
+	return `DHS ${Number.isInteger(value) ? value : value.toFixed(2)}`;
 }
 
 function getSyncErrorMessage(error: unknown) {

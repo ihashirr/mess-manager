@@ -88,6 +88,8 @@ export const Screen: React.FC<ScreenProps> = ({
 						intensity="subtle"
 						spiceGrain={false}
 						desiPattern={false}
+						warmLighting
+						ambientMotion
 						saffronGlow
 						{...atmosphereProps}
 					>

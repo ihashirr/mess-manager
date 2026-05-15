@@ -2,6 +2,13 @@ import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { Sun, Moon, LucideIcon } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AnimatedReanimated, {
+	FadeIn,
+	FadeOut,
+	interpolate,
+	SharedValue,
+	useAnimatedStyle,
+} from 'react-native-reanimated';
 import { useAppTheme } from '../../context/ThemeModeContext';
 import { useResponsiveLayout } from '../../hooks';
 
@@ -13,6 +20,9 @@ interface ScreenHeaderProps {
 	style?: ViewStyle;
 	edgeToEdge?: boolean;
 	gutter?: number;
+	pagerProgress?: SharedValue<number>;
+	activeIndex?: number;
+	pageCount?: number;
 }
 
 export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
@@ -23,6 +33,9 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
 	style,
 	edgeToEdge = true,
 	gutter,
+	pagerProgress,
+	activeIndex = 0,
+	pageCount = 0,
 }) => {
 	const insets = useSafeAreaInsets();
 	const { colors, isDark, toggleTheme } = useAppTheme();
@@ -42,6 +55,8 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
 	const avatarGlow = isDark ? 'rgba(255, 138, 76, 0.10)' : 'rgba(255, 255, 255, 0.52)';
 	const secondaryBg = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(255, 255, 255, 0.78)';
 	const secondaryBorder = isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(42, 30, 19, 0.07)';
+	const headerContentKey = `${title}-${subtitle ?? ''}`;
+	const actionContentKey = `${title}-${rightAction ? 'actions' : 'no-actions'}`;
 
 	return (
 		<View
@@ -84,7 +99,12 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
 							/>
 						</View>
 
-						<View style={styles.textContainer}>
+						<AnimatedReanimated.View
+							key={headerContentKey}
+							entering={FadeIn.duration(150)}
+							exiting={FadeOut.duration(100)}
+							style={styles.textContainer}
+						>
 							<Text
 								style={[
 									styles.brandTitle,
@@ -103,7 +123,16 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
 							>
 								{subtitle || title}
 							</Text>
-						</View>
+							{pagerProgress && pageCount > 1 ? (
+								<HeaderPageRail
+									activeIndex={activeIndex}
+									count={pageCount}
+									progress={pagerProgress}
+									activeColor={colors.primary}
+									trackColor={isDark ? 'rgba(255, 255, 255, 0.10)' : 'rgba(42, 30, 19, 0.10)'}
+								/>
+							) : null}
+						</AnimatedReanimated.View>
 					</View>
 
 					{/* ─── Actions ─── */}
@@ -114,9 +143,14 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
 							</View>
 						) : null}
 						{rightAction ? (
-							<View style={[styles.actionSlot, { minWidth: actionSize, height: actionSize }]}>
+							<AnimatedReanimated.View
+								key={actionContentKey}
+								entering={FadeIn.duration(150)}
+								exiting={FadeOut.duration(90)}
+								style={[styles.actionSlot, { minWidth: actionSize, height: actionSize }]}
+							>
 								{rightAction}
-							</View>
+							</AnimatedReanimated.View>
 						) : null}
 						<Pressable
 							onPress={toggleTheme}
@@ -147,6 +181,79 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
 		</View>
 	);
 };
+
+function HeaderPageRail({
+	activeIndex,
+	count,
+	progress,
+	activeColor,
+	trackColor,
+}: {
+	activeIndex: number;
+	count: number;
+	progress: SharedValue<number>;
+	activeColor: string;
+	trackColor: string;
+}) {
+	return (
+		<View style={styles.pageRail} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+			{Array.from({ length: count }).map((_, index) => (
+				<HeaderPageRailSegment
+					key={index}
+					index={index}
+					activeIndex={activeIndex}
+					progress={progress}
+					activeColor={activeColor}
+					trackColor={trackColor}
+				/>
+			))}
+		</View>
+	);
+}
+
+function HeaderPageRailSegment({
+	index,
+	activeIndex,
+	progress,
+	activeColor,
+	trackColor,
+}: {
+	index: number;
+	activeIndex: number;
+	progress: SharedValue<number>;
+	activeColor: string;
+	trackColor: string;
+}) {
+	const animatedStyle = useAnimatedStyle(() => {
+		const distance = Math.abs(progress.value - index);
+		return {
+			opacity: interpolate(distance, [0, 1], [1, 0.36], 'clamp'),
+			transform: [
+				{
+					scaleX: interpolate(distance, [0, 1], [1, 0.72], 'clamp'),
+				},
+			],
+		};
+	});
+
+	return (
+		<View
+			style={[
+				styles.pageRailSegmentTrack,
+				{ backgroundColor: trackColor },
+				activeIndex === index && styles.pageRailSegmentTrackActive,
+			]}
+		>
+			<AnimatedReanimated.View
+				style={[
+					styles.pageRailSegmentFill,
+					{ backgroundColor: activeColor },
+					animatedStyle,
+				]}
+			/>
+		</View>
+	);
+}
 
 interface ScreenHeaderActionButtonProps {
 	icon: LucideIcon;
@@ -278,7 +385,7 @@ const styles = StyleSheet.create({
 	textContainer: {
 		flex: 1,
 		minWidth: 0,
-		gap: 2,
+		gap: 3,
 	},
 	brandTitle: {
 		fontWeight: '800',
@@ -288,6 +395,27 @@ const styles = StyleSheet.create({
 		fontWeight: '600',
 		letterSpacing: 0,
 		opacity: 0.64,
+	},
+	pageRail: {
+		flexDirection: 'row',
+		alignItems: 'center',
+		gap: 4,
+		marginTop: 5,
+		width: 86,
+	},
+	pageRailSegmentTrack: {
+		flex: 1,
+		height: 3,
+		borderRadius: 999,
+		overflow: 'hidden',
+	},
+	pageRailSegmentTrackActive: {
+		flex: 1.35,
+	},
+	pageRailSegmentFill: {
+		width: '100%',
+		height: '100%',
+		borderRadius: 999,
 	},
 
 	// ── Actions ─────────────────────────────────────────────────

@@ -1,6 +1,5 @@
 import { ActivityIndicator, Animated, FlatList, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import { useFocusEffect } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { BarChart3, Search, SlidersHorizontal, UserPlus, X, MoreVertical } from 'lucide-react-native';
 import AnimatedReanimated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
@@ -24,6 +23,7 @@ import { type Customer, type CustomerFormValues } from '../types';
 import { Theme } from '../constants/Theme';
 import { useAppHeader } from '../context/HeaderContext';
 import { useOfflineSync } from '../context/OfflineSyncContext';
+import { usePagerFocusEffect } from '../context/PagerFocusContext';
 import { useAppTheme } from '../context/ThemeModeContext';
 import { useOperationalSheetController, useResponsiveLayout } from '../hooks';
 import { getDaysLeft, getDueAmount, toDate } from '../utils/customerLogic';
@@ -261,7 +261,8 @@ export default function CustomersScreen() {
 		showToast({ type: 'error', title, message });
 	};
 
-	useFocusEffect(
+	usePagerFocusEffect(
+		'customers',
 		useCallback(() => {
 			setHeaderConfig({
 				title: 'Customers',
