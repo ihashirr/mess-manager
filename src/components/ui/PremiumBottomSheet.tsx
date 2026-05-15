@@ -11,10 +11,12 @@ import { BlurView } from 'expo-blur';
 import { X } from 'lucide-react-native';
 import {
   BottomSheetBackdrop,
+  BottomSheetFooter,
   BottomSheetModal,
   BottomSheetScrollView,
   BottomSheetView,
   type BottomSheetBackdropProps,
+  type BottomSheetFooterProps,
   useBottomSheetSpringConfigs,
 } from '@gorhom/bottom-sheet';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,6 +32,7 @@ export interface PremiumBottomSheetHandle {
 export type SheetPolicy = 'passive' | 'operational' | 'critical';
 type SheetKeyboardBehavior = 'extend' | 'fillParent' | 'interactive';
 type SheetAndroidKeyboardInputMode = 'adjustPan' | 'adjustResize';
+type SheetActiveOffsetY = [number, number];
 
 export type PremiumBottomSheetProps = {
   snapPoints?: string[];
@@ -44,6 +47,9 @@ export type PremiumBottomSheetProps = {
   contentPanningGestureEnabled?: boolean;
   keyboardBehavior?: SheetKeyboardBehavior;
   androidKeyboardInputMode?: SheetAndroidKeyboardInputMode;
+  activeOffsetY?: SheetActiveOffsetY;
+  footer?: React.ReactNode;
+  footerHeight?: number;
 };
 
 const SHEET_POLICY_CONFIG = {
@@ -78,6 +84,9 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
     contentPanningGestureEnabled,
     keyboardBehavior = 'interactive',
     androidKeyboardInputMode = 'adjustPan',
+    activeOffsetY = [-5, 5],
+    footer,
+    footerHeight = 96,
   }, ref) => {
     const { colors, isDark } = useAppTheme();
     const insets = useSafeAreaInsets();
@@ -91,6 +100,7 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
     const hasDismissGuard = Boolean(beforeDismiss);
     const enableContentPanningGesture = contentPanningGestureEnabled ?? policyConfig.enableContentPanningGesture;
     const enablePanDownToClose = policyConfig.enablePanDownToClose && !hasDismissGuard && (!scrollable || scrollAtTop);
+    const footerSpacerHeight = footer ? footerHeight : 0;
     const animationConfigs = useBottomSheetSpringConfigs({
       damping: 34,
       stiffness: 360,
@@ -189,6 +199,32 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
       [isDark, policyConfig.backdropPressBehavior, requestDismiss]
     );
 
+    const renderFooter = useCallback(
+      (props: BottomSheetFooterProps) => {
+        if (!footer) {
+          return null;
+        }
+
+        return (
+          <BottomSheetFooter
+            {...props}
+            bottomInset={0}
+            style={StyleSheet.flatten([
+              styles.footerWrap,
+              {
+                backgroundColor: isDark ? colors.surface : 'rgba(250, 248, 245, 0.96)',
+                borderTopColor: colors.border,
+                paddingBottom: Math.max(insets.bottom, 16),
+              },
+            ])}
+          >
+            {footer}
+          </BottomSheetFooter>
+        );
+      },
+      [colors.border, colors.surface, footer, insets.bottom, isDark]
+    );
+
     useImperativeHandle(
       ref,
       () => ({
@@ -220,7 +256,7 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
         enableHandlePanningGesture
         enableBlurKeyboardOnGesture
         overDragResistanceFactor={2}
-        activeOffsetY={[-5, 5]}
+        activeOffsetY={activeOffsetY}
         enableDismissOnClose
         animateOnMount
         keyboardBehavior={keyboardBehavior}
@@ -229,6 +265,7 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
         onChange={handleSheetChange}
         onDismiss={handleDismiss}
         backdropComponent={renderBackdrop}
+        footerComponent={footer ? renderFooter : undefined}
         animationConfigs={animationConfigs}
         handleStyle={styles.handleWrap}
         handleIndicatorStyle={[
@@ -283,7 +320,7 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
             showsVerticalScrollIndicator
             contentContainerStyle={[
               styles.scrollContent,
-              { paddingBottom: Math.max(insets.bottom + 24, 40) },
+              { paddingBottom: Math.max(insets.bottom + 24, 40) + footerSpacerHeight },
             ]}
           >
             {children}
@@ -292,7 +329,7 @@ export const PremiumBottomSheet = forwardRef<PremiumBottomSheetHandle, PremiumBo
           <BottomSheetView
             style={[
               styles.viewContent,
-              { paddingBottom: Math.max(insets.bottom + 24, 40) },
+              { paddingBottom: Math.max(insets.bottom + 24, 40) + footerSpacerHeight },
             ]}
           >
             {children}
@@ -369,5 +406,10 @@ const styles = StyleSheet.create({
   viewContent: {
     paddingHorizontal: Theme.spacing.xl,
     paddingTop: Theme.spacing.lg,
+  },
+  footerWrap: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: Theme.spacing.xl,
+    paddingTop: Theme.spacing.md,
   },
 });

@@ -248,10 +248,6 @@ export function CustomerFormModal({
 		setCalendarMonth(selectedDate ?? new Date());
 	};
 
-	const prepareFieldFocus = () => {
-		sheetRef.current?.snapToIndex(1);
-	};
-
 	const selectDate = (date: Date) => {
 		if (!activeDateField) {
 			return;
@@ -310,8 +306,32 @@ export function CustomerFormModal({
 			subtitle={customer ? "Update customer details" : "Create a new active member"}
 			snapPoints={['55%', '80%']}
 			policy="critical"
-			keyboardBehavior="extend"
+			contentPanningGestureEnabled={false}
+			activeOffsetY={[-12, 12]}
+			keyboardBehavior="interactive"
 			androidKeyboardInputMode="adjustPan"
+			footerHeight={stacked ? 156 : 96}
+			footer={
+				<View style={[styles.footer, stacked && styles.footerStacked]}>
+					<Button
+						title="Cancel"
+						variant="outline"
+						onPress={() => sheetRef.current?.dismiss()}
+						disabled={submitting}
+						fullWidth={stacked}
+						style={stacked ? styles.footerButtonStacked : styles.footerButton}
+					/>
+					<Button
+						title="Save Customer"
+						iconLeft={Save}
+						onPress={handleSubmit}
+						loading={submitting}
+						disabled={submitting}
+						fullWidth={stacked}
+						style={stacked ? styles.footerButtonStacked : styles.footerButton}
+					/>
+				</View>
+			}
 			beforeDismiss={handleBeforeDismiss}
 			onDismiss={handleDismiss}
 		>
@@ -326,7 +346,6 @@ export function CustomerFormModal({
 							onChangeText={(value) => updateField('name', value)}
 							placeholder="Customer Name"
 							error={formErrors.name}
-							onFocus={prepareFieldFocus}
 							bottomSheet
 						/>
 
@@ -336,7 +355,6 @@ export function CustomerFormModal({
 							onChangeText={(value) => updateField('phone', value)}
 							placeholder="0300-1234567"
 							keyboardType="phone-pad"
-							onFocus={prepareFieldFocus}
 							bottomSheet
 						/>
 					</View>
@@ -353,7 +371,6 @@ export function CustomerFormModal({
 									value={formValues.location}
 									onChangeText={(value) => updateField('location', value)}
 									placeholder="Building or Area"
-									onFocus={prepareFieldFocus}
 									bottomSheet
 								/>
 							</View>
@@ -363,7 +380,6 @@ export function CustomerFormModal({
 									value={formValues.flat}
 									onChangeText={(value) => updateField('flat', value)}
 									placeholder="Apt 2B"
-									onFocus={prepareFieldFocus}
 									bottomSheet
 								/>
 							</View>
@@ -376,7 +392,6 @@ export function CustomerFormModal({
 							placeholder="Paste Google Maps link"
 							autoCapitalize="none"
 							autoCorrect={false}
-							onFocus={prepareFieldFocus}
 							bottomSheet
 						/>
 						<Text style={[styles.mapHint, { color: colors.textMuted }]}>
@@ -429,7 +444,6 @@ export function CustomerFormModal({
 									onChangeText={(value) => updateField('price', value)}
 									keyboardType="numeric"
 									error={formErrors.price}
-									onFocus={prepareFieldFocus}
 									bottomSheet
 								/>
 							</View>
@@ -535,30 +549,9 @@ export function CustomerFormModal({
 							value={formValues.notes}
 							onChangeText={(value) => updateField('notes', value)}
 							placeholder="Dietary restrictions, delivery times, etc."
-							onFocus={prepareFieldFocus}
 							bottomSheet
 						/>
 					</View>
-				</View>
-
-				<View style={[styles.footer, stacked && styles.footerStacked]}>
-					<Button
-						title="Cancel"
-						variant="outline"
-						onPress={() => sheetRef.current?.dismiss()}
-						disabled={submitting}
-						fullWidth={stacked}
-						style={stacked ? styles.footerButtonStacked : styles.footerButton}
-					/>
-					<Button
-						title="Save Customer"
-						iconLeft={Save}
-						onPress={handleSubmit}
-						loading={submitting}
-						disabled={submitting}
-						fullWidth={stacked}
-						style={stacked ? styles.footerButtonStacked : styles.footerButton}
-					/>
 				</View>
 			</View>
 		</PremiumBottomSheet>
@@ -799,7 +792,6 @@ const styles = StyleSheet.create({
 	footer: {
 		flexDirection: 'row',
 		gap: Theme.spacing.md,
-		marginTop: Theme.spacing.xl,
 	},
 	footerStacked: {
 		flexDirection: 'column',
